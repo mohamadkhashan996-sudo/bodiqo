@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { formatPrice, type CatalogProduct } from "@/lib/catalog-types";
+import type { CatalogProduct } from "@/lib/catalog-types";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { Price } from "@/components/price";
 
 type ProductCardProps = {
   product: CatalogProduct;
@@ -52,13 +53,12 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
             {product.title}
           </h3>
           <div className="flex items-baseline gap-2.5 pt-1">
-            <span className="text-sm text-[#f3efe6]">
-              {formatPrice(product.price)}
-            </span>
+            <Price amount={product.price} className="text-sm text-[#f3efe6]" />
             {onSale ? (
-              <span className="text-sm text-[#f3efe6]/30 line-through">
-                {formatPrice(product.compareAt!)}
-              </span>
+              <Price
+                amount={product.compareAt!}
+                className="text-sm text-[#f3efe6]/30 line-through"
+              />
             ) : null}
           </div>
         </div>

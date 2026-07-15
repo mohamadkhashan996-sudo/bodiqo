@@ -134,6 +134,91 @@ export const backupSettingsSchema = z.object({
   lastAutoAt: z.string().default(""),
 });
 
+/** Rates = units of currency per 1 unit of rateBaseCurrency (default USD). API-ready for external FX. */
+export const localizationSettingsSchema = z.object({
+  enabledLanguages: z
+    .array(z.string())
+    .default([
+      "en",
+      "ar",
+      "he",
+      "tr",
+      "ru",
+      "zh",
+      "hi",
+      "fr",
+      "de",
+      "es",
+      "it",
+      "pt",
+      "ja",
+      "ko",
+      "nl",
+      "pl",
+      "uk",
+      "ro",
+      "el",
+      "sv",
+      "no",
+      "da",
+      "fi",
+    ]),
+  defaultLanguage: z.string().default("en"),
+  detectBrowserLanguage: z.boolean().default(true),
+  enabledCurrencies: z
+    .array(z.string())
+    .default([
+      "USD",
+      "EUR",
+      "ILS",
+      "GBP",
+      "CAD",
+      "AUD",
+      "CHF",
+      "SEK",
+      "NOK",
+      "DKK",
+      "PLN",
+      "TRY",
+      "AED",
+      "SAR",
+      "QAR",
+      "KWD",
+      "JPY",
+      "CNY",
+      "INR",
+    ]),
+  defaultCurrency: z.string().default("ILS"),
+  /// Store catalog prices are stored in this currency
+  catalogCurrency: z.string().default("ILS"),
+  rateBaseCurrency: z.string().default("USD"),
+  rates: z
+    .record(z.number())
+    .default({
+      USD: 1,
+      EUR: 0.92,
+      ILS: 3.7,
+      GBP: 0.79,
+      CAD: 1.36,
+      AUD: 1.53,
+      CHF: 0.88,
+      SEK: 10.5,
+      NOK: 10.8,
+      DKK: 6.9,
+      PLN: 4.0,
+      TRY: 32.5,
+      AED: 3.67,
+      SAR: 3.75,
+      QAR: 3.64,
+      KWD: 0.31,
+      JPY: 151,
+      CNY: 7.2,
+      INR: 83,
+    }),
+  defaultTheme: z.enum(["light", "dark", "system"]).default("dark"),
+  allowThemeSwitch: z.boolean().default(true),
+});
+
 export type StoreSettings = z.infer<typeof storeSettingsSchema>;
 export type PaypalSettings = z.infer<typeof paypalSettingsSchema>;
 export type StripeSettings = z.infer<typeof stripeSettingsSchema>;
@@ -145,6 +230,7 @@ export type SeoSettings = z.infer<typeof seoSettingsSchema>;
 export type HomepageSettings = z.infer<typeof homepageSettingsSchema>;
 export type SetupSettings = z.infer<typeof setupSettingsSchema>;
 export type BackupSettings = z.infer<typeof backupSettingsSchema>;
+export type LocalizationSettings = z.infer<typeof localizationSettingsSchema>;
 
 export const SETTING_KEYS = {
   store: "store",
@@ -158,6 +244,7 @@ export const SETTING_KEYS = {
   homepage: "homepage",
   setup: "setup",
   backup: "backup",
+  localization: "localization",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -174,4 +261,5 @@ export const settingSchemas = {
   homepage: homepageSettingsSchema,
   setup: setupSettingsSchema,
   backup: backupSettingsSchema,
+  localization: localizationSettingsSchema,
 } as const;

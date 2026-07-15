@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Manrope } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { StoreChrome } from "@/components/store-chrome";
+import { ThemeScript } from "@/components/theme-script";
 import "./globals.css";
 
 const display = Cormorant_Garamond({
@@ -47,7 +48,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body className={`${display.variable} ${sans.variable} antialiased`}>
         <Providers>
           <StoreChrome>{children}</StoreChrome>

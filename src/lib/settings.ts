@@ -4,6 +4,7 @@ import {
   backupSettingsSchema,
   cryptoSettingsSchema,
   homepageSettingsSchema,
+  localizationSettingsSchema,
   paypalSettingsSchema,
   seoSettingsSchema,
   setupSettingsSchema,
@@ -15,6 +16,7 @@ import {
   type BackupSettings,
   type CryptoSettings,
   type HomepageSettings,
+  type LocalizationSettings,
   type PaypalSettings,
   type SeoSettings,
   type SettingKey,
@@ -38,6 +40,7 @@ type SettingsMap = {
   [SETTING_KEYS.homepage]: HomepageSettings;
   [SETTING_KEYS.setup]: SetupSettings;
   [SETTING_KEYS.backup]: BackupSettings;
+  [SETTING_KEYS.localization]: LocalizationSettings;
 };
 
 const parsers = {
@@ -52,6 +55,7 @@ const parsers = {
   [SETTING_KEYS.homepage]: homepageSettingsSchema,
   [SETTING_KEYS.setup]: setupSettingsSchema,
   [SETTING_KEYS.backup]: backupSettingsSchema,
+  [SETTING_KEYS.localization]: localizationSettingsSchema,
 } as const;
 
 export async function getSetting<K extends SettingKey>(
@@ -81,43 +85,12 @@ export async function setSetting<K extends SettingKey>(
 }
 
 export async function getAllSettings() {
-  const [
-    store,
-    paypal,
-    stripe,
-    crypto,
-    tax,
-    smtp,
-    shipping,
-    seo,
-    homepage,
-    setup,
-    backup,
-  ] = await Promise.all([
-    getSetting(SETTING_KEYS.store),
-    getSetting(SETTING_KEYS.paypal),
-    getSetting(SETTING_KEYS.stripe),
-    getSetting(SETTING_KEYS.crypto),
-    getSetting(SETTING_KEYS.tax),
-    getSetting(SETTING_KEYS.smtp),
-    getSetting(SETTING_KEYS.shipping),
-    getSetting(SETTING_KEYS.seo),
-    getSetting(SETTING_KEYS.homepage),
-    getSetting(SETTING_KEYS.setup),
-    getSetting(SETTING_KEYS.backup),
-  ]);
-  return {
-    store,
-    paypal,
-    stripe,
-    crypto,
-    tax,
-    smtp,
-    shipping,
-    seo,
-    homepage,
-    setup,
-    backup,
+  const keys = Object.values(SETTING_KEYS);
+  const entries = await Promise.all(
+    keys.map(async (key) => [key, await getSetting(key)] as const),
+  );
+  return Object.fromEntries(entries) as {
+    [K in SettingKey]: SettingsMap[K];
   };
 }
 

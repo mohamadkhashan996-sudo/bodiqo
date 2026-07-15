@@ -11,7 +11,8 @@ BODIQO is **not Shopify**. It is an independent Next.js commerce stack with a Sh
 - Wishlist, Cart, Checkout, Track Order
 - About, Contact, FAQ, Blog, CMS policy pages
 - Login / Register / Customer dashboard
-- Premium dark UI with blue accent, sticky header, motion, mobile-first
+- **i18n** (23 languages, RTL), **multi-currency**, **light/dark/system** theme
+- Premium UI with blue accent, sticky header switchers, motion, mobile-first
 
 ### Admin (Shopify-like)
 - Dashboard, Products (CRUD, duplicate, bulk edit, variants, media)
