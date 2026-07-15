@@ -4,9 +4,11 @@ import { SETUP_COOKIE, isValidSetupCookie } from "@/lib/setup-cookie";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Never HTML-redirect Auth.js or setup APIs — clients expect JSON.
   const allowed =
     pathname.startsWith("/setup") ||
     pathname.startsWith("/api/setup") ||
+    pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/cron") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
