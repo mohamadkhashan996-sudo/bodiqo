@@ -7,7 +7,8 @@ import { SiteHeader } from "@/components/site-header";
 export function StoreChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const bare =
-    pathname.startsWith("/admin") || pathname.startsWith("/setup");
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/setup");
 
   if (bare) {
     return <>{children}</>;

@@ -71,11 +71,11 @@ npm run db:seed
 npm run dev
 ```
 
-On first launch the app opens **`/setup`** — create your admin account, store name/logo, PayPal, and crypto wallets. No demo catalog is loaded.
+The **storefront is public** on first launch (premium marketplace homepage). The setup wizard is **admin-only** at `/admin/setup` — create your admin account, store name/logo, PayPal, and crypto wallets. Customers never see the wizard.
 
 - Store: [http://localhost:3000](http://localhost:3000)
-- Setup wizard: [http://localhost:3000/setup](http://localhost:3000/setup)
-- Admin (after setup): [http://localhost:3000/admin](http://localhost:3000/admin)
+- Admin setup (first launch only): [http://localhost:3000/admin/setup](http://localhost:3000/admin/setup)
+- Admin console (after setup): [http://localhost:3000/admin](http://localhost:3000/admin)
 
 ```bash
 # Remove leftover demo data and force the wizard again

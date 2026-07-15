@@ -34,7 +34,7 @@ async function main() {
   });
 
   console.log(`Deleted ${demo.count} demo user(s), ${products.count} sample product(s).`);
-  console.log("Open /setup to configure a fresh production admin.");
+  console.log("Open /admin/setup to configure a fresh production admin.");
 }
 
 main()
