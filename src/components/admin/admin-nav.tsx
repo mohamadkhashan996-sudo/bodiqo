@@ -41,6 +41,8 @@ const sections = [
       { href: "/admin/taxes", label: "Taxes" },
       { href: "/admin/users", label: "Users & Roles" },
       { href: "/admin/sellers", label: "Sellers (future)" },
+      { href: "/admin/backups", label: "Backups" },
+      { href: "/admin/activity", label: "Activity logs" },
       { href: "/admin/settings", label: "Settings" },
     ],
   },

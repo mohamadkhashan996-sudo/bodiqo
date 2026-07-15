@@ -66,6 +66,7 @@ export async function POST(request: Request) {
   }
   const data = parsed.data;
   const slug = data.slug?.trim() || slugify(data.title);
+  const session = await assertAdmin();
   const product = await prisma.product.create({
     data: {
       ...data,
@@ -81,6 +82,16 @@ export async function POST(request: Request) {
       dropshipEnabled: data.dropshipEnabled ?? true,
       markupPercent: data.markupPercent ?? 40,
     },
+  });
+  const { logActivity, clientIp } = await import("@/lib/activity-log");
+  await logActivity({
+    actorId: session?.user?.id,
+    actorEmail: session?.user?.email,
+    action: "product.create",
+    entity: "Product",
+    entityId: product.id,
+    summary: `Created product ${product.title}`,
+    ip: clientIp(request),
   });
   return NextResponse.json({ product });
 }

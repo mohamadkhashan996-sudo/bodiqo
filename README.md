@@ -20,6 +20,8 @@ BODIQO is **not Shopify**. It is an independent Next.js commerce stack with a Sh
 - Media Library (local or Cloudinary), Homepage Builder, Menus, Pages, Blog, SEO
 - Payments (PayPal + Stripe + Apple/Google Pay via Stripe), Crypto wallets
 - Shipping, Taxes, Users & Roles (USER / STAFF / ADMIN), Settings
+- **Backups** — manual/auto full DB backup, download, upload, restore
+- **Activity logs** — audit trail for admin actions
 - Dropshipping hub (AliExpress / CSV / supplier links)
 
 ### Payments

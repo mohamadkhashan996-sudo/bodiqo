@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin";
 import Link from "next/link";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { maybeRunAutoBackup } from "@/lib/backup";
 
 export const metadata = {
   title: "Admin | BODIQO",
@@ -12,6 +13,8 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const admin = await requireAdmin();
+  // Fire-and-forget scheduled backup when an admin is active
+  void maybeRunAutoBackup("admin-layout").catch(() => null);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#f3efe6]">

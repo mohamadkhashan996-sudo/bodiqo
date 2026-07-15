@@ -125,6 +125,15 @@ export const setupSettingsSchema = z.object({
   version: z.number().int().default(1),
 });
 
+export const backupSettingsSchema = z.object({
+  autoEnabled: z.boolean().default(true),
+  /// How often automatic backups run (hours)
+  intervalHours: z.number().int().min(1).max(168).default(24),
+  /// Keep only the newest N backups (manual + auto)
+  retainCount: z.number().int().min(1).max(100).default(14),
+  lastAutoAt: z.string().default(""),
+});
+
 export type StoreSettings = z.infer<typeof storeSettingsSchema>;
 export type PaypalSettings = z.infer<typeof paypalSettingsSchema>;
 export type StripeSettings = z.infer<typeof stripeSettingsSchema>;
@@ -135,6 +144,7 @@ export type ShippingSettings = z.infer<typeof shippingSettingsSchema>;
 export type SeoSettings = z.infer<typeof seoSettingsSchema>;
 export type HomepageSettings = z.infer<typeof homepageSettingsSchema>;
 export type SetupSettings = z.infer<typeof setupSettingsSchema>;
+export type BackupSettings = z.infer<typeof backupSettingsSchema>;
 
 export const SETTING_KEYS = {
   store: "store",
@@ -147,6 +157,7 @@ export const SETTING_KEYS = {
   seo: "seo",
   homepage: "homepage",
   setup: "setup",
+  backup: "backup",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -162,4 +173,5 @@ export const settingSchemas = {
   seo: seoSettingsSchema,
   homepage: homepageSettingsSchema,
   setup: setupSettingsSchema,
+  backup: backupSettingsSchema,
 } as const;

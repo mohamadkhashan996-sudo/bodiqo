@@ -1,27 +1,16 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { assertSuperAdmin } from "@/lib/assert-admin";
+import { clientIp, logActivity } from "@/lib/activity-log";
 import { getAllSettings, setSetting } from "@/lib/settings";
 import { SETTING_KEYS, type SettingKey } from "@/lib/settings-schema";
 
-async function assertAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true },
-  });
-  if (user?.role !== "ADMIN") return null;
-  return session;
-}
-
 export async function GET() {
-  if (!(await assertAdmin())) {
+  const admin = await assertSuperAdmin();
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   try {
     const settings = await getAllSettings();
-    // Mask secret fields in response copies for display still needed for form - return full for admin
     return NextResponse.json(settings);
   } catch {
     return NextResponse.json(
@@ -32,7 +21,8 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  if (!(await assertAdmin())) {
+  const admin = await assertSuperAdmin();
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -46,6 +36,15 @@ export async function PUT(request: Request) {
       );
     }
     const value = await setSetting(key, body.value);
+    await logActivity({
+      actorId: admin.user.id,
+      actorEmail: admin.user.email,
+      action: "settings.update",
+      entity: "Setting",
+      entityId: key,
+      summary: `Updated settings: ${key}`,
+      ip: clientIp(request),
+    });
     return NextResponse.json({ ok: true, value });
   } catch (error) {
     return NextResponse.json(

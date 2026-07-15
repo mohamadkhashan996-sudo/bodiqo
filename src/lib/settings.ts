@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   SETTING_KEYS,
+  backupSettingsSchema,
   cryptoSettingsSchema,
   homepageSettingsSchema,
   paypalSettingsSchema,
@@ -11,6 +12,7 @@ import {
   storeSettingsSchema,
   stripeSettingsSchema,
   taxSettingsSchema,
+  type BackupSettings,
   type CryptoSettings,
   type HomepageSettings,
   type PaypalSettings,
@@ -35,6 +37,7 @@ type SettingsMap = {
   [SETTING_KEYS.seo]: SeoSettings;
   [SETTING_KEYS.homepage]: HomepageSettings;
   [SETTING_KEYS.setup]: SetupSettings;
+  [SETTING_KEYS.backup]: BackupSettings;
 };
 
 const parsers = {
@@ -48,6 +51,7 @@ const parsers = {
   [SETTING_KEYS.seo]: seoSettingsSchema,
   [SETTING_KEYS.homepage]: homepageSettingsSchema,
   [SETTING_KEYS.setup]: setupSettingsSchema,
+  [SETTING_KEYS.backup]: backupSettingsSchema,
 } as const;
 
 export async function getSetting<K extends SettingKey>(
@@ -88,6 +92,7 @@ export async function getAllSettings() {
     seo,
     homepage,
     setup,
+    backup,
   ] = await Promise.all([
     getSetting(SETTING_KEYS.store),
     getSetting(SETTING_KEYS.paypal),
@@ -99,6 +104,7 @@ export async function getAllSettings() {
     getSetting(SETTING_KEYS.seo),
     getSetting(SETTING_KEYS.homepage),
     getSetting(SETTING_KEYS.setup),
+    getSetting(SETTING_KEYS.backup),
   ]);
   return {
     store,
@@ -111,6 +117,7 @@ export async function getAllSettings() {
     seo,
     homepage,
     setup,
+    backup,
   };
 }
 

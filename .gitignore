@@ -52,3 +52,7 @@ next-env.d.ts
 /prisma/dev.db-journal
 *.db
 *.db-journal
+
+# database backups (JSON + optional .db companions)
+/data/backups/*
+!/data/backups/.gitkeep

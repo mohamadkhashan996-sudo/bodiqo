@@ -29,3 +29,5 @@ export async function requireSuperAdmin() {
   }
   return user;
 }
+
+export { requireSuperAdmin as requireFullAdmin };
