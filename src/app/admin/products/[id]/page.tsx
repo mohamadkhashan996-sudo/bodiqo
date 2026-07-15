@@ -5,6 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 type Category = { id: string; name: string };
+type Supplier = { id: string; name: string };
+type Variant = {
+  id: string;
+  title: string;
+  sku: string;
+  price: number;
+  inventory: number;
+  supplierSku: string | null;
+};
 type ProductForm = {
   title: string;
   slug: string;
@@ -12,6 +21,8 @@ type ProductForm = {
   shortDescription: string;
   price: string;
   compareAt: string;
+  costPrice: string;
+  markupPercent: string;
   sku: string;
   vendor: string;
   images: string;
@@ -20,7 +31,12 @@ type ProductForm = {
   featured: boolean;
   enabled: boolean;
   inStock: boolean;
+  dropshipEnabled: boolean;
   categoryId: string;
+  supplierId: string;
+  supplierProductUrl: string;
+  supplierProductId: string;
+  supplierSku: string;
   seoTitle: string;
   seoDescription: string;
 };
@@ -32,6 +48,8 @@ const empty: ProductForm = {
   shortDescription: "",
   price: "",
   compareAt: "",
+  costPrice: "",
+  markupPercent: "40",
   sku: "",
   vendor: "BODIQO",
   images: "",
@@ -40,7 +58,12 @@ const empty: ProductForm = {
   featured: false,
   enabled: true,
   inStock: true,
+  dropshipEnabled: true,
   categoryId: "",
+  supplierId: "",
+  supplierProductUrl: "",
+  supplierProductId: "",
+  supplierSku: "",
   seoTitle: "",
   seoDescription: "",
 };
@@ -51,13 +74,21 @@ export default function ProductEditorPage() {
   const id = params?.id ?? "new";
   const [form, setForm] = useState<ProductForm>(empty);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [variantTitle, setVariantTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/admin/categories")
-      .then((r) => r.json())
-      .then((d) => setCategories(d.categories || []))
+    Promise.all([
+      fetch("/api/admin/categories").then((r) => r.json()),
+      fetch("/api/admin/suppliers").then((r) => r.json()),
+    ])
+      .then(([c, s]) => {
+        setCategories(c.categories || []);
+        setSuppliers(s.suppliers || []);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -75,6 +106,9 @@ export default function ProductEditorPage() {
           shortDescription: p.shortDescription,
           price: String(p.price),
           compareAt: p.compareAt ? String(p.compareAt) : "",
+          costPrice: p.costPrice != null ? String(p.costPrice) : "",
+          markupPercent:
+            p.markupPercent != null ? String(p.markupPercent) : "40",
           sku: p.sku,
           vendor: p.vendor,
           images: (Array.isArray(p.images) ? (p.images as string[]) : []).join(
@@ -85,10 +119,30 @@ export default function ProductEditorPage() {
           featured: p.featured,
           enabled: p.enabled,
           inStock: p.inStock,
+          dropshipEnabled: p.dropshipEnabled !== false,
           categoryId: p.categoryId || "",
+          supplierId: p.supplierId || "",
+          supplierProductUrl: p.supplierProductUrl || "",
+          supplierProductId: p.supplierProductId || "",
+          supplierSku: p.supplierSku || "",
           seoTitle: p.seoTitle || "",
           seoDescription: p.seoDescription || "",
         });
+        setVariants(
+          (p.variants || []).map(
+            (v: {
+              id: string;
+              title: string;
+              sku: string;
+              price: number | string;
+              inventory: number;
+              supplierSku: string | null;
+            }) => ({
+              ...v,
+              price: Number(v.price),
+            }),
+          ),
+        );
       });
   }, [id]);
 
@@ -103,6 +157,8 @@ export default function ProductEditorPage() {
       shortDescription: form.shortDescription,
       price: Number(form.price),
       compareAt: form.compareAt ? Number(form.compareAt) : null,
+      costPrice: form.costPrice ? Number(form.costPrice) : null,
+      markupPercent: Number(form.markupPercent) || 40,
       sku: form.sku,
       vendor: form.vendor,
       images: form.images
@@ -114,7 +170,12 @@ export default function ProductEditorPage() {
       featured: form.featured,
       enabled: form.enabled,
       inStock: form.inStock,
+      dropshipEnabled: form.dropshipEnabled,
       categoryId: form.categoryId || null,
+      supplierId: form.supplierId || null,
+      supplierProductUrl: form.supplierProductUrl || null,
+      supplierProductId: form.supplierProductId || null,
+      supplierSku: form.supplierSku || null,
       seoTitle: form.seoTitle || null,
       seoDescription: form.seoDescription || null,
     };
@@ -197,12 +258,26 @@ export default function ProductEditorPage() {
             onChange={(v) => set("compareAt", v)}
           />
         </div>
-        <Input
-          label="Inventory"
-          type="number"
-          value={form.inventory}
-          onChange={(v) => set("inventory", v)}
-        />
+        <div className="grid gap-5 sm:grid-cols-3">
+          <Input
+            label="Cost price"
+            type="number"
+            value={form.costPrice}
+            onChange={(v) => set("costPrice", v)}
+          />
+          <Input
+            label="Markup %"
+            type="number"
+            value={form.markupPercent}
+            onChange={(v) => set("markupPercent", v)}
+          />
+          <Input
+            label="Inventory"
+            type="number"
+            value={form.inventory}
+            onChange={(v) => set("inventory", v)}
+          />
+        </div>
         <label className="block">
           <span className="text-[11px] tracking-[0.16em] text-[#f3efe6]/45 uppercase">
             Category
@@ -220,6 +295,53 @@ export default function ProductEditorPage() {
             ))}
           </select>
         </label>
+
+        <div className="rounded-xl border border-white/10 p-4">
+          <p className="text-[11px] tracking-[0.16em] text-[#d4b483] uppercase">
+            Dropshipping / supplier
+          </p>
+          <div className="mt-4 space-y-4">
+            <label className="block">
+              <span className="text-[11px] tracking-[0.16em] text-[#f3efe6]/45 uppercase">
+                Supplier
+              </span>
+              <select
+                value={form.supplierId}
+                onChange={(e) => set("supplierId", e.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm"
+              >
+                <option value="">None</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Input
+              label="Supplier product URL"
+              value={form.supplierProductUrl}
+              onChange={(v) => set("supplierProductUrl", v)}
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="Supplier product ID"
+                value={form.supplierProductId}
+                onChange={(v) => set("supplierProductId", v)}
+              />
+              <Input
+                label="Supplier SKU"
+                value={form.supplierSku}
+                onChange={(v) => set("supplierSku", v)}
+              />
+            </div>
+            <Check
+              label="Dropship enabled"
+              checked={form.dropshipEnabled}
+              onChange={(v) => set("dropshipEnabled", v)}
+            />
+          </div>
+        </div>
         <Text
           label="Short description"
           value={form.shortDescription}
@@ -289,6 +411,92 @@ export default function ProductEditorPage() {
           ) : null}
         </div>
       </form>
+
+      {id !== "new" ? (
+        <section className="space-y-4 rounded-2xl border border-white/10 bg-[#121212] p-6">
+          <h2 className="text-[11px] tracking-[0.16em] text-[#d4b483] uppercase">
+            Variants
+          </h2>
+          <ul className="divide-y divide-white/10 text-sm">
+            {variants.map((v) => (
+              <li
+                key={v.id}
+                className="flex items-center justify-between gap-3 py-3"
+              >
+                <div>
+                  <p>{v.title}</p>
+                  <p className="text-xs text-[#f3efe6]/40">
+                    {v.sku} · stock {v.inventory}
+                    {v.supplierSku ? ` · ${v.supplierSku}` : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetch(
+                      `/api/admin/products/${id}/variants?variantId=${v.id}`,
+                      { method: "DELETE" },
+                    );
+                    setVariants((prev) => prev.filter((x) => x.id !== v.id));
+                  }}
+                  className="text-xs text-red-300"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+            {variants.length === 0 ? (
+              <li className="py-3 text-[#f3efe6]/45">No variants yet.</li>
+            ) : null}
+          </ul>
+          <div className="flex gap-3">
+            <input
+              value={variantTitle}
+              onChange={(e) => setVariantTitle(e.target.value)}
+              placeholder="Variant title (e.g. Black / 1m)"
+              className="flex-1 rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm"
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                if (!variantTitle.trim()) return;
+                const res = await fetch(`/api/admin/products/${id}/variants`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    title: variantTitle,
+                    price: Number(form.price) || 1,
+                    costPrice: form.costPrice
+                      ? Number(form.costPrice)
+                      : undefined,
+                    inventory: Number(form.inventory) || 0,
+                    supplierUrl: form.supplierProductUrl || undefined,
+                    supplierSku: form.supplierSku || undefined,
+                  }),
+                });
+                const data = await res.json();
+                if (res.ok && data.variant) {
+                  setVariants((prev) => [
+                    ...prev,
+                    {
+                      id: data.variant.id,
+                      title: data.variant.title,
+                      sku: data.variant.sku,
+                      price: Number(data.variant.price),
+                      inventory: data.variant.inventory,
+                      supplierSku: data.variant.supplierSku,
+                    },
+                  ]);
+                  setVariantTitle("");
+                }
+              }}
+              className="rounded-full bg-[#d4b483] px-5 py-2.5 text-[11px] font-semibold tracking-[0.14em] text-[#0b0b0b] uppercase"
+            >
+              Add
+            </button>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

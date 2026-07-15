@@ -59,7 +59,8 @@ export default function CheckoutClient() {
       shippingAddress: String(form.get("shippingAddress") || "").trim(),
       shippingCity: String(form.get("shippingCity") || "").trim(),
       shippingZip: String(form.get("shippingZip") || "").trim(),
-      shippingCountry: String(form.get("shippingCountry") || "IL").trim() || "IL",
+      shippingCountry:
+        String(form.get("shippingCountry") || "IL").trim() || "IL",
       couponCode: coupon.trim() || undefined,
       items: currentItems.map((item) => ({
         slug: item.slug,

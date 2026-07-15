@@ -18,6 +18,14 @@ const sections = [
     ],
   },
   {
+    title: "Dropshipping",
+    items: [
+      { href: "/admin/dropship", label: "Dropship hub" },
+      { href: "/admin/dropship/orders", label: "Supplier orders" },
+      { href: "/admin/suppliers", label: "Suppliers" },
+    ],
+  },
+  {
     title: "Content",
     items: [
       { href: "/admin/banners", label: "Banners" },
@@ -30,7 +38,7 @@ const sections = [
   {
     title: "System",
     items: [
-      { href: "/admin/import", label: "Import" },
+      { href: "/admin/dropship", label: "Import products" },
       { href: "/admin/settings", label: "Settings" },
       { href: "/admin/seo", label: "SEO" },
     ],

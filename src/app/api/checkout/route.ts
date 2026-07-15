@@ -60,7 +60,19 @@ export async function POST(request: Request) {
     const storeSettings = await getSetting(SETTING_KEYS.store);
     const paypal = await getPaypalConfig();
 
-    const lineItems = [];
+    const lineItems: {
+      product: {
+        id: string | null;
+        slug: string;
+        title: string;
+        image: string;
+        price: number;
+        costPrice: number | null;
+        supplierUrl: string | null;
+        supplierSku: string | null;
+      };
+      quantity: number;
+    }[] = [];
     for (const item of parsed.data.items) {
       const dbProduct = await prisma.product.findFirst({
         where: { slug: item.slug, enabled: true },
@@ -76,6 +88,11 @@ export async function POST(request: Request) {
                 ? (dbProduct.images as string[])[0]
                 : "") ?? "",
             price: Number(dbProduct.price),
+            costPrice:
+              dbProduct.costPrice != null ? Number(dbProduct.costPrice) : null,
+            supplierUrl: dbProduct.supplierProductUrl,
+            supplierSku:
+              dbProduct.supplierSku || dbProduct.supplierProductId || null,
           },
           quantity: item.quantity,
         });
@@ -85,11 +102,14 @@ export async function POST(request: Request) {
       if (fallback) {
         lineItems.push({
           product: {
-            id: null as string | null,
+            id: null,
             slug: fallback.slug,
             title: fallback.title,
             image: fallback.image,
             price: fallback.price,
+            costPrice: null,
+            supplierUrl: null,
+            supplierSku: null,
           },
           quantity: item.quantity,
         });
@@ -153,6 +173,7 @@ export async function POST(request: Request) {
         shippingCity: parsed.data.shippingCity,
         shippingZip: parsed.data.shippingZip,
         shippingCountry: parsed.data.shippingCountry,
+        fulfillStatus: "UNFULFILLED",
         items: {
           create: lineItems.map((li) => ({
             productId: li.product.id ?? undefined,
@@ -161,6 +182,9 @@ export async function POST(request: Request) {
             image: li.product.image,
             price: li.product.price,
             quantity: li.quantity,
+            costPrice: li.product.costPrice,
+            supplierUrl: li.product.supplierUrl,
+            supplierSku: li.product.supplierSku,
           })),
         },
       },

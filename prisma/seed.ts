@@ -25,6 +25,19 @@ async function main() {
     });
   }
 
+  await prisma.supplier.upsert({
+    where: { slug: "aliexpress" },
+    update: {},
+    create: {
+      name: "AliExpress",
+      slug: "aliexpress",
+      website: "https://www.aliexpress.com",
+      notes: "Default dropshipping supplier",
+      defaultShippingDays: 15,
+      currency: "USD",
+    },
+  });
+
   for (const name of [...new Set(catalog.products.map((p) => p.category))]) {
     const slug = name
       .toLowerCase()

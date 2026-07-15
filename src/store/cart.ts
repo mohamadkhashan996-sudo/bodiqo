@@ -85,7 +85,10 @@ export const useCart = create<CartState>()(
     {
       name: "bodiqo-cart",
       merge: (persisted, current) => {
-        const state = { ...current, ...(persisted as object) } as typeof current;
+        const state = {
+          ...current,
+          ...(persisted as object),
+        } as typeof current;
         state.items = (state.items || []).map((item) => ({
           ...item,
           price: Number(item.price),

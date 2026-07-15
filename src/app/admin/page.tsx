@@ -151,7 +151,7 @@ export default async function AdminHomePage() {
       <div className="grid gap-4 md:grid-cols-3">
         {[
           { href: "/admin/products/new", label: "Add product" },
-          { href: "/admin/import", label: "Import catalog" },
+          { href: "/admin/dropship", label: "Dropship hub" },
           { href: "/admin/settings", label: "Store settings" },
         ].map((a) => (
           <Link

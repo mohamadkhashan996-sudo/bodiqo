@@ -21,6 +21,8 @@ const productSchema = z.object({
   shortDescription: z.string().default(""),
   price: z.number().positive(),
   compareAt: z.number().positive().nullable().optional(),
+  costPrice: z.number().nonnegative().nullable().optional(),
+  markupPercent: z.number().nonnegative().optional(),
   sku: z.string().min(1),
   vendor: z.string().default("BODIQO"),
   images: z.array(z.string()).default([]),
@@ -30,6 +32,11 @@ const productSchema = z.object({
   inStock: z.boolean().default(true),
   inventory: z.number().int().default(0),
   categoryId: z.string().nullable().optional(),
+  supplierId: z.string().nullable().optional(),
+  supplierProductUrl: z.string().optional().nullable(),
+  supplierProductId: z.string().optional().nullable(),
+  supplierSku: z.string().optional().nullable(),
+  dropshipEnabled: z.boolean().optional(),
   seoTitle: z.string().optional().nullable(),
   seoDescription: z.string().optional().nullable(),
 });
@@ -39,7 +46,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const products = await prisma.product.findMany({
-    include: { category: true },
+    include: { category: true, supplier: true, variants: true },
     orderBy: { updatedAt: "desc" },
   });
   return NextResponse.json({ products });
@@ -64,8 +71,15 @@ export async function POST(request: Request) {
       ...data,
       slug,
       compareAt: data.compareAt ?? null,
+      costPrice: data.costPrice ?? null,
       videoUrl: data.videoUrl ?? null,
       categoryId: data.categoryId || null,
+      supplierId: data.supplierId || null,
+      supplierProductUrl: data.supplierProductUrl ?? null,
+      supplierProductId: data.supplierProductId ?? null,
+      supplierSku: data.supplierSku ?? null,
+      dropshipEnabled: data.dropshipEnabled ?? true,
+      markupPercent: data.markupPercent ?? 40,
     },
   });
   return NextResponse.json({ product });

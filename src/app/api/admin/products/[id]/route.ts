@@ -21,6 +21,8 @@ const productSchema = z.object({
   shortDescription: z.string().default(""),
   price: z.number().positive(),
   compareAt: z.number().positive().nullable().optional(),
+  costPrice: z.number().nonnegative().nullable().optional(),
+  markupPercent: z.number().nonnegative().optional(),
   sku: z.string().min(1),
   vendor: z.string().default("BODIQO"),
   images: z.array(z.string()).default([]),
@@ -30,6 +32,11 @@ const productSchema = z.object({
   inStock: z.boolean().default(true),
   inventory: z.number().int().default(0),
   categoryId: z.string().nullable().optional(),
+  supplierId: z.string().nullable().optional(),
+  supplierProductUrl: z.string().optional().nullable(),
+  supplierProductId: z.string().optional().nullable(),
+  supplierSku: z.string().optional().nullable(),
+  dropshipEnabled: z.boolean().optional(),
   seoTitle: z.string().optional().nullable(),
   seoDescription: z.string().optional().nullable(),
 });
@@ -43,7 +50,11 @@ export async function GET(_req: Request, { params }: Params) {
   const { id } = await params;
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { category: true },
+    include: {
+      category: true,
+      supplier: true,
+      variants: { orderBy: { sortOrder: "asc" } },
+    },
   });
   if (!product)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -70,8 +81,15 @@ export async function PUT(request: Request, { params }: Params) {
       ...data,
       slug: data.slug?.trim() || slugify(data.title),
       compareAt: data.compareAt ?? null,
+      costPrice: data.costPrice ?? null,
       videoUrl: data.videoUrl ?? null,
       categoryId: data.categoryId || null,
+      supplierId: data.supplierId || null,
+      supplierProductUrl: data.supplierProductUrl ?? null,
+      supplierProductId: data.supplierProductId ?? null,
+      supplierSku: data.supplierSku ?? null,
+      markupPercent: data.markupPercent ?? 40,
+      dropshipEnabled: data.dropshipEnabled ?? true,
     },
   });
   return NextResponse.json({ product });

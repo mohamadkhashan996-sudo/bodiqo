@@ -79,11 +79,17 @@ See `.env.example`.
 3. Paste Client ID + Secret, choose Sandbox or Live, enable PayPal
 4. Checkout redirects customers to PayPal; on success the order is marked **PAID** and funds go to your linked Business account
 
-## Importing from Shopify / DSers
+## Dropshipping (no Shopify / DSers)
 
-1. Export products from Shopify (CSV) or download `https://your-store.myshopify.com/products.json`
-2. Open **Admin → Import**
-3. Upload CSV or Shopify JSON — products and categories are upserted
+BODIQO includes an internal dropshipping system:
+
+1. Open **Admin → Dropship hub**
+2. Import products by **AliExpress URL** or **CSV** (supplier URL, cost, markup, stock)
+3. Edit titles, images, prices, variants, and supplier links
+4. When customers order, open **Supplier orders** → export CSV → place on AliExpress
+5. Mark orders as ordered / shipped with tracking
+
+Legacy Shopify JSON import remains available via the older `/api/admin/import` endpoint if needed.
 
 ## Deployment
 

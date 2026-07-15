@@ -103,37 +103,86 @@ model Category {
   updatedAt   DateTime  @updatedAt
 }
 
+model Supplier {
+  id                   String    @id @default(cuid())
+  name                 String
+  slug                 String    @unique
+  website              String?
+  notes                String?
+  defaultShippingDays  Int       @default(12)
+  currency             String    @default("USD")
+  enabled              Boolean   @default(true)
+  products             Product[]
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
 model Product {
-  id               String      @id @default(cuid())
-  slug             String      @unique
-  title            String
-  description      String
-  shortDescription String
-  price            Decimal
-  compareAt        Decimal?
-  costPrice        Decimal?
-  currency         String      @default("ILS")
-  sku              String      @unique
-  barcode          String?
-  vendor           String      @default("BODIQO")
-  images           Json
-  videoUrl         String?
-  featured         Boolean     @default(false)
-  enabled          Boolean     @default(true)
-  inStock          Boolean     @default(true)
-  inventory        Int         @default(100)
-  weightGrams      Int?
-  seoTitle         String?
-  seoDescription   String?
-  categoryId       String?
-  category         Category?   @relation(fields: [categoryId], references: [id])
-  orderItems       OrderItem[]
-  reviews          Review[]
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  id                 String           @id @default(cuid())
+  slug               String           @unique
+  title              String
+  description        String
+  shortDescription   String
+  price              Decimal
+  compareAt          Decimal?
+  costPrice          Decimal?
+  currency           String           @default("ILS")
+  sku                String           @unique
+  barcode            String?
+  vendor             String           @default("BODIQO")
+  images             Json
+  videoUrl           String?
+  featured           Boolean          @default(false)
+  enabled            Boolean          @default(true)
+  inStock            Boolean          @default(true)
+  inventory          Int              @default(100)
+  weightGrams        Int?
+  seoTitle           String?
+  seoDescription     String?
+  categoryId         String?
+  category           Category?        @relation(fields: [categoryId], references: [id])
+  /// Dropshipping / supplier
+  supplierId         String?
+  supplier           Supplier?        @relation(fields: [supplierId], references: [id])
+  supplierProductUrl String?
+  supplierProductId  String?
+  supplierSku        String?
+  markupPercent      Decimal          @default(40)
+  dropshipEnabled    Boolean          @default(true)
+  lastCostSyncAt     DateTime?
+  variants           ProductVariant[]
+  orderItems         OrderItem[]
+  reviews            Review[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   @@index([enabled, featured])
   @@index([categoryId])
+  @@index([supplierId])
+  @@index([supplierProductId])
+}
+
+model ProductVariant {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  title        String
+  sku          String   @unique
+  options      Json?
+  price        Decimal
+  compareAt    Decimal?
+  costPrice    Decimal?
+  inventory    Int      @default(0)
+  inStock      Boolean  @default(true)
+  image        String?
+  supplierSku  String?
+  supplierUrl  String?
+  enabled      Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([productId])
 }
 
 model Coupon {
@@ -175,28 +224,37 @@ model Order {
   carrier           String?
   shippedAt         DateTime?
   notes             String?
-  paypalOrderId     String?
-  paypalCaptureId   String?
-  paidAt            DateTime?
-  items             OrderItem[]
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  paypalOrderId      String?
+  paypalCaptureId    String?
+  paidAt             DateTime?
+  /// Dropship fulfillment: UNFULFILLED | ORDERED_SUPPLIER | SHIPPED | DELIVERED
+  fulfillStatus      String      @default("UNFULFILLED")
+  supplierOrderId    String?
+  supplierOrderedAt  DateTime?
+  items              OrderItem[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
   @@index([status])
   @@index([email])
+  @@index([fulfillStatus])
 }
 
 model OrderItem {
-  id        String   @id @default(cuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String?
-  product   Product? @relation(fields: [productId], references: [id])
-  title     String
-  slug      String
-  image     String?
-  price     Decimal
-  quantity  Int
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  variantId   String?
+  title       String
+  slug        String
+  image       String?
+  price       Decimal
+  quantity    Int
+  costPrice   Decimal?
+  supplierUrl String?
+  supplierSku String?
 }
 
 model Review {
