@@ -152,6 +152,10 @@ bodiqo/
 - `develop` — integration branch
 - `feature/*` — feature work → merge into `develop`
 
+## Contributors
+
+- [WoodbutcherTh1](https://github.com/WoodbutcherTh1)
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).
