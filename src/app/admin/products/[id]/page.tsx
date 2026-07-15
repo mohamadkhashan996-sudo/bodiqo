@@ -77,7 +77,9 @@ export default function ProductEditorPage() {
           compareAt: p.compareAt ? String(p.compareAt) : "",
           sku: p.sku,
           vendor: p.vendor,
-          images: (p.images || []).join("\n"),
+          images: (Array.isArray(p.images) ? (p.images as string[]) : []).join(
+            "\n",
+          ),
           videoUrl: p.videoUrl || "",
           inventory: String(p.inventory),
           featured: p.featured,

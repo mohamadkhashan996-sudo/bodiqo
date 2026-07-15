@@ -9,6 +9,13 @@ function fromJson(): CatalogProduct[] {
   return catalog.products as CatalogProduct[];
 }
 
+function asImageList(images: unknown): string[] {
+  if (Array.isArray(images)) {
+    return images.filter((v): v is string => typeof v === "string");
+  }
+  return [];
+}
+
 function mapDbProduct(p: {
   id: string;
   slug: string;
@@ -18,7 +25,7 @@ function mapDbProduct(p: {
   price: { toNumber?: () => number } | number | string;
   compareAt: { toNumber?: () => number } | number | string | null;
   currency: string;
-  images: string[];
+  images: unknown;
   featured: boolean;
   inStock: boolean;
   enabled?: boolean;
@@ -35,6 +42,7 @@ function mapDbProduct(p: {
       ? p.compareAt.toNumber!()
       : Number(p.compareAt)
     : null;
+  const images = asImageList(p.images);
 
   return {
     id: p.id,
@@ -47,8 +55,8 @@ function mapDbProduct(p: {
     compareAt: compareAt && compareAt > price ? compareAt : null,
     currency: p.currency,
     category: p.category?.name ?? "Accessories",
-    images: p.images,
-    image: p.images[0] ?? "",
+    images,
+    image: images[0] ?? "",
     featured: p.featured,
     inStock: p.inStock,
     sku: p.sku,

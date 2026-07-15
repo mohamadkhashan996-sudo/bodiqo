@@ -57,9 +57,9 @@ export default async function AdminProductsPage() {
                     className="flex items-center gap-3"
                   >
                     <div className="relative h-12 w-10 overflow-hidden rounded-md bg-[#1a1a1a]">
-                      {p.images[0] ? (
+                      {Array.isArray(p.images) && (p.images as string[])[0] ? (
                         <Image
-                          src={p.images[0]}
+                          src={(p.images as string[])[0]}
                           alt=""
                           fill
                           className="object-cover"

@@ -55,7 +55,10 @@ export async function POST(request: Request) {
             id: dbProduct.id,
             slug: dbProduct.slug,
             title: dbProduct.title,
-            image: dbProduct.images[0] ?? "",
+            image:
+              (Array.isArray(dbProduct.images)
+                ? (dbProduct.images as string[])[0]
+                : "") ?? "",
             price: Number(dbProduct.price),
           },
           quantity: item.quantity,

@@ -48,6 +48,8 @@ async function main() {
       where: { name: product.category },
     });
 
+    const sku = `BQ-${product.id.replace(/^prod_/, "")}`;
+
     await prisma.product.upsert({
       where: { slug: product.slug },
       update: {
@@ -57,7 +59,7 @@ async function main() {
         price: product.price,
         compareAt: product.compareAt,
         currency: product.currency,
-        sku: product.sku,
+        sku,
         vendor: product.vendor,
         images: product.images,
         featured: product.featured,
@@ -74,7 +76,7 @@ async function main() {
         price: product.price,
         compareAt: product.compareAt,
         currency: product.currency,
-        sku: product.sku,
+        sku,
         vendor: product.vendor,
         images: product.images,
         featured: product.featured,
