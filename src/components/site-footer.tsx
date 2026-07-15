@@ -8,24 +8,16 @@ export function SiteFooter() {
   const { t } = usePreferences();
 
   return (
-    <footer className="relative border-t border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--accent)] to-transparent opacity-50" />
-
-      <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 md:grid-cols-[1.35fr_1fr_1fr_1fr] md:px-8 md:py-20">
+    <footer className="border-t border-[var(--border)] bg-[var(--background)] text-[var(--foreground)]">
+      <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 md:grid-cols-[1.2fr_1fr_1fr_1fr] md:px-8">
         <div>
           <p className="font-[family-name:var(--font-display)] text-3xl tracking-[0.28em]">
             BODIQO
           </p>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--foreground)]/60">
-            {t("footer.tagline")}
+            Premium marketplace for electronics, home, fashion, beauty, sports,
+            and everyday essentials — designed for clarity and craft.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3 text-[11px] tracking-[0.16em] text-[var(--foreground)]/50 uppercase">
-            <span>Worldwide shipping</span>
-            <span>·</span>
-            <span>Secure payments</span>
-            <span>·</span>
-            <span>24/7 support</span>
-          </div>
         </div>
 
         <div>
@@ -105,10 +97,7 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link
-                href="/shipping-policy"
-                className="hover:text-[var(--accent)]"
-              >
+              <Link href="/shipping-policy" className="hover:text-[var(--accent)]">
                 Shipping
               </Link>
             </li>
@@ -121,11 +110,8 @@ export function SiteFooter() {
         </div>
       </div>
 
-      <div className="border-t border-[var(--border)] px-5 py-6 text-center text-xs tracking-[0.16em] text-[var(--foreground)]/40 uppercase md:flex md:items-center md:justify-between md:px-8 md:text-start">
-        <p>
-          © {new Date().getFullYear()} BODIQO · {t("footer.rights")}
-        </p>
-        <p className="mt-2 md:mt-0">Premium international marketplace</p>
+      <div className="border-t border-[var(--border)] px-5 py-6 text-center text-xs tracking-[0.16em] text-[var(--foreground)]/40 uppercase md:px-8">
+        © {new Date().getFullYear()} BODIQO · {t("footer.rights")}
       </div>
     </footer>
   );

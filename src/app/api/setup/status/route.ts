@@ -10,7 +10,7 @@ export async function GET() {
   const res = NextResponse.json({ complete });
 
   if (complete) {
-    const value = await setupCookieValue();
+    const value = setupCookieValue();
     if (value) {
       res.cookies.set(SETUP_COOKIE, value, {
         httpOnly: true,

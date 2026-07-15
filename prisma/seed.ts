@@ -1,7 +1,7 @@
 /**
  * Production / empty install seed.
  * Does NOT create demo users, sample products, or blog posts.
- * Run the first-launch wizard at /admin/setup after `db:push`.
+ * Run the first-launch wizard at /setup after `db:push`.
  *
  * Optional sample catalog for local development:
  *   npm run db:seed:demo
@@ -44,7 +44,7 @@ async function main() {
   });
 
   console.log(
-    "Done. Open /admin/setup to create your admin, store, PayPal, and crypto wallets. The storefront stays public at /.",
+    "Done. Open /setup to create your admin, store, PayPal, and crypto wallets.",
   );
   console.log("No demo catalog or demo admin was created.");
 }

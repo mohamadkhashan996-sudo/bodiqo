@@ -210,7 +210,7 @@ export async function POST(request: Request) {
     redirectTo: "/auth/sign-in?callbackUrl=/admin",
   });
 
-  const cookieVal = await setupCookieValue();
+  const cookieVal = setupCookieValue();
   if (cookieVal) {
     res.cookies.set(SETUP_COOKIE, cookieVal, {
       httpOnly: true,

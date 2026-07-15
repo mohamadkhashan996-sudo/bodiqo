@@ -1,36 +1,22 @@
-/**
- * Edge-safe setup cookie helpers (Web Crypto — works in middleware + Node).
- */
+import { createHmac } from "crypto";
 
+/**
+ * Edge-safe helpers for the setup-complete cookie.
+ * Keep this file free of Prisma / Node-only imports so middleware can use it.
+ */
 export const SETUP_COOKIE = "bodiqo_setup";
 
-async function hmacHex(secret: string, message: string) {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
-  return Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-export async function setupCookieValue(
-  secret = process.env.AUTH_SECRET || "",
-) {
+export function setupCookieValue(secret = process.env.AUTH_SECRET || "") {
   if (!secret) return "";
-  return hmacHex(secret, "bodiqo:setup:complete:v1");
+  return createHmac("sha256", secret)
+    .update("bodiqo:setup:complete:v1")
+    .digest("hex");
 }
 
-export async function isValidSetupCookie(
+export function isValidSetupCookie(
   value: string | undefined | null,
   secret = process.env.AUTH_SECRET || "",
 ) {
   if (!value || !secret) return false;
-  const expected = await setupCookieValue(secret);
-  return value === expected;
+  return value === setupCookieValue(secret);
 }

@@ -1,23 +1,37 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { SETUP_COOKIE, isValidSetupCookie } from "@/lib/setup-cookie";
 
-/**
- * Storefront is always public. Setup wizard is never forced on visitors.
- * Legacy /setup → /admin/setup. Incomplete installs may only open /admin/setup
- * under /admin (not the full console until an admin exists).
- */
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (pathname === "/setup" || pathname.startsWith("/setup/")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/admin/setup";
-    url.search = "";
-    return NextResponse.redirect(url);
+  // Never HTML-redirect Auth.js or setup APIs — clients expect JSON.
+  const allowed =
+    pathname.startsWith("/setup") ||
+    pathname.startsWith("/api/setup") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/i18n") ||
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/uploads") ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml";
+
+  if (allowed) {
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
+  const cookie = request.cookies.get(SETUP_COOKIE)?.value;
+  if (isValidSetupCookie(cookie)) {
+    return NextResponse.next();
+  }
+
+  const url = request.nextUrl.clone();
+  url.pathname = "/setup";
+  url.search = "";
+  return NextResponse.redirect(url);
 }
 
 export const config = {
-  matcher: ["/setup", "/setup/:path*"],
+  matcher: ["/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };

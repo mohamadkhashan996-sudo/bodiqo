@@ -111,7 +111,7 @@ async function main() {
   console.log("Login: demo@bodiqo.com / bodiqo1234");
   console.log(
     "Setup cookie value (optional):",
-    await setupCookieValue(process.env.AUTH_SECRET || ""),
+    setupCookieValue(process.env.AUTH_SECRET || ""),
   );
 }
 
