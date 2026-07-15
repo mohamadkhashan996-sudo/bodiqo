@@ -7,12 +7,15 @@ BODIQO is a standalone Next.js storefront (not Shopify) for a luxury car accesso
 ## Features
 
 - Premium marketing homepage with full-bleed hero and motion
-- Product catalog with category filters (phone holders, dash cams, chargers, and more)
+- Product catalog with search + category filters
 - Product detail pages with related items
-- Persistent shopping cart
-- Checkout with order persistence in PostgreSQL
-- NextAuth credentials authentication (sign in / sign up)
-- Prisma ORM + PostgreSQL schema for users, products, and orders
+- Persistent shopping cart and improved checkout
+- **PayPal Checkout** — credentials configured in Admin (no code changes)
+- **Admin CMS** at `/admin` — products, orders, customers, coupons, media, content, settings
+- CSV + Shopify JSON import (DSers-managed Shopify catalogs)
+- Store settings: PayPal, SMTP, domain, language, shipping, currency, SEO, homepage
+- NextAuth credentials authentication + customer account dashboard
+- Prisma ORM + PostgreSQL
 - Framer Motion micro-interactions
 - Responsive luxury dark UI (champagne accent on graphite)
 
@@ -51,9 +54,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Demo account (after seed): `demo@bodiqo.com` / `bodiqo1234`
+Demo account (after seed): `demo@bodiqo.com` / `bodiqo1234`  
+Admin panel: [http://localhost:3000/admin](http://localhost:3000/admin)
 
-> The storefront catalog renders from `src/data/catalog.json` (imported from bodiqo.store), so browsing works even before PostgreSQL is connected. Auth, registration, and checkout require the database.
+> Browsing falls back to `src/data/catalog.json` if PostgreSQL is offline. Auth, admin, checkout, and PayPal require the database.
 
 ## Environment variables
 
@@ -64,7 +68,22 @@ Demo account (after seed): `demo@bodiqo.com` / `bodiqo1234`
 | `AUTH_URL`             | App origin (e.g. `http://localhost:3000`)   |
 | `NEXT_PUBLIC_SITE_URL` | Public site URL for metadata                |
 
+PayPal Client ID/Secret, SMTP, shipping rates, currency, language, domain, and homepage copy are configured in **Admin → Settings** (database), not via env files.
+
 See `.env.example`.
+
+## PayPal setup (no code)
+
+1. Create a REST app in the [PayPal Developer Dashboard](https://developer.paypal.com/)
+2. Open **Admin → Settings → PayPal**
+3. Paste Client ID + Secret, choose Sandbox or Live, enable PayPal
+4. Checkout redirects customers to PayPal; on success the order is marked **PAID** and funds go to your linked Business account
+
+## Importing from Shopify / DSers
+
+1. Export products from Shopify (CSV) or download `https://your-store.myshopify.com/products.json`
+2. Open **Admin → Import**
+3. Upload CSV or Shopify JSON — products and categories are upserted
 
 ## Deployment
 
@@ -73,6 +92,7 @@ See `.env.example`.
 3. Run migrations / push schema: `npx prisma db push`
 4. Seed production catalog: `npm run db:seed`
 5. Deploy the Next.js app (`npm run build` → `npm start`, or Vercel).
+6. Configure PayPal and store settings from `/admin/settings`
 
 Allow `cdn.shopify.com` for product images (already configured in `next.config.ts`).
 

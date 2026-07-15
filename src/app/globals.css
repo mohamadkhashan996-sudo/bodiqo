@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0b0b0b;
+  --background: #070707;
   --foreground: #f3efe6;
-  --muted: #a39e93;
+  --muted: #9a958a;
   --accent: #d4b483;
-  --surface: #141414;
-  --border: rgba(243, 239, 230, 0.12);
+  --surface: #121212;
+  --border: rgba(243, 239, 230, 0.1);
 }
 
 @theme inline {
@@ -30,12 +30,14 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
   min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 50%, transparent);
   color: #0b0b0b;
 }
 
@@ -48,4 +50,24 @@ textarea,
 select,
 button {
   font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Manrope } from "next/font/google";
 import { Providers } from "@/components/providers";
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
+import { StoreChrome } from "@/components/store-chrome";
 import "./globals.css";
 
 const display = Cormorant_Garamond({
@@ -38,9 +37,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${display.variable} ${sans.variable} antialiased`}>
         <Providers>
-          <SiteHeader />
-          <main className="min-h-screen">{children}</main>
-          <SiteFooter />
+          <StoreChrome>{children}</StoreChrome>
         </Providers>
       </body>
     </html>

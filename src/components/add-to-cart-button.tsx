@@ -30,10 +30,10 @@ export function AddToCartButton({
         window.setTimeout(() => setAdded(false), 1400);
       }}
       className={cn(
-        "w-full text-[11px] font-semibold tracking-[0.2em] uppercase transition",
+        "w-full rounded-full text-[11px] font-semibold tracking-[0.2em] uppercase transition",
         variant === "primary"
-          ? "bg-[#d4b483] px-6 py-3.5 text-[#0b0b0b] hover:bg-[#e2c69a]"
-          : "border border-white/20 px-4 py-2.5 text-[#f3efe6]/85 hover:border-[#d4b483] hover:text-[#d4b483]",
+          ? "bg-[#d4b483] px-6 py-3.5 text-[#0b0b0b] shadow-[0_10px_30px_rgba(212,180,131,0.2)] hover:bg-[#e2c69a]"
+          : "border border-white/15 px-4 py-2.5 text-[#f3efe6]/80 hover:border-[#d4b483] hover:text-[#d4b483]",
         className,
       )}
     >

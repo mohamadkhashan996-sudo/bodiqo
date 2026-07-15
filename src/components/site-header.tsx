@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Menu, ShoppingBag, User, X } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { useCart } from "@/store/cart";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,7 @@ const links = [
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const itemCount = useCart((s) => s.items.reduce((n, i) => n + i.quantity, 0));
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -23,7 +25,7 @@ export function SiteHeader() {
 
   useEffect(() => {
     setMounted(true);
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    const onScroll = () => setScrolled(window.scrollY > 16);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -38,15 +40,16 @@ export function SiteHeader() {
       className={cn(
         "fixed inset-x-0 top-0 z-50 transition-all duration-500",
         scrolled || open
-          ? "border-b border-white/10 bg-[#0b0b0b]/90 backdrop-blur-xl"
+          ? "border-b border-white/[0.07] bg-[#070707]/85 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur-2xl"
           : "bg-transparent",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:h-20 md:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:h-[4.5rem] md:px-8">
         <button
           type="button"
           className="inline-flex items-center justify-center text-[#f3efe6] md:hidden"
-          aria-label="Open menu"
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
           {open ? <X size={22} /> : <Menu size={22} />}
@@ -54,17 +57,17 @@ export function SiteHeader() {
 
         <Link
           href="/"
-          className="absolute left-1/2 -translate-x-1/2 font-[family-name:var(--font-display)] text-2xl tracking-[0.28em] text-[#f3efe6] md:static md:translate-x-0"
+          className="absolute left-1/2 -translate-x-1/2 font-[family-name:var(--font-display)] text-2xl tracking-[0.3em] text-[#f3efe6] md:static md:translate-x-0"
         >
           BODIQO
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-9 md:flex" aria-label="Primary">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="text-[11px] font-medium tracking-[0.22em] text-[#f3efe6]/70 uppercase transition hover:text-[#d4b483]"
+              className="text-[11px] font-medium tracking-[0.22em] text-[#f3efe6]/65 uppercase transition hover:text-[#d4b483]"
             >
               {link.label}
             </Link>
@@ -73,7 +76,14 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-4 md:gap-5">
           <Link
-            href="/auth/sign-in"
+            href="/shop"
+            className="hidden text-[#f3efe6]/80 transition hover:text-[#d4b483] md:inline-flex"
+            aria-label="Search"
+          >
+            <Search size={18} />
+          </Link>
+          <Link
+            href={session ? "/account" : "/auth/sign-in"}
             className="hidden text-[#f3efe6]/80 transition hover:text-[#d4b483] md:inline-flex"
             aria-label="Account"
           >
@@ -82,7 +92,7 @@ export function SiteHeader() {
           <Link
             href="/cart"
             className="relative text-[#f3efe6] transition hover:text-[#d4b483]"
-            aria-label="Cart"
+            aria-label={`Cart${mounted && itemCount ? `, ${itemCount} items` : ""}`}
           >
             <ShoppingBag size={18} />
             {mounted && itemCount > 0 ? (
@@ -95,8 +105,8 @@ export function SiteHeader() {
       </div>
 
       {open ? (
-        <div className="border-t border-white/10 bg-[#0b0b0b] px-5 py-6 md:hidden">
-          <div className="flex flex-col gap-4">
+        <div className="border-t border-white/[0.07] bg-[#070707] px-5 py-7 md:hidden">
+          <div className="flex flex-col gap-5">
             {links.map((link) => (
               <Link
                 key={link.href}
@@ -107,7 +117,7 @@ export function SiteHeader() {
               </Link>
             ))}
             <Link
-              href="/auth/sign-in"
+              href={session ? "/account" : "/auth/sign-in"}
               className="text-sm tracking-[0.18em] text-[#d4b483] uppercase"
             >
               Account

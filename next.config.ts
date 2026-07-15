@@ -8,6 +8,11 @@ const nextConfig: NextConfig = {
         hostname: "cdn.shopify.com",
       },
     ],
+    localPatterns: [
+      {
+        pathname: "/uploads/**",
+      },
+    ],
   },
 };
 
