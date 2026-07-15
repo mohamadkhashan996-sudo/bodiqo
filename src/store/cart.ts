@@ -26,13 +26,17 @@ export const useCart = create<CartState>()(
     (set, get) => ({
       items: [],
       addItem: (product, quantity = 1) => {
+        const qty = Math.max(1, Math.min(20, Number(quantity) || 1));
         set((state) => {
           const existing = state.items.find((i) => i.productId === product.id);
           if (existing) {
             return {
               items: state.items.map((i) =>
                 i.productId === product.id
-                  ? { ...i, quantity: i.quantity + quantity }
+                  ? {
+                      ...i,
+                      quantity: Math.min(20, Number(i.quantity) + qty),
+                    }
                   : i,
               ),
             };
@@ -45,8 +49,8 @@ export const useCart = create<CartState>()(
                 slug: product.slug,
                 title: product.title,
                 image: product.image,
-                price: product.price,
-                quantity,
+                price: Number(product.price),
+                quantity: qty,
               },
             ],
           };
@@ -56,20 +60,39 @@ export const useCart = create<CartState>()(
         set((state) => ({
           items: state.items.filter((i) => i.productId !== productId),
         })),
-      updateQuantity: (productId, quantity) =>
+      updateQuantity: (productId, quantity) => {
+        const qty = Number(quantity);
         set((state) => ({
           items:
-            quantity <= 0
+            !Number.isFinite(qty) || qty <= 0
               ? state.items.filter((i) => i.productId !== productId)
               : state.items.map((i) =>
-                  i.productId === productId ? { ...i, quantity } : i,
+                  i.productId === productId
+                    ? { ...i, quantity: Math.min(20, Math.floor(qty)) }
+                    : i,
                 ),
-        })),
+        }));
+      },
       clearCart: () => set({ items: [] }),
-      itemCount: () => get().items.reduce((sum, i) => sum + i.quantity, 0),
+      itemCount: () =>
+        get().items.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0),
       subtotal: () =>
-        get().items.reduce((sum, i) => sum + i.price * i.quantity, 0),
+        get().items.reduce(
+          (sum, i) => sum + Number(i.price) * (Number(i.quantity) || 0),
+          0,
+        ),
     }),
-    { name: "bodiqo-cart" },
+    {
+      name: "bodiqo-cart",
+      merge: (persisted, current) => {
+        const state = { ...current, ...(persisted as object) } as typeof current;
+        state.items = (state.items || []).map((item) => ({
+          ...item,
+          price: Number(item.price),
+          quantity: Math.max(1, Math.min(20, Number(item.quantity) || 1)),
+        }));
+        return state;
+      },
+    },
   ),
 );

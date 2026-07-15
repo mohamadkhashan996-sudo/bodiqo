@@ -45,18 +45,25 @@ export default function CheckoutClient() {
     setLoading(true);
 
     const form = new FormData(e.currentTarget);
+    const currentItems = useCart.getState().items;
+    if (!currentItems.length) {
+      setError("Your cart is empty.");
+      setLoading(false);
+      return;
+    }
+
     const payload = {
-      email: String(form.get("email")),
-      shippingName: String(form.get("shippingName")),
-      shippingPhone: String(form.get("shippingPhone") || ""),
-      shippingAddress: String(form.get("shippingAddress")),
-      shippingCity: String(form.get("shippingCity")),
-      shippingZip: String(form.get("shippingZip") || ""),
-      shippingCountry: String(form.get("shippingCountry") || "IL"),
-      couponCode: coupon || undefined,
-      items: items.map((item) => ({
+      email: String(form.get("email") || "").trim(),
+      shippingName: String(form.get("shippingName") || "").trim(),
+      shippingPhone: String(form.get("shippingPhone") || "").trim(),
+      shippingAddress: String(form.get("shippingAddress") || "").trim(),
+      shippingCity: String(form.get("shippingCity") || "").trim(),
+      shippingZip: String(form.get("shippingZip") || "").trim(),
+      shippingCountry: String(form.get("shippingCountry") || "IL").trim() || "IL",
+      couponCode: coupon.trim() || undefined,
+      items: currentItems.map((item) => ({
         slug: item.slug,
-        quantity: item.quantity,
+        quantity: Number(item.quantity) || 1,
       })),
     };
 

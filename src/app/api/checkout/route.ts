@@ -11,21 +11,31 @@ import {
   getPaypalConfig,
 } from "@/lib/paypal";
 
+const emptyToUndefined = z.literal("").transform(() => undefined);
+
+const optionalText = z
+  .union([z.string().trim(), emptyToUndefined])
+  .optional()
+  .transform((v) => (v == null || v === "" ? undefined : v));
+
 const itemSchema = z.object({
-  slug: z.string(),
-  quantity: z.number().int().min(1).max(20),
+  slug: z.string().trim().min(1),
+  quantity: z.coerce.number().int().min(1).max(20),
 });
 
 const checkoutSchema = z.object({
-  email: z.string().email(),
-  shippingName: z.string().min(2),
-  shippingPhone: z.string().optional(),
-  shippingAddress: z.string().min(5),
-  shippingCity: z.string().min(2),
-  shippingZip: z.string().optional(),
-  shippingCountry: z.string().default("IL"),
-  couponCode: z.string().optional(),
-  items: z.array(itemSchema).min(1),
+  email: z.string().trim().email("Enter a valid email address"),
+  shippingName: z.string().trim().min(2, "Full name is required"),
+  shippingPhone: optionalText,
+  shippingAddress: z.string().trim().min(3, "Address is required"),
+  shippingCity: z.string().trim().min(2, "City is required"),
+  shippingZip: optionalText,
+  shippingCountry: z
+    .union([z.string().trim().min(2), emptyToUndefined])
+    .optional()
+    .transform((v) => v || "IL"),
+  couponCode: optionalText,
+  items: z.array(itemSchema).min(1, "Your cart is empty"),
 });
 
 export async function POST(request: Request) {
@@ -34,8 +44,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = checkoutSchema.safeParse(body);
     if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((issue) => issue.message)
+        .filter(Boolean);
       return NextResponse.json(
-        { error: "Invalid checkout data." },
+        {
+          error: details[0] || "Invalid checkout data.",
+          details,
+        },
         { status: 400 },
       );
     }
