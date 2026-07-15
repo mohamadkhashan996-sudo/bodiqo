@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SETUP_COOKIE, isValidSetupCookie } from "@/lib/setup-cookie";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Never HTML-redirect Auth.js or setup APIs — clients expect JSON.
@@ -22,7 +22,7 @@ export function middleware(request: NextRequest) {
   }
 
   const cookie = request.cookies.get(SETUP_COOKIE)?.value;
-  if (isValidSetupCookie(cookie)) {
+  if (await isValidSetupCookie(cookie)) {
     return NextResponse.next();
   }
 
@@ -33,5 +33,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };

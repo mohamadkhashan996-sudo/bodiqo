@@ -107,11 +107,13 @@ async function main() {
     },
   });
 
+  await prisma.setting.deleteMany({ where: { key: "crypto" } });
+
   console.log("Demo seed complete.");
   console.log("Login: demo@bodiqo.com / bodiqo1234");
   console.log(
     "Setup cookie value (optional):",
-    setupCookieValue(process.env.AUTH_SECRET || ""),
+    await setupCookieValue(process.env.AUTH_SECRET || ""),
   );
 }
 

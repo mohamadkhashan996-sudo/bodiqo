@@ -39,26 +39,6 @@ export const stripeSettingsSchema = z.object({
   googlePay: z.boolean().default(true),
 });
 
-export const cryptoCoinSchema = z.object({
-  coin: z.string(),
-  network: z.string(),
-  address: z.string(),
-  enabled: z.boolean().default(true),
-});
-
-export const cryptoSettingsSchema = z.object({
-  enabled: z.boolean().default(false),
-  wallets: z.array(cryptoCoinSchema).default([
-    { coin: "BTC", network: "Bitcoin", address: "", enabled: false },
-    { coin: "ETH", network: "Ethereum", address: "", enabled: false },
-    { coin: "USDT", network: "TRC20", address: "", enabled: false },
-    { coin: "USDT", network: "ERC20", address: "", enabled: false },
-    { coin: "USDC", network: "ERC20", address: "", enabled: false },
-    { coin: "SOL", network: "Solana", address: "", enabled: false },
-    { coin: "BNB", network: "BEP20", address: "", enabled: false },
-  ]),
-});
-
 export const taxSettingsSchema = z.object({
   enabled: z.boolean().default(false),
   defaultRate: z.number().default(0),
@@ -222,7 +202,6 @@ export const localizationSettingsSchema = z.object({
 export type StoreSettings = z.infer<typeof storeSettingsSchema>;
 export type PaypalSettings = z.infer<typeof paypalSettingsSchema>;
 export type StripeSettings = z.infer<typeof stripeSettingsSchema>;
-export type CryptoSettings = z.infer<typeof cryptoSettingsSchema>;
 export type TaxSettings = z.infer<typeof taxSettingsSchema>;
 export type SmtpSettings = z.infer<typeof smtpSettingsSchema>;
 export type ShippingSettings = z.infer<typeof shippingSettingsSchema>;
@@ -236,7 +215,6 @@ export const SETTING_KEYS = {
   store: "store",
   paypal: "paypal",
   stripe: "stripe",
-  crypto: "crypto",
   tax: "tax",
   smtp: "smtp",
   shipping: "shipping",
@@ -253,7 +231,6 @@ export const settingSchemas = {
   store: storeSettingsSchema,
   paypal: paypalSettingsSchema,
   stripe: stripeSettingsSchema,
-  crypto: cryptoSettingsSchema,
   tax: taxSettingsSchema,
   smtp: smtpSettingsSchema,
   shipping: shippingSettingsSchema,

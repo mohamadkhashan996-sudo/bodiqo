@@ -41,16 +41,7 @@ enum DiscountType {
 enum PaymentProvider {
   PAYPAL
   STRIPE
-  CRYPTO
   MANUAL
-}
-
-enum CryptoPaymentStatus {
-  WAITING
-  CONFIRMING
-  CONFIRMED
-  EXPIRED
-  FAILED
 }
 
 model User {
@@ -376,7 +367,6 @@ model Order {
   supplierOrderedAt  DateTime?
   items              OrderItem[]
   payments           Payment[]
-  cryptoPayments     CryptoPayment[]
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
@@ -420,27 +410,6 @@ model Payment {
 
   @@index([orderId])
   @@index([provider, status])
-}
-
-model CryptoPayment {
-  id        String              @id @default(cuid())
-  orderId   String
-  order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  coin      String
-  network   String
-  amount    Decimal
-  currency  String              @default("USD")
-  address   String
-  txid      String?
-  status    CryptoPaymentStatus @default(WAITING)
-  expiresAt DateTime?
-  confirmedAt DateTime?
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
-
-  @@index([orderId])
-  @@index([status])
-  @@index([coin])
 }
 
 model Review {

@@ -3,29 +3,11 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Wallet = {
-  coin: string;
-  network: string;
-  address: string;
-  enabled: boolean;
-};
-
-const DEFAULT_WALLETS: Wallet[] = [
-  { coin: "BTC", network: "Bitcoin", address: "", enabled: false },
-  { coin: "ETH", network: "Ethereum", address: "", enabled: false },
-  { coin: "USDT", network: "TRC20", address: "", enabled: false },
-  { coin: "USDT", network: "ERC20", address: "", enabled: false },
-  { coin: "USDC", network: "ERC20", address: "", enabled: false },
-  { coin: "SOL", network: "Solana", address: "", enabled: false },
-  { coin: "BNB", network: "BEP20", address: "", enabled: false },
-];
-
 const STEPS = [
   "Welcome",
   "Admin",
   "Store",
   "PayPal",
-  "Crypto",
   "Finish",
 ] as const;
 
@@ -57,9 +39,6 @@ export function SetupWizard() {
   const [paypalEmail, setPaypalEmail] = useState("");
   const [paypalClientId, setPaypalClientId] = useState("");
   const [paypalSecret, setPaypalSecret] = useState("");
-
-  const [cryptoEnabled, setCryptoEnabled] = useState(false);
-  const [wallets, setWallets] = useState<Wallet[]>(DEFAULT_WALLETS);
 
   useEffect(() => {
     fetch("/api/setup/status")
@@ -167,10 +146,6 @@ export function SetupWizard() {
             clientId: paypalClientId.trim(),
             clientSecret: paypalSecret.trim(),
           },
-          crypto: {
-            enabled: cryptoEnabled,
-            wallets,
-          },
         }),
       });
       const data = await res.json();
@@ -218,7 +193,7 @@ export function SetupWizard() {
             </h1>
             <p className="text-sm leading-relaxed text-[#f3efe6]/60">
               First launch setup. Create your admin account, brand the store,
-              and connect PayPal / crypto wallets. No demo data will be created
+              and connect PayPal. No demo data will be created
               — you start clean for production.
             </p>
           </div>
@@ -374,67 +349,15 @@ export function SetupWizard() {
 
         {step === 4 && (
           <div className="space-y-4">
-            <h2 className="text-2xl text-[#f3efe6]">Crypto wallets</h2>
-            <p className="text-sm text-[#f3efe6]/55">
-              Store deposit addresses only — never private keys. Optional; skip
-              anytime.
-            </p>
-            <Toggle
-              label="Enable crypto payments"
-              checked={cryptoEnabled}
-              onChange={setCryptoEnabled}
-            />
-            {cryptoEnabled
-              ? wallets.map((w, i) => (
-                  <div
-                    key={`${w.coin}-${w.network}`}
-                    className="space-y-2 rounded-xl border border-white/10 p-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm text-[#f3efe6]">
-                        {w.coin} · {w.network}
-                      </p>
-                      <label className="flex items-center gap-2 text-xs text-[#f3efe6]/60">
-                        <input
-                          type="checkbox"
-                          checked={w.enabled}
-                          onChange={(e) => {
-                            const next = [...wallets];
-                            next[i] = { ...w, enabled: e.target.checked };
-                            setWallets(next);
-                          }}
-                        />
-                        Enable
-                      </label>
-                    </div>
-                    <input
-                      value={w.address}
-                      onChange={(e) => {
-                        const next = [...wallets];
-                        next[i] = { ...w, address: e.target.value };
-                        setWallets(next);
-                      }}
-                      placeholder="Wallet address"
-                      className="w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm"
-                    />
-                  </div>
-                ))
-              : null}
-          </div>
-        )}
-
-        {step === 5 && (
-          <div className="space-y-4">
             <h2 className="text-2xl text-[#f3efe6]">Ready to launch</h2>
             <ul className="space-y-2 text-sm text-[#f3efe6]/65">
               <li>Admin: {adminEmail || "—"}</li>
               <li>Store: {storeName || "—"}</li>
               <li>PayPal: {paypalEnabled ? "Enabled" : "Skipped"}</li>
-              <li>Crypto: {cryptoEnabled ? "Enabled" : "Skipped"}</li>
             </ul>
             <p className="text-sm text-[#f3efe6]/45">
               Click Finish to create your admin account and open the dashboard.
-              Add products from Admin → Products — no sample catalog is loaded.
+              Custom catalog and inventory are managed from Admin.
             </p>
           </div>
         )}

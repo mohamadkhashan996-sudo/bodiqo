@@ -44,7 +44,7 @@ async function main() {
   });
 
   console.log(
-    "Done. Open /setup to create your admin, store, PayPal, and crypto wallets.",
+    "Done. Open /setup to create your admin, store, and PayPal settings.",
   );
   console.log("No demo catalog or demo admin was created.");
 }

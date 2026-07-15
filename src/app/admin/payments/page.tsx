@@ -23,22 +23,9 @@ type StripeForm = {
   googlePay: boolean;
 };
 
-type CryptoWallet = {
-  coin: string;
-  network: string;
-  address: string;
-  enabled: boolean;
-};
-
-type CryptoForm = {
-  enabled: boolean;
-  wallets: CryptoWallet[];
-};
-
 export default function PaymentsSettingsPage() {
   const [paypal, setPaypal] = useState<PaypalForm | null>(null);
   const [stripe, setStripe] = useState<StripeForm | null>(null);
-  const [crypto, setCrypto] = useState<CryptoForm | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
 
@@ -64,22 +51,11 @@ export default function PaymentsSettingsPage() {
           applePay: d.stripe?.applePay !== false,
           googlePay: d.stripe?.googlePay !== false,
         });
-        setCrypto({
-          enabled: Boolean(d.crypto?.enabled),
-          wallets: Array.isArray(d.crypto?.wallets)
-            ? d.crypto.wallets.map((w: CryptoWallet) => ({
-                coin: String(w.coin || ""),
-                network: String(w.network || ""),
-                address: String(w.address || ""),
-                enabled: Boolean(w.enabled),
-              }))
-            : [],
-        });
       })
       .catch(() => setMessage("Failed to load payment settings"));
   }, []);
 
-  async function saveSection(key: "paypal" | "stripe" | "crypto", value: unknown) {
+  async function saveSection(key: "paypal" | "stripe", value: unknown) {
     setSaving(key);
     setMessage(null);
     const res = await fetch("/api/admin/settings", {
@@ -96,10 +72,9 @@ export default function PaymentsSettingsPage() {
     setMessage(`${key} settings saved.`);
     if (key === "paypal") setPaypal(data.value);
     if (key === "stripe") setStripe(data.value);
-    if (key === "crypto") setCrypto(data.value);
   }
 
-  if (!paypal || !stripe || !crypto) {
+  if (!paypal || !stripe) {
     return <p className="text-sm text-[#f3efe6]/55">Loading payments…</p>;
   }
 
@@ -113,7 +88,7 @@ export default function PaymentsSettingsPage() {
           Payments
         </h1>
         <p className="mt-2 text-sm text-[#f3efe6]/55">
-          Configure PayPal, Stripe, and crypto checkout for your storefront.
+          Configure PayPal and Stripe checkout for your storefront.
         </p>
       </div>
 
@@ -131,13 +106,6 @@ export default function PaymentsSettingsPage() {
         setForm={setStripe}
         saving={saving === "stripe"}
         onSave={(v) => saveSection("stripe", v)}
-      />
-
-      <CryptoSection
-        form={crypto}
-        setForm={setCrypto}
-        saving={saving === "crypto"}
-        onSave={(v) => saveSection("crypto", v)}
       />
 
       <div className="rounded-2xl border border-white/10 p-5 text-sm text-[#f3efe6]/55">
@@ -254,72 +222,6 @@ function StripeSection({
       <Field label="Webhook secret" value={form.webhookSecret} onChange={(v) => setForm((p) => (p ? { ...p, webhookSecret: v } : p))} type="password" />
       <Toggle checked={form.applePay} onChange={(v) => setForm((p) => (p ? { ...p, applePay: v } : p))} label="Apple Pay" />
       <Toggle checked={form.googlePay} onChange={(v) => setForm((p) => (p ? { ...p, googlePay: v } : p))} label="Google Pay" />
-      <SaveButton saving={saving} />
-    </form>
-  );
-}
-
-function CryptoSection({
-  form,
-  setForm,
-  saving,
-  onSave,
-}: {
-  form: CryptoForm;
-  setForm: React.Dispatch<React.SetStateAction<CryptoForm | null>>;
-  saving: boolean;
-  onSave: (v: CryptoForm) => void;
-}) {
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSave(form);
-      }}
-      className="space-y-5 rounded-2xl border border-white/10 bg-[#121212] p-6"
-    >
-      <h2 className="text-lg text-[#f3efe6]">Cryptocurrency</h2>
-      <Toggle
-        checked={form.enabled}
-        onChange={(v) => setForm((p) => (p ? { ...p, enabled: v } : p))}
-        label="Enable crypto payments"
-      />
-      <div className="space-y-4">
-        {form.wallets.map((wallet, index) => (
-          <div
-            key={`${wallet.coin}-${wallet.network}`}
-            className="rounded-xl border border-white/8 p-4"
-          >
-            <p className="text-sm font-medium text-[#f3efe6]">
-              {wallet.coin} · {wallet.network}
-            </p>
-            <Field
-              label="Wallet address"
-              value={wallet.address}
-              onChange={(v) =>
-                setForm((p) => {
-                  if (!p) return p;
-                  const wallets = [...p.wallets];
-                  wallets[index] = { ...wallets[index], address: v };
-                  return { ...p, wallets };
-                })
-              }
-            />
-            <Toggle
-              checked={wallet.enabled}
-              onChange={(v) =>
-                setForm((p) => {
-                  if (!p) return p;
-                  const wallets = [...p.wallets];
-                  wallets[index] = { ...wallets[index], enabled: v };
-                  return { ...p, wallets };
-                })
-              }
-              label="Enabled"
-            />
-          </div>
-        ))}
-      </div>
       <SaveButton saving={saving} />
     </form>
   );

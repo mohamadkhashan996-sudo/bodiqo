@@ -11,13 +11,6 @@ import {
   setupCookieValue,
 } from "@/lib/setup";
 
-const walletSchema = z.object({
-  coin: z.string().min(1),
-  network: z.string().min(1),
-  address: z.string().default(""),
-  enabled: z.boolean().default(false),
-});
-
 const setupBodySchema = z.object({
   admin: z.object({
     name: z.string().min(2).max(80),
@@ -40,12 +33,6 @@ const setupBodySchema = z.object({
       businessEmail: z.string().default(""),
       clientId: z.string().default(""),
       clientSecret: z.string().default(""),
-    })
-    .default({}),
-  crypto: z
-    .object({
-      enabled: z.boolean().default(false),
-      wallets: z.array(walletSchema).default([]),
     })
     .default({}),
 });
@@ -86,7 +73,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { admin, store, paypal, crypto } = parsed.data;
+  const { admin, store, paypal } = parsed.data;
   const email = admin.email.toLowerCase().trim();
 
   const existingAdmin = await prisma.user.findFirst({
@@ -154,31 +141,6 @@ export async function POST(request: Request) {
     connectedAt: paypalEnabled ? new Date().toISOString() : "",
   });
 
-  const wallets =
-    crypto.wallets.length > 0
-      ? crypto.wallets
-      : [
-          { coin: "BTC", network: "Bitcoin", address: "", enabled: false },
-          { coin: "ETH", network: "Ethereum", address: "", enabled: false },
-          { coin: "USDT", network: "TRC20", address: "", enabled: false },
-          { coin: "USDT", network: "ERC20", address: "", enabled: false },
-          { coin: "USDC", network: "ERC20", address: "", enabled: false },
-          { coin: "SOL", network: "Solana", address: "", enabled: false },
-          { coin: "BNB", network: "BEP20", address: "", enabled: false },
-        ];
-
-  const cryptoEnabled =
-    crypto.enabled && wallets.some((w) => w.enabled && w.address.trim());
-
-  await setSetting(SETTING_KEYS.crypto, {
-    enabled: cryptoEnabled,
-    wallets: wallets.map((w) => ({
-      ...w,
-      address: w.address.trim(),
-      enabled: Boolean(w.enabled && w.address.trim()),
-    })),
-  });
-
   // Minimal navigation so the store is usable after setup
   const menuCount = await prisma.menuItem.count();
   if (menuCount === 0) {
@@ -210,7 +172,7 @@ export async function POST(request: Request) {
     redirectTo: "/auth/sign-in?callbackUrl=/admin",
   });
 
-  const cookieVal = setupCookieValue();
+  const cookieVal = await setupCookieValue();
   if (cookieVal) {
     res.cookies.set(SETUP_COOKIE, cookieVal, {
       httpOnly: true,

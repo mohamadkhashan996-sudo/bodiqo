@@ -37,7 +37,6 @@ const EXPORT_TABLES = [
   "order",
   "orderItem",
   "payment",
-  "cryptoPayment",
   "review",
   "mediaAsset",
   "menuItem",
@@ -182,7 +181,6 @@ export async function restoreBackup(id: string) {
     // children first
     await tx.orderItem.deleteMany();
     await tx.payment.deleteMany();
-    await tx.cryptoPayment.deleteMany();
     await tx.wishlistItem.deleteMany();
     await tx.productTag.deleteMany();
     await tx.productCollection.deleteMany();
@@ -247,7 +245,6 @@ export async function restoreBackup(id: string) {
     await createMany("order", t.order || []);
     await createMany("orderItem", t.orderItem || []);
     await createMany("payment", t.payment || []);
-    await createMany("cryptoPayment", t.cryptoPayment || []);
     await createMany("review", t.review || []);
     await createMany("mediaAsset", t.mediaAsset || []);
     await createMany("menuItem", t.menuItem || []);

@@ -36,7 +36,6 @@ const sections = [
     title: "Commerce",
     items: [
       { href: "/admin/payments", label: "Payments" },
-      { href: "/admin/crypto", label: "Crypto Payments" },
       { href: "/admin/shipping", label: "Shipping" },
       { href: "/admin/taxes", label: "Taxes" },
       { href: "/admin/users", label: "Users & Roles" },

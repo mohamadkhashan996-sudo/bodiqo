@@ -19,7 +19,7 @@ BODIQO is **not Shopify**. It is an independent Next.js commerce stack with a Sh
 - Orders, Customers, Inventory (Available / Reserved / Sold)
 - Categories (nested), Collections, Coupons, Reviews, Analytics
 - Media Library (local or Cloudinary), Homepage Builder, Menus, Pages, Blog, SEO
-- Payments (PayPal + Stripe + Apple/Google Pay via Stripe), Crypto wallets
+- Payments (PayPal + Stripe + Apple/Google Pay via Stripe)
 - Shipping, Taxes, Users & Roles (USER / STAFF / ADMIN), Settings
 - **Backups** — manual/auto full DB backup, download, upload, restore
 - **Activity logs** — audit trail for admin actions
@@ -28,7 +28,6 @@ BODIQO is **not Shopify**. It is an independent Next.js commerce stack with a Sh
 ### Payments
 - **PayPal** — Business Email, Client ID/Secret, Sandbox/Live (Admin → Payments)
 - **Stripe** — keys + webhooks; Apple Pay / Google Pay when domain-verified
-- **Crypto** — BTC, ETH, USDT (TRC20/ERC20), USDC, SOL, BNB wallet addresses only (no private keys)
 
 ### Inventory
 - Automatic reservation on unpaid checkout, reduction on paid orders
@@ -48,7 +47,7 @@ BODIQO is **not Shopify**. It is an independent Next.js commerce stack with a Sh
 | Motion | Framer Motion |
 | Forms | React Hook Form + Zod |
 | State | Zustand |
-| Payments | PayPal, Stripe, Crypto wallets |
+| Payments | PayPal, Stripe |
 
 ## Installation
 
@@ -71,7 +70,7 @@ npm run db:seed
 npm run dev
 ```
 
-On first launch the app opens **`/setup`** — create your admin account, store name/logo, PayPal, and crypto wallets. No demo catalog is loaded.
+On first launch the app opens **`/setup`** — create your admin account, store name/logo, and PayPal. For local product preview use `npm run db:seed:demo`.
 
 - Store: [http://localhost:3000](http://localhost:3000)
 - Setup wizard: [http://localhost:3000/setup](http://localhost:3000/setup)

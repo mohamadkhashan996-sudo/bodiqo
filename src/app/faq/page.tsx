@@ -9,7 +9,7 @@ const FAQ = [
   },
   {
     q: "Which payment methods are supported?",
-    a: "PayPal, Stripe (including Apple Pay / Google Pay when enabled), cryptocurrency wallets, and manual checkout when configured.",
+    a: "PayPal, Stripe (including Apple Pay / Google Pay when enabled), and manual checkout when configured.",
   },
   {
     q: "Can I get a refund?",

@@ -12,11 +12,6 @@ import {
 } from "@/lib/paypal";
 import { createCheckoutSession } from "@/lib/stripe";
 import {
-  computeCryptoAmount,
-  cryptoExpiresAt,
-  findWallet,
-} from "@/lib/crypto-payments";
-import {
   fulfillManualOrder,
   reserveAwaitingPayment,
 } from "@/lib/order-inventory";
@@ -48,11 +43,9 @@ const checkoutSchema = z.object({
     .transform((v) => v || "IL"),
   couponCode: optionalText,
   paymentMethod: z
-    .enum(["paypal", "stripe", "crypto", "none"])
+    .enum(["paypal", "stripe", "none"])
     .optional()
     .default("none"),
-  cryptoCoin: optionalText,
-  cryptoNetwork: optionalText,
   items: z.array(itemSchema).min(1, "Your cart is empty"),
 });
 
@@ -258,13 +251,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const [shippingSettings, storeSettings, paypal, stripe, crypto] =
+    const [shippingSettings, storeSettings, paypal, stripe] =
       await Promise.all([
         getSetting(SETTING_KEYS.shipping),
         getSetting(SETTING_KEYS.store),
         getPaypalConfig(),
         getSetting(SETTING_KEYS.stripe),
-        getSetting(SETTING_KEYS.crypto),
       ]);
 
     const paymentMethod = parsed.data.paymentMethod;
@@ -277,12 +269,6 @@ export async function POST(request: Request) {
     if (paymentMethod === "stripe" && !stripe.enabled) {
       return NextResponse.json(
         { error: "Stripe is not enabled." },
-        { status: 400 },
-      );
-    }
-    if (paymentMethod === "crypto" && !crypto.enabled) {
-      return NextResponse.json(
-        { error: "Crypto payments are not enabled." },
         { status: 400 },
       );
     }
@@ -327,18 +313,14 @@ export async function POST(request: Request) {
     const currency = storeSettings.currency || "ILS";
     const orderNumber = `BQ-${Date.now().toString(36).toUpperCase()}`;
 
-    const awaitingPayment = ["paypal", "stripe", "crypto"].includes(
-      paymentMethod,
-    );
+    const awaitingPayment = ["paypal", "stripe"].includes(paymentMethod);
 
     const paymentProvider =
       paymentMethod === "paypal"
         ? "PAYPAL"
         : paymentMethod === "stripe"
           ? "STRIPE"
-          : paymentMethod === "crypto"
-            ? "CRYPTO"
-            : "MANUAL";
+          : "MANUAL";
 
     const order = await prisma.order.create({
       data: {
@@ -481,59 +463,6 @@ export async function POST(request: Request) {
         tax: Number(order.tax),
         payment: "stripe",
         url: stripeSession.url,
-      });
-    }
-
-    if (paymentMethod === "crypto") {
-      const coin = parsed.data.cryptoCoin?.toUpperCase();
-      const network = parsed.data.cryptoNetwork?.trim();
-      if (!coin || !network) {
-        return NextResponse.json(
-          { error: "Select a coin and network for crypto payment." },
-          { status: 400 },
-        );
-      }
-
-      const wallet = findWallet(crypto, coin, network);
-      if (!wallet) {
-        return NextResponse.json(
-          { error: "Selected crypto wallet is not configured." },
-          { status: 400 },
-        );
-      }
-
-      const { amount, displayCurrency } = computeCryptoAmount(
-        Number(order.total),
-        currency,
-        coin,
-      );
-
-      const cryptoPayment = await prisma.cryptoPayment.create({
-        data: {
-          orderId: order.id,
-          coin,
-          network: wallet.network,
-          amount,
-          currency: displayCurrency,
-          address: wallet.address,
-          status: "WAITING",
-          expiresAt: cryptoExpiresAt(),
-        },
-      });
-
-      return NextResponse.json({
-        ok: true,
-        orderNumber: order.orderNumber,
-        total: Number(order.total),
-        tax: Number(order.tax),
-        payment: "crypto",
-        cryptoPaymentId: cryptoPayment.id,
-        coin,
-        network: wallet.network,
-        address: wallet.address,
-        amount: Number(cryptoPayment.amount),
-        currency: displayCurrency,
-        redirectUrl: `/checkout/crypto/${cryptoPayment.id}`,
       });
     }
 

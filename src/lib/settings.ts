@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import {
   SETTING_KEYS,
   backupSettingsSchema,
-  cryptoSettingsSchema,
   homepageSettingsSchema,
   localizationSettingsSchema,
   paypalSettingsSchema,
@@ -14,7 +13,6 @@ import {
   stripeSettingsSchema,
   taxSettingsSchema,
   type BackupSettings,
-  type CryptoSettings,
   type HomepageSettings,
   type LocalizationSettings,
   type PaypalSettings,
@@ -32,7 +30,6 @@ type SettingsMap = {
   [SETTING_KEYS.store]: StoreSettings;
   [SETTING_KEYS.paypal]: PaypalSettings;
   [SETTING_KEYS.stripe]: StripeSettings;
-  [SETTING_KEYS.crypto]: CryptoSettings;
   [SETTING_KEYS.tax]: TaxSettings;
   [SETTING_KEYS.smtp]: SmtpSettings;
   [SETTING_KEYS.shipping]: ShippingSettings;
@@ -47,7 +44,6 @@ const parsers = {
   [SETTING_KEYS.store]: storeSettingsSchema,
   [SETTING_KEYS.paypal]: paypalSettingsSchema,
   [SETTING_KEYS.stripe]: stripeSettingsSchema,
-  [SETTING_KEYS.crypto]: cryptoSettingsSchema,
   [SETTING_KEYS.tax]: taxSettingsSchema,
   [SETTING_KEYS.smtp]: smtpSettingsSchema,
   [SETTING_KEYS.shipping]: shippingSettingsSchema,
