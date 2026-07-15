@@ -39,16 +39,16 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
           {onSale ? (
-            <span className="absolute top-3 left-3 rounded-full bg-[#d4b483] px-3 py-1 text-[10px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase">
+            <span className="absolute top-3 left-3 rounded-full bg-[#4a8cff] px-3 py-1 text-[10px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase">
               Sale
             </span>
           ) : null}
         </div>
         <div className="mt-5 space-y-2 px-0.5">
-          <p className="text-[10px] tracking-[0.22em] text-[#d4b483]/90 uppercase">
+          <p className="text-[10px] tracking-[0.22em] text-[#4a8cff]/90 uppercase">
             {product.category}
           </p>
-          <h3 className="text-[15px] leading-snug text-[#f3efe6] transition group-hover:text-[#d4b483] md:text-base">
+          <h3 className="text-[15px] leading-snug text-[#f3efe6] transition group-hover:text-[#4a8cff] md:text-base">
             {product.title}
           </h3>
           <div className="flex items-baseline gap-2.5 pt-1">

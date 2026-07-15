@@ -12,12 +12,35 @@ const sections = [
       { href: "/admin/products", label: "Products" },
       { href: "/admin/orders", label: "Orders" },
       { href: "/admin/customers", label: "Customers" },
-      { href: "/admin/categories", label: "Categories" },
       { href: "/admin/inventory", label: "Inventory" },
+      { href: "/admin/categories", label: "Categories" },
+      { href: "/admin/collections", label: "Collections" },
       { href: "/admin/coupons", label: "Coupons" },
+      { href: "/admin/reviews", label: "Reviews" },
       { href: "/admin/analytics", label: "Analytics" },
+      { href: "/admin/media", label: "Media Library" },
+    ],
+  },
+  {
+    title: "Storefront",
+    items: [
+      { href: "/admin/homepage", label: "Homepage Builder" },
+      { href: "/admin/menus", label: "Menus" },
+      { href: "/admin/pages", label: "Pages" },
+      { href: "/admin/blog", label: "Blog" },
+      { href: "/admin/banners", label: "Banners" },
+      { href: "/admin/seo", label: "SEO" },
+    ],
+  },
+  {
+    title: "Commerce",
+    items: [
       { href: "/admin/payments", label: "Payments" },
+      { href: "/admin/crypto", label: "Crypto Payments" },
       { href: "/admin/shipping", label: "Shipping" },
+      { href: "/admin/taxes", label: "Taxes" },
+      { href: "/admin/users", label: "Users & Roles" },
+      { href: "/admin/sellers", label: "Sellers (future)" },
       { href: "/admin/settings", label: "Settings" },
     ],
   },
@@ -27,14 +50,7 @@ const sections = [
       { href: "/admin/dropship", label: "Dropship hub" },
       { href: "/admin/dropship/orders", label: "Supplier orders" },
       { href: "/admin/suppliers", label: "Suppliers" },
-    ],
-  },
-  {
-    title: "Content",
-    items: [
-      { href: "/admin/banners", label: "Banners" },
-      { href: "/admin/media", label: "Media" },
-      { href: "/admin/seo", label: "SEO" },
+      { href: "/admin/import", label: "CSV Import" },
     ],
   },
 ];
@@ -64,7 +80,7 @@ export function AdminNav() {
                     className={cn(
                       "block rounded-md px-3 py-2 text-sm transition",
                       active
-                        ? "bg-white/8 text-[#d4b483]"
+                        ? "bg-white/8 text-[#4a8cff]"
                         : "text-[#f3efe6]/70 hover:bg-white/5 hover:text-[#f3efe6]",
                     )}
                   >

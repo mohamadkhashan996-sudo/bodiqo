@@ -92,10 +92,10 @@ export function OrderActions({
           className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3"
         />
       </label>
-      {message ? <p className="text-sm text-[#d4b483]">{message}</p> : null}
+      {message ? <p className="text-sm text-[#4a8cff]">{message}</p> : null}
       <button
         type="submit"
-        className="rounded-full bg-[#d4b483] px-6 py-3 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
+        className="rounded-full bg-[#4a8cff] px-6 py-3 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
       >
         Update order
       </button>

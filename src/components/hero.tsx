@@ -73,14 +73,14 @@ export function Hero({
         >
           <Link
             href={ctaHref}
-            className="rounded-full bg-[#d4b483] px-8 py-3.5 text-[11px] font-semibold tracking-[0.24em] text-[#0b0b0b] uppercase shadow-[0_10px_40px_rgba(212,180,131,0.25)] transition hover:bg-[#e2c69a] hover:shadow-[0_12px_48px_rgba(212,180,131,0.35)]"
+            className="rounded-full bg-[#4a8cff] px-8 py-3.5 text-[11px] font-semibold tracking-[0.24em] text-[#0b0b0b] uppercase shadow-[0_10px_40px_rgba(212,180,131,0.25)] transition hover:bg-[#6aa0ff] hover:shadow-[0_12px_48px_rgba(212,180,131,0.35)]"
           >
             {ctaLabel}
           </Link>
           {product ? (
             <Link
               href={`/product/${product.slug}`}
-              className="rounded-full border border-white/20 px-8 py-3.5 text-[11px] font-semibold tracking-[0.24em] text-[#f7f3ea] uppercase transition hover:border-[#d4b483] hover:text-[#d4b483]"
+              className="rounded-full border border-white/20 px-8 py-3.5 text-[11px] font-semibold tracking-[0.24em] text-[#f7f3ea] uppercase transition hover:border-[#4a8cff] hover:text-[#4a8cff]"
             >
               Featured piece
             </Link>

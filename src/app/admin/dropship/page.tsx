@@ -138,7 +138,7 @@ export default function DropshipHubPage() {
   return (
     <div className="space-y-10">
       <div>
-        <p className="text-[11px] tracking-[0.2em] text-[#d4b483] uppercase">
+        <p className="text-[11px] tracking-[0.2em] text-[#4a8cff] uppercase">
           Dropshipping
         </p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl">
@@ -170,7 +170,7 @@ export default function DropshipHubPage() {
           onSubmit={importUrl}
           className="space-y-4 rounded-2xl border border-white/10 bg-[#121212] p-6"
         >
-          <h2 className="text-[11px] tracking-[0.18em] text-[#d4b483] uppercase">
+          <h2 className="text-[11px] tracking-[0.18em] text-[#4a8cff] uppercase">
             Import by AliExpress URL
           </h2>
           <input
@@ -194,7 +194,7 @@ export default function DropshipHubPage() {
           <button
             type="submit"
             disabled={loading}
-            className="rounded-full bg-[#d4b483] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase disabled:opacity-60"
+            className="rounded-full bg-[#4a8cff] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase disabled:opacity-60"
           >
             {loading ? "Importing…" : "Import product"}
           </button>
@@ -208,7 +208,7 @@ export default function DropshipHubPage() {
           onSubmit={importCsv}
           className="space-y-4 rounded-2xl border border-white/10 bg-[#121212] p-6"
         >
-          <h2 className="text-[11px] tracking-[0.18em] text-[#d4b483] uppercase">
+          <h2 className="text-[11px] tracking-[0.18em] text-[#4a8cff] uppercase">
             Import CSV
           </h2>
           <input
@@ -221,7 +221,7 @@ export default function DropshipHubPage() {
           <button
             type="submit"
             disabled={loading}
-            className="rounded-full border border-[#d4b483]/50 px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#d4b483] uppercase disabled:opacity-60"
+            className="rounded-full border border-[#4a8cff]/50 px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#4a8cff] uppercase disabled:opacity-60"
           >
             Upload CSV
           </button>
@@ -231,14 +231,14 @@ export default function DropshipHubPage() {
           </p>
           <Link
             href="/admin/dropship/orders"
-            className="inline-block text-xs tracking-[0.14em] text-[#d4b483] uppercase"
+            className="inline-block text-xs tracking-[0.14em] text-[#4a8cff] uppercase"
           >
             Export supplier orders →
           </Link>
         </form>
       </div>
 
-      {message ? <p className="text-sm text-[#d4b483]">{message}</p> : null}
+      {message ? <p className="text-sm text-[#4a8cff]">{message}</p> : null}
 
       <section className="overflow-hidden rounded-2xl border border-white/10">
         <div className="flex items-center justify-between border-b border-white/10 bg-[#121212] px-4 py-3">
@@ -248,7 +248,7 @@ export default function DropshipHubPage() {
           <button
             type="button"
             onClick={() => load()}
-            className="text-xs text-[#f3efe6]/45 hover:text-[#d4b483]"
+            className="text-xs text-[#f3efe6]/45 hover:text-[#4a8cff]"
           >
             Refresh
           </button>
@@ -273,7 +273,7 @@ export default function DropshipHubPage() {
                   <td className="px-3 py-3">
                     <Link
                       href={`/admin/products/${p.id}`}
-                      className="text-[#f3efe6] hover:text-[#d4b483]"
+                      className="text-[#f3efe6] hover:text-[#4a8cff]"
                     >
                       {p.title}
                     </Link>
@@ -351,7 +351,7 @@ export default function DropshipHubPage() {
                         next[idx] = { ...p, enabled: e.target.checked };
                         setProducts(next);
                       }}
-                      className="accent-[#d4b483]"
+                      className="accent-[#4a8cff]"
                     />
                   </td>
                   <td className="px-3 py-3 text-xs text-[#f3efe6]/55">
@@ -360,7 +360,7 @@ export default function DropshipHubPage() {
                         href={p.supplierProductUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[#d4b483] hover:underline"
+                        className="text-[#4a8cff] hover:underline"
                       >
                         {p.supplier?.name || "Open"}
                       </a>
@@ -373,7 +373,7 @@ export default function DropshipHubPage() {
                       <button
                         type="button"
                         onClick={() => saveRow(p)}
-                        className="text-[10px] tracking-[0.12em] text-[#d4b483] uppercase"
+                        className="text-[10px] tracking-[0.12em] text-[#4a8cff] uppercase"
                       >
                         Save
                       </button>
@@ -415,7 +415,7 @@ function Stat({
   return (
     <Link
       href={href}
-      className="rounded-2xl border border-white/10 bg-[#121212] p-5 transition hover:border-[#d4b483]/40"
+      className="rounded-2xl border border-white/10 bg-[#121212] p-5 transition hover:border-[#4a8cff]/40"
     >
       <p className="text-[10px] tracking-[0.2em] text-[#f3efe6]/40 uppercase">
         {label}

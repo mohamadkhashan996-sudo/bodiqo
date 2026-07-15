@@ -55,12 +55,12 @@ export default function AdminMediaPage() {
         />
         <button
           type="submit"
-          className="mt-4 rounded-full bg-[#d4b483] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
+          className="mt-4 rounded-full bg-[#4a8cff] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
         >
           Upload
         </button>
         {message ? (
-          <p className="mt-3 text-sm text-[#d4b483]">{message}</p>
+          <p className="mt-3 text-sm text-[#4a8cff]">{message}</p>
         ) : null}
       </form>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -70,7 +70,7 @@ export default function AdminMediaPage() {
             className="rounded-xl border border-white/10 p-3 text-xs"
           >
             <p className="truncate text-[#f3efe6]/80">{a.filename}</p>
-            <p className="mt-1 break-all text-[#d4b483]">{a.url}</p>
+            <p className="mt-1 break-all text-[#4a8cff]">{a.url}</p>
           </div>
         ))}
       </div>

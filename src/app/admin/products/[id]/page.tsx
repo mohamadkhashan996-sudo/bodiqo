@@ -298,7 +298,7 @@ export default function ProductEditorPage() {
         </label>
 
         <div className="rounded-xl border border-white/10 p-4">
-          <p className="text-[11px] tracking-[0.16em] text-[#d4b483] uppercase">
+          <p className="text-[11px] tracking-[0.16em] text-[#4a8cff] uppercase">
             Dropshipping / supplier
           </p>
           <div className="mt-4 space-y-4">
@@ -419,7 +419,7 @@ export default function ProductEditorPage() {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-full bg-[#d4b483] px-6 py-3 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase disabled:opacity-60"
+            className="rounded-full bg-[#4a8cff] px-6 py-3 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase disabled:opacity-60"
           >
             {saving
               ? "Saving…"
@@ -441,7 +441,7 @@ export default function ProductEditorPage() {
 
       {id !== "new" ? (
         <section className="space-y-4 rounded-2xl border border-white/10 bg-[#121212] p-6">
-          <h2 className="text-[11px] tracking-[0.16em] text-[#d4b483] uppercase">
+          <h2 className="text-[11px] tracking-[0.16em] text-[#4a8cff] uppercase">
             Variants
           </h2>
           <ul className="divide-y divide-white/10 text-sm">
@@ -517,7 +517,7 @@ export default function ProductEditorPage() {
                   setVariantTitle("");
                 }
               }}
-              className="rounded-full bg-[#d4b483] px-5 py-2.5 text-[11px] font-semibold tracking-[0.14em] text-[#0b0b0b] uppercase"
+              className="rounded-full bg-[#4a8cff] px-5 py-2.5 text-[11px] font-semibold tracking-[0.14em] text-[#0b0b0b] uppercase"
             >
               Add
             </button>
@@ -552,7 +552,7 @@ function Input({
         required={required}
         step={type === "number" ? "any" : undefined}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm outline-none focus:border-[#d4b483]"
+        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm outline-none focus:border-[#4a8cff]"
       />
     </label>
   );
@@ -578,7 +578,7 @@ function Text({
         value={value}
         rows={rows}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm outline-none focus:border-[#d4b483]"
+        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm outline-none focus:border-[#4a8cff]"
       />
     </label>
   );
@@ -599,7 +599,7 @@ function Check({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="accent-[#d4b483]"
+        className="accent-[#4a8cff]"
       />
       {label}
     </label>

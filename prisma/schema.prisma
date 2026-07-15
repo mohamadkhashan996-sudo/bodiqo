@@ -3,15 +3,23 @@ generator client {
 }
 
 datasource db {
-  // Local default: SQLite (no Docker required).
-  // For production PostgreSQL, change provider to "postgresql" and set DATABASE_URL.
+  // Local emergency fallback: SQLite (no Docker required).
+  // Production: change provider to "postgresql" and use docker-compose Postgres:
+  // DATABASE_URL="postgresql://bodiqo:bodiqo@localhost:5432/bodiqo?schema=public"
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 enum Role {
   USER
+  STAFF
   ADMIN
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
 
 enum OrderStatus {
@@ -30,21 +38,38 @@ enum DiscountType {
   FIXED
 }
 
+enum PaymentProvider {
+  PAYPAL
+  STRIPE
+  CRYPTO
+  MANUAL
+}
+
+enum CryptoPaymentStatus {
+  WAITING
+  CONFIRMING
+  CONFIRMED
+  EXPIRED
+  FAILED
+}
+
 model User {
-  id            String    @id @default(cuid())
+  id            String         @id @default(cuid())
   name          String?
-  email         String    @unique
+  email         String         @unique
   emailVerified DateTime?
   image         String?
   passwordHash  String?
-  role          Role      @default(USER)
+  role          Role           @default(USER)
   phone         String?
   accounts      Account[]
   sessions      Session[]
   orders        Order[]
   reviews       Review[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  wishlist      WishlistItem[]
+  addresses     Address[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Account {
@@ -81,7 +106,6 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-/// Key/value store config — PayPal, SMTP, shipping, currency, SEO, etc.
 model Setting {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -91,166 +115,286 @@ model Setting {
 }
 
 model Category {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
   description String?
   image       String?
-  sortOrder   Int       @default(0)
-  enabled     Boolean   @default(true)
+  sortOrder   Int        @default(0)
+  enabled     Boolean    @default(true)
+  parentId    String?
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
   products    Product[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([parentId])
+  @@index([enabled, sortOrder])
 }
 
 model Supplier {
-  id                   String    @id @default(cuid())
-  name                 String
-  slug                 String    @unique
-  website              String?
-  notes                String?
-  defaultShippingDays  Int       @default(12)
-  currency             String    @default("USD")
-  enabled              Boolean   @default(true)
-  products             Product[]
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  name                String
+  slug                String    @unique
+  website             String?
+  notes               String?
+  defaultShippingDays Int       @default(12)
+  currency            String    @default("USD")
+  enabled             Boolean   @default(true)
+  products            Product[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+/// Future marketplace seller hook (Phase 5+) — unused by storefront in v1.
+model Seller {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  email     String?
+  enabled   Boolean   @default(false)
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Tag {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  slug      String       @unique
+  products  ProductTag[]
+  createdAt DateTime     @default(now())
+}
+
+model Collection {
+  id          String              @id @default(cuid())
+  name        String
+  slug        String              @unique
+  description String?
+  image       String?
+  enabled     Boolean             @default(true)
+  sortOrder   Int                 @default(0)
+  products    ProductCollection[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 }
 
 model Product {
-  id                 String           @id @default(cuid())
-  slug               String           @unique
+  id                 String              @id @default(cuid())
+  slug               String              @unique
   title              String
   description        String
   shortDescription   String
   price              Decimal
   compareAt          Decimal?
   costPrice          Decimal?
-  currency           String           @default("ILS")
-  sku                String           @unique
+  currency           String              @default("ILS")
+  sku                String              @unique
   barcode            String?
-  vendor             String           @default("BODIQO")
+  brand              String?
+  vendor             String              @default("BODIQO")
   images             Json
   videoUrl           String?
-  featured           Boolean          @default(false)
-  enabled            Boolean          @default(true)
-  inStock            Boolean          @default(true)
-  inventory          Int              @default(100)
-  /// Units held for unpaid/processing carts/orders
-  reserved           Int              @default(0)
-  /// Lifetime units sold (incremented on paid orders)
-  soldCount          Int              @default(0)
+  featured           Boolean             @default(false)
+  enabled            Boolean             @default(true)
+  status             ProductStatus       @default(PUBLISHED)
+  inStock            Boolean             @default(true)
+  inventory          Int                 @default(100)
+  reserved           Int                 @default(0)
+  soldCount          Int                 @default(0)
   weightGrams        Int?
   seoTitle           String?
   seoDescription     String?
   categoryId         String?
-  category           Category?        @relation(fields: [categoryId], references: [id])
-  /// Dropshipping / supplier
+  category           Category?           @relation(fields: [categoryId], references: [id])
+  sellerId           String?
+  seller             Seller?             @relation(fields: [sellerId], references: [id])
   supplierId         String?
-  supplier           Supplier?        @relation(fields: [supplierId], references: [id])
+  supplier           Supplier?           @relation(fields: [supplierId], references: [id])
   supplierProductUrl String?
   supplierProductId  String?
   supplierSku        String?
-  markupPercent      Decimal          @default(40)
-  dropshipEnabled    Boolean          @default(true)
+  markupPercent      Decimal             @default(40)
+  dropshipEnabled    Boolean             @default(true)
   lastCostSyncAt     DateTime?
   variants           ProductVariant[]
   orderItems         OrderItem[]
   reviews            Review[]
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  tags               ProductTag[]
+  collections        ProductCollection[]
+  wishlist           WishlistItem[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([enabled, featured])
+  @@index([status])
   @@index([categoryId])
   @@index([supplierId])
-  @@index([supplierProductId])
+  @@index([sellerId])
+  @@index([brand])
+  @@index([soldCount])
+  @@index([createdAt])
+}
+
+model ProductTag {
+  productId String
+  tagId     String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+}
+
+model ProductCollection {
+  productId    String
+  collectionId String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([productId, collectionId])
 }
 
 model ProductVariant {
-  id           String   @id @default(cuid())
-  productId    String
-  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  title        String
-  sku          String   @unique
-  options      Json?
-  price        Decimal
-  compareAt    Decimal?
-  costPrice    Decimal?
-  inventory    Int      @default(0)
-  inStock      Boolean  @default(true)
-  image        String?
-  supplierSku  String?
-  supplierUrl  String?
-  enabled      Boolean  @default(true)
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String      @id @default(cuid())
+  productId   String
+  product     Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  title       String
+  sku         String      @unique
+  options     Json?
+  price       Decimal
+  compareAt   Decimal?
+  costPrice   Decimal?
+  inventory   Int         @default(0)
+  inStock     Boolean     @default(true)
+  image       String?
+  supplierSku String?
+  supplierUrl String?
+  enabled     Boolean     @default(true)
+  sortOrder   Int         @default(0)
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@index([productId])
 }
 
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String   @default("Home")
+  name      String
+  phone     String?
+  line1     String
+  line2     String?
+  city      String
+  zip       String?
+  country   String   @default("IL")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
 model Coupon {
-  id            String       @id @default(cuid())
-  code          String       @unique
-  description   String?
-  type          DiscountType
-  value         Decimal
-  minSubtotal   Decimal?
-  maxUses       Int?
-  usedCount     Int          @default(0)
-  startsAt      DateTime?
-  endsAt        DateTime?
-  enabled       Boolean      @default(true)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id          String       @id @default(cuid())
+  code        String       @unique
+  description String?
+  type        DiscountType
+  value       Decimal
+  minSubtotal Decimal?
+  maxUses     Int?
+  usedCount   Int          @default(0)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  enabled     Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model TaxRate {
+  id        String   @id @default(cuid())
+  name      String
+  country   String
+  region    String?
+  rate      Decimal
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([country, enabled])
 }
 
 model Order {
-  id                String      @id @default(cuid())
-  orderNumber       String      @unique
-  userId            String?
-  user              User?       @relation(fields: [userId], references: [id])
-  email             String
-  status            OrderStatus @default(PENDING)
-  subtotal          Decimal
-  shipping          Decimal
-  discount          Decimal     @default(0)
-  total             Decimal
-  currency          String      @default("ILS")
-  couponCode        String?
-  shippingName      String
-  shippingPhone     String?
-  shippingAddress   String
-  shippingCity      String
-  shippingZip       String?
-  shippingCountry   String      @default("IL")
-  trackingNumber    String?
-  carrier           String?
-  shippedAt         DateTime?
-  notes             String?
+  id                 String         @id @default(cuid())
+  orderNumber        String         @unique
+  userId             String?
+  user               User?          @relation(fields: [userId], references: [id])
+  email              String
+  status             OrderStatus    @default(PENDING)
+  subtotal           Decimal
+  shipping           Decimal
+  discount           Decimal        @default(0)
+  tax                Decimal        @default(0)
+  total              Decimal
+  currency           String         @default("ILS")
+  couponCode         String?
+  shippingName       String
+  shippingPhone      String?
+  shippingAddress    String
+  shippingCity       String
+  shippingZip        String?
+  shippingCountry    String         @default("IL")
+  trackingNumber     String?
+  carrier            String?
+  shippedAt          DateTime?
+  customerNotes      String?
+  adminNotes         String?
+  notes              String?
+  paymentProvider    PaymentProvider?
   paypalOrderId      String?
   paypalCaptureId    String?
+  stripeSessionId    String?
+  stripePaymentIntent String?
   paidAt             DateTime?
-  /// Dropship fulfillment: UNFULFILLED | ORDERED_SUPPLIER | SHIPPED | DELIVERED
-  fulfillStatus      String      @default("UNFULFILLED")
+  fulfillStatus      String         @default("UNFULFILLED")
   supplierOrderId    String?
   supplierOrderedAt  DateTime?
   items              OrderItem[]
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  payments           Payment[]
+  cryptoPayments     CryptoPayment[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   @@index([status])
   @@index([email])
   @@index([fulfillStatus])
+  @@index([paymentProvider])
+  @@index([createdAt])
 }
 
 model OrderItem {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   orderId     String
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order       Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId   String?
-  product     Product? @relation(fields: [productId], references: [id])
+  product     Product?        @relation(fields: [productId], references: [id])
   variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
   title       String
   slug        String
   image       String?
@@ -259,6 +403,44 @@ model OrderItem {
   costPrice   Decimal?
   supplierUrl String?
   supplierSku String?
+}
+
+model Payment {
+  id         String           @id @default(cuid())
+  orderId    String
+  order      Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider   PaymentProvider
+  externalId String?
+  amount     Decimal
+  currency   String
+  status     String
+  raw        Json?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([orderId])
+  @@index([provider, status])
+}
+
+model CryptoPayment {
+  id        String              @id @default(cuid())
+  orderId   String
+  order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  coin      String
+  network   String
+  amount    Decimal
+  currency  String              @default("USD")
+  address   String
+  txid      String?
+  status    CryptoPaymentStatus @default(WAITING)
+  expiresAt DateTime?
+  confirmedAt DateTime?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@index([coin])
 }
 
 model Review {
@@ -345,13 +527,13 @@ model Banner {
 }
 
 model ImportJob {
-  id         String   @id @default(cuid())
-  source     String
-  status     String   @default("pending")
-  totalRows  Int      @default(0)
-  successRows Int     @default(0)
-  errorRows  Int      @default(0)
-  log        String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(cuid())
+  source      String
+  status      String   @default("pending")
+  totalRows   Int      @default(0)
+  successRows Int      @default(0)
+  errorRows   Int      @default(0)
+  log         String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

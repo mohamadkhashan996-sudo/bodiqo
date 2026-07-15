@@ -1,20 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AddToCartButton } from "@/components/add-to-cart-button";
 import { ProductCard } from "@/components/product-card";
-import { formatPrice } from "@/lib/catalog-types";
+import { ProductPurchase } from "@/components/product-purchase";
 import {
   getProductBySlug,
   getProducts,
   getProductsByCategory,
 } from "@/lib/products";
-import {
-  availableStock,
-  stockBadgeClass,
-  stockLabel,
-  stockStatus,
-} from "@/lib/inventory";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -43,20 +36,31 @@ export default async function ProductPage({ params }: Props) {
   const related = (await getProductsByCategory(product.category))
     .filter((p) => p.id !== product.id)
     .slice(0, 4);
-  const onSale = Boolean(
-    product.compareAt && product.compareAt > product.price,
-  );
-  const status = stockStatus(
-    product.inventory ?? (product.inStock ? 1 : 0),
-    product.reserved ?? 0,
-  );
-  const available = availableStock(
-    product.inventory ?? 0,
-    product.reserved ?? 0,
-  );
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.title,
+    description: product.shortDescription,
+    image: product.images,
+    sku: product.sku,
+    brand: { "@type": "Brand", name: product.brand || product.vendor },
+    offers: {
+      "@type": "Offer",
+      priceCurrency: product.currency,
+      price: product.price,
+      availability: product.inStock
+        ? "https://schema.org/InStock"
+        : "https://schema.org/OutOfStock",
+    },
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-5 pt-28 pb-24 md:px-8 md:pt-36 md:pb-32">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-20">
         <div className="space-y-4">
           <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-[#121212] shadow-[0_30px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/[0.04]">
@@ -90,55 +94,21 @@ export default async function ProductPage({ params }: Props) {
         </div>
 
         <div className="flex flex-col justify-center lg:sticky lg:top-28 lg:py-8">
-          <p className="text-[11px] tracking-[0.28em] text-[#d4b483] uppercase">
+          <p className="text-[11px] tracking-[0.28em] text-[#4a8cff] uppercase">
             {product.category}
           </p>
           <h1 className="mt-4 font-[family-name:var(--font-display)] text-4xl leading-[1.05] text-[#f3efe6] md:text-5xl">
             {product.title}
           </h1>
 
-          <div className="mt-8 flex items-baseline gap-3">
-            <span className="text-2xl tracking-tight text-[#f3efe6]">
-              {formatPrice(product.price)}
-            </span>
-            {onSale ? (
-              <span className="text-lg text-[#f3efe6]/30 line-through">
-                {formatPrice(product.compareAt!)}
-              </span>
-            ) : null}
-          </div>
+          <ProductPurchase product={product} />
 
-          <p className="mt-7 max-w-lg text-[15px] leading-relaxed text-[#f3efe6]/60">
-            {product.shortDescription}
-          </p>
-
-          <div className="mt-10 max-w-md space-y-3">
-            <AddToCartButton product={product} />
-            <Link
-              href="/cart"
-              className="block rounded-full border border-white/15 px-6 py-3.5 text-center text-[11px] font-semibold tracking-[0.2em] text-[#f3efe6] uppercase transition hover:border-[#d4b483] hover:text-[#d4b483]"
-            >
-              View cart
-            </Link>
-          </div>
-
-          <dl className="mt-12 space-y-4 border-t border-white/[0.08] pt-8 text-sm text-[#f3efe6]/50">
-            <div className="flex gap-6">
-              <dt className="w-24 tracking-[0.14em] uppercase">SKU</dt>
-              <dd className="text-[#f3efe6]/85">{product.sku}</dd>
-            </div>
-            <div className="flex gap-6">
-              <dt className="w-24 tracking-[0.14em] uppercase">Vendor</dt>
-              <dd className="text-[#f3efe6]/85">{product.vendor}</dd>
-            </div>
-            <div className="flex gap-6">
-              <dt className="w-24 tracking-[0.14em] uppercase">Stock</dt>
-              <dd className={stockBadgeClass(status)}>
-                {stockLabel(status)} · {stockLabel(status, "ar")}
-                {available > 0 && available <= 5 ? ` (${available})` : null}
-              </dd>
-            </div>
-          </dl>
+          <Link
+            href="/cart"
+            className="mt-3 block max-w-md rounded-full border border-white/15 px-6 py-3.5 text-center text-[11px] font-semibold tracking-[0.2em] text-[#f3efe6] uppercase transition hover:border-[#4a8cff] hover:text-[#4a8cff]"
+          >
+            View cart
+          </Link>
         </div>
       </div>
 

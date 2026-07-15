@@ -113,7 +113,7 @@ export default function AdminSettingsPage() {
             }}
             className={
               tab === t.id
-                ? "rounded-full bg-[#d4b483] px-4 py-2 text-xs tracking-[0.12em] text-[#0b0b0b] uppercase"
+                ? "rounded-full bg-[#4a8cff] px-4 py-2 text-xs tracking-[0.12em] text-[#0b0b0b] uppercase"
                 : "rounded-full border border-white/15 px-4 py-2 text-xs tracking-[0.12em] text-[#f3efe6]/70 uppercase"
             }
           >
@@ -211,11 +211,11 @@ export default function AdminSettingsPage() {
             />
             <p className="text-xs text-[#f3efe6]/40">
               PayPal →{" "}
-              <a href="/admin/payments" className="text-[#d4b483]">
+              <a href="/admin/payments" className="text-[#4a8cff]">
                 Payments page
               </a>{" "}
               · Shipping →{" "}
-              <a href="/admin/shipping" className="text-[#d4b483]">
+              <a href="/admin/shipping" className="text-[#4a8cff]">
                 Shipping page
               </a>
             </p>
@@ -261,7 +261,7 @@ export default function AdminSettingsPage() {
             />
             <p className="text-xs leading-relaxed text-[#f3efe6]/45">
               Or use the dedicated{" "}
-              <a href="/admin/payments" className="text-[#d4b483]">
+              <a href="/admin/payments" className="text-[#4a8cff]">
                 Payments
               </a>{" "}
               page. First time only — then customers pay and money goes to your
@@ -401,12 +401,12 @@ export default function AdminSettingsPage() {
           </>
         )}
 
-        {message ? <p className="text-sm text-[#d4b483]">{message}</p> : null}
+        {message ? <p className="text-sm text-[#4a8cff]">{message}</p> : null}
 
         <button
           type="submit"
           disabled={saving}
-          className="rounded-full bg-[#d4b483] px-6 py-3 text-[11px] font-semibold tracking-[0.18em] text-[#0b0b0b] uppercase disabled:opacity-60"
+          className="rounded-full bg-[#4a8cff] px-6 py-3 text-[11px] font-semibold tracking-[0.18em] text-[#0b0b0b] uppercase disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save settings"}
         </button>
@@ -436,7 +436,7 @@ function Field({
         type={type}
         defaultValue={defaultValue}
         step={type === "number" ? "any" : undefined}
-        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm outline-none focus:border-[#d4b483]"
+        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm outline-none focus:border-[#4a8cff]"
       />
     </label>
   );
@@ -460,7 +460,7 @@ function TextArea({
         name={name}
         defaultValue={defaultValue}
         rows={4}
-        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm outline-none focus:border-[#d4b483]"
+        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm outline-none focus:border-[#4a8cff]"
       />
     </label>
   );
@@ -485,7 +485,7 @@ function Select({
       <select
         name={name}
         defaultValue={defaultValue}
-        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm outline-none focus:border-[#d4b483]"
+        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm outline-none focus:border-[#4a8cff]"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -512,7 +512,7 @@ function Check({
         name={name}
         type="checkbox"
         defaultChecked={defaultChecked}
-        className="size-4 accent-[#d4b483]"
+        className="size-4 accent-[#4a8cff]"
       />
       {label}
     </label>

@@ -9,13 +9,30 @@ export type CartItem = {
   image: string;
   price: number;
   quantity: number;
+  variantId?: string;
+  variantTitle?: string;
+};
+
+export function cartLineKey(productId: string, variantId?: string) {
+  return `${productId}:${variantId ?? ""}`;
+}
+
+type AddItemInput = CatalogProduct & {
+  variantId?: string;
+  variantTitle?: string;
+  price?: number;
+  image?: string;
 };
 
 type CartState = {
   items: CartItem[];
-  addItem: (product: CatalogProduct, quantity?: number) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  addItem: (product: AddItemInput, quantity?: number) => void;
+  removeItem: (productId: string, variantId?: string) => void;
+  updateQuantity: (
+    productId: string,
+    quantity: number,
+    variantId?: string,
+  ) => void;
   clearCart: () => void;
   itemCount: () => number;
   subtotal: () => number;
@@ -27,12 +44,16 @@ export const useCart = create<CartState>()(
       items: [],
       addItem: (product, quantity = 1) => {
         const qty = Math.max(1, Math.min(20, Number(quantity) || 1));
+        const variantId = product.variantId;
+        const lineKey = cartLineKey(product.id, variantId);
         set((state) => {
-          const existing = state.items.find((i) => i.productId === product.id);
+          const existing = state.items.find(
+            (i) => cartLineKey(i.productId, i.variantId) === lineKey,
+          );
           if (existing) {
             return {
               items: state.items.map((i) =>
-                i.productId === product.id
+                cartLineKey(i.productId, i.variantId) === lineKey
                   ? {
                       ...i,
                       quantity: Math.min(20, Number(i.quantity) + qty),
@@ -41,33 +62,43 @@ export const useCart = create<CartState>()(
               ),
             };
           }
+          const title = product.variantTitle
+            ? `${product.title} — ${product.variantTitle}`
+            : product.title;
           return {
             items: [
               ...state.items,
               {
                 productId: product.id,
                 slug: product.slug,
-                title: product.title,
-                image: product.image,
+                title,
+                image: product.image ?? "",
                 price: Number(product.price),
                 quantity: qty,
+                variantId,
+                variantTitle: product.variantTitle,
               },
             ],
           };
         });
       },
-      removeItem: (productId) =>
+      removeItem: (productId, variantId) =>
         set((state) => ({
-          items: state.items.filter((i) => i.productId !== productId),
+          items: state.items.filter(
+            (i) => cartLineKey(i.productId, i.variantId) !== cartLineKey(productId, variantId),
+          ),
         })),
-      updateQuantity: (productId, quantity) => {
+      updateQuantity: (productId, quantity, variantId) => {
         const qty = Number(quantity);
+        const lineKey = cartLineKey(productId, variantId);
         set((state) => ({
           items:
             !Number.isFinite(qty) || qty <= 0
-              ? state.items.filter((i) => i.productId !== productId)
+              ? state.items.filter(
+                  (i) => cartLineKey(i.productId, i.variantId) !== lineKey,
+                )
               : state.items.map((i) =>
-                  i.productId === productId
+                  cartLineKey(i.productId, i.variantId) === lineKey
                     ? { ...i, quantity: Math.min(20, Math.floor(qty)) }
                     : i,
                 ),

@@ -66,7 +66,7 @@ export default async function AnalyticsPage() {
         </div>
         <Link
           href="/admin/orders"
-          className="rounded-2xl border border-dashed border-white/15 p-5 text-sm tracking-[0.12em] uppercase transition hover:border-[#d4b483] hover:text-[#d4b483]"
+          className="rounded-2xl border border-dashed border-white/15 p-5 text-sm tracking-[0.12em] uppercase transition hover:border-[#4a8cff] hover:text-[#4a8cff]"
         >
           View all orders →
         </Link>

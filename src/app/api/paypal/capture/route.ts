@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { capturePaypalOrder } from "@/lib/paypal";
+import { markOrderPaid } from "@/lib/order-inventory";
 
 export async function GET(request: NextRequest) {
   const orderNumber = request.nextUrl.searchParams.get("orderNumber");
@@ -23,7 +24,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Already paid — don't double-count inventory
     if (order.status === "PAID" || order.paidAt) {
       return NextResponse.redirect(
         new URL(
@@ -48,39 +48,13 @@ export async function GET(request: NextRequest) {
       await prisma.order.update({
         where: { id: order.id },
         data: {
-          status: "PAID",
           paypalOrderId: paypalId,
           paypalCaptureId: captureId,
-          paidAt: new Date(),
+          paymentProvider: "PAYPAL",
         },
       });
 
-      for (const item of order.items) {
-        if (!item.productId) continue;
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-        });
-        if (!product) continue;
-
-        const newInventory = Math.max(0, product.inventory - item.quantity);
-        const newReserved = Math.max(0, product.reserved - item.quantity);
-        await prisma.product.update({
-          where: { id: product.id },
-          data: {
-            inventory: newInventory,
-            reserved: newReserved,
-            soldCount: { increment: item.quantity },
-            inStock: newInventory - newReserved > 0,
-          },
-        });
-      }
-
-      if (order.couponCode) {
-        await prisma.coupon.updateMany({
-          where: { code: order.couponCode },
-          data: { usedCount: { increment: 1 } },
-        });
-      }
+      await markOrderPaid(order.id);
 
       return NextResponse.redirect(
         new URL(

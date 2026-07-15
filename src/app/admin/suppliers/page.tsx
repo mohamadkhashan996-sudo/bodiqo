@@ -62,7 +62,7 @@ export default function SuppliersPage() {
         </p>
         <Link
           href="/admin/dropship"
-          className="mt-3 inline-block text-xs tracking-[0.14em] text-[#d4b483] uppercase"
+          className="mt-3 inline-block text-xs tracking-[0.14em] text-[#4a8cff] uppercase"
         >
           ← Dropship hub
         </Link>
@@ -105,11 +105,11 @@ export default function SuppliersPage() {
         </div>
         <button
           type="submit"
-          className="rounded-full bg-[#d4b483] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
+          className="rounded-full bg-[#4a8cff] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
         >
           Add supplier
         </button>
-        {message ? <p className="text-sm text-[#d4b483]">{message}</p> : null}
+        {message ? <p className="text-sm text-[#4a8cff]">{message}</p> : null}
       </form>
 
       <ul className="divide-y divide-white/10 rounded-2xl border border-white/10">
@@ -130,7 +130,7 @@ export default function SuppliersPage() {
                 href={s.website}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs text-[#d4b483]"
+                className="text-xs text-[#4a8cff]"
               >
                 Site
               </a>

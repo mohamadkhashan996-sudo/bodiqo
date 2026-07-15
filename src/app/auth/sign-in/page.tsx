@@ -47,7 +47,7 @@ export default function SignInPage() {
             name="email"
             type="email"
             required
-            className="mt-2 w-full border border-white/15 bg-transparent px-4 py-3 text-[#f3efe6] outline-none focus:border-[#d4b483]"
+            className="mt-2 w-full border border-white/15 bg-transparent px-4 py-3 text-[#f3efe6] outline-none focus:border-[#4a8cff]"
           />
         </label>
         <label className="block">
@@ -59,14 +59,14 @@ export default function SignInPage() {
             type="password"
             required
             minLength={8}
-            className="mt-2 w-full border border-white/15 bg-transparent px-4 py-3 text-[#f3efe6] outline-none focus:border-[#d4b483]"
+            className="mt-2 w-full border border-white/15 bg-transparent px-4 py-3 text-[#f3efe6] outline-none focus:border-[#4a8cff]"
           />
         </label>
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-[#d4b483] px-6 py-3.5 text-[11px] font-semibold tracking-[0.2em] text-[#0b0b0b] uppercase disabled:opacity-60"
+          className="w-full bg-[#4a8cff] px-6 py-3.5 text-[11px] font-semibold tracking-[0.2em] text-[#0b0b0b] uppercase disabled:opacity-60"
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
@@ -74,7 +74,7 @@ export default function SignInPage() {
 
       <p className="mt-6 text-sm text-[#f3efe6]/55">
         New here?{" "}
-        <Link href="/auth/sign-up" className="text-[#d4b483] hover:underline">
+        <Link href="/auth/sign-up" className="text-[#4a8cff] hover:underline">
           Create an account
         </Link>
       </p>

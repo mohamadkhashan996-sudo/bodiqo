@@ -74,7 +74,7 @@ export default async function InventoryPage() {
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/products/${p.id}`}
-                      className="hover:text-[#d4b483]"
+                      className="hover:text-[#4a8cff]"
                     >
                       {p.title}
                     </Link>

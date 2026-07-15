@@ -13,16 +13,40 @@ type PaypalForm = {
   connectedAt: string;
 };
 
+type StripeForm = {
+  enabled: boolean;
+  mode: "test" | "live";
+  publishableKey: string;
+  secretKey: string;
+  webhookSecret: string;
+  applePay: boolean;
+  googlePay: boolean;
+};
+
+type CryptoWallet = {
+  coin: string;
+  network: string;
+  address: string;
+  enabled: boolean;
+};
+
+type CryptoForm = {
+  enabled: boolean;
+  wallets: CryptoWallet[];
+};
+
 export default function PaymentsSettingsPage() {
-  const [form, setForm] = useState<PaypalForm | null>(null);
+  const [paypal, setPaypal] = useState<PaypalForm | null>(null);
+  const [stripe, setStripe] = useState<StripeForm | null>(null);
+  const [crypto, setCrypto] = useState<CryptoForm | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/settings")
       .then((r) => r.json())
       .then((d) => {
-        setForm({
+        setPaypal({
           enabled: Boolean(d.paypal?.enabled),
           mode: d.paypal?.mode === "live" ? "live" : "sandbox",
           businessEmail: String(d.paypal?.businessEmail || ""),
@@ -31,157 +55,338 @@ export default function PaymentsSettingsPage() {
           brandName: String(d.paypal?.brandName || "BODIQO"),
           connectedAt: String(d.paypal?.connectedAt || ""),
         });
+        setStripe({
+          enabled: Boolean(d.stripe?.enabled),
+          mode: d.stripe?.mode === "live" ? "live" : "test",
+          publishableKey: String(d.stripe?.publishableKey || ""),
+          secretKey: String(d.stripe?.secretKey || ""),
+          webhookSecret: String(d.stripe?.webhookSecret || ""),
+          applePay: d.stripe?.applePay !== false,
+          googlePay: d.stripe?.googlePay !== false,
+        });
+        setCrypto({
+          enabled: Boolean(d.crypto?.enabled),
+          wallets: Array.isArray(d.crypto?.wallets)
+            ? d.crypto.wallets.map((w: CryptoWallet) => ({
+                coin: String(w.coin || ""),
+                network: String(w.network || ""),
+                address: String(w.address || ""),
+                enabled: Boolean(w.enabled),
+              }))
+            : [],
+        });
       })
       .catch(() => setMessage("Failed to load payment settings"));
   }, []);
 
-  async function onSave(e: FormEvent) {
-    e.preventDefault();
-    if (!form) return;
-    setSaving(true);
+  async function saveSection(key: "paypal" | "stripe" | "crypto", value: unknown) {
+    setSaving(key);
     setMessage(null);
-    const payload = {
-      ...form,
-      connectedAt: form.clientId && form.clientSecret ? new Date().toISOString() : form.connectedAt,
-    };
     const res = await fetch("/api/admin/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "paypal", value: payload }),
+      body: JSON.stringify({ key, value }),
     });
     const data = await res.json();
-    setSaving(false);
+    setSaving(null);
     if (!res.ok) {
       setMessage(data.error || "Save failed");
       return;
     }
-    setForm((prev) => (prev ? { ...prev, ...data.value } : prev));
-    setMessage(
-      form.enabled
-        ? "PayPal connected & saved. Payments go to your Business account."
-        : "Payment settings saved (PayPal disabled).",
-    );
+    setMessage(`${key} settings saved.`);
+    if (key === "paypal") setPaypal(data.value);
+    if (key === "stripe") setStripe(data.value);
+    if (key === "crypto") setCrypto(data.value);
   }
 
-  if (!form) {
+  if (!paypal || !stripe || !crypto) {
     return <p className="text-sm text-[#f3efe6]/55">Loading payments…</p>;
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="mx-auto max-w-2xl space-y-10">
       <div>
-        <p className="text-[11px] tracking-[0.2em] text-[#d4b483] uppercase">
+        <p className="text-[11px] tracking-[0.2em] text-[#4a8cff] uppercase">
           Settings → Payments
         </p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl">
           Payments
         </h1>
         <p className="mt-2 text-sm text-[#f3efe6]/55">
-          اربط PayPal Business مرة واحدةحدة — المال يذهب لحسابك والطلب يصبح مدفوع
-          بدون تعديل أي كود.
+          Configure PayPal, Stripe, and crypto checkout for your storefront.
         </p>
       </div>
 
-      <form
-        onSubmit={onSave}
-        className="space-y-5 rounded-2xl border border-white/10 bg-[#121212] p-6"
-      >
-        <label className="flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            checked={form.enabled}
-            onChange={(e) =>
-              setForm((p) => (p ? { ...p, enabled: e.target.checked } : p))
-            }
-            className="accent-[#d4b483]"
-          />
-          Enable PayPal Checkout
-        </label>
+      {message ? <p className="text-sm text-[#4a8cff]">{message}</p> : null}
 
-        <label className="block text-sm">
-          <span className="text-[11px] tracking-[0.16em] text-[#f3efe6]/45 uppercase">
-            Mode
-          </span>
-          <select
-            value={form.mode}
-            onChange={(e) =>
-              setForm((p) =>
-                p
-                  ? { ...p, mode: e.target.value as "sandbox" | "live" }
-                  : p,
-              )
-            }
-            className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3"
-          >
-            <option value="sandbox">Sandbox (testing)</option>
-            <option value="live">Live (real money)</option>
-          </select>
-        </label>
+      <PaypalSection
+        form={paypal}
+        setForm={setPaypal}
+        saving={saving === "paypal"}
+        onSave={(v) => saveSection("paypal", v)}
+      />
 
-        <Field
-          label="PayPal Business Email"
-          value={form.businessEmail}
-          onChange={(v) => setForm((p) => (p ? { ...p, businessEmail: v } : p))}
-          placeholder="business@email.com"
-        />
-        <Field
-          label="Client ID"
-          value={form.clientId}
-          onChange={(v) => setForm((p) => (p ? { ...p, clientId: v } : p))}
-        />
-        <Field
-          label="Client Secret"
-          value={form.clientSecret}
-          onChange={(v) => setForm((p) => (p ? { ...p, clientSecret: v } : p))}
-          type="password"
-        />
-        <Field
-          label="Brand name on PayPal"
-          value={form.brandName}
-          onChange={(v) => setForm((p) => (p ? { ...p, brandName: v } : p))}
-        />
+      <StripeSection
+        form={stripe}
+        setForm={setStripe}
+        saving={saving === "stripe"}
+        onSave={(v) => saveSection("stripe", v)}
+      />
 
-        {form.connectedAt ? (
-          <p className="text-xs text-[#8fdfb0]">
-            Connected: {new Date(form.connectedAt).toLocaleString()}
-          </p>
-        ) : (
-          <p className="text-xs text-[#f3efe6]/40">
-            Not connected yet — paste Client ID + Secret from PayPal Developer
-            Dashboard, then Save.
-          </p>
-        )}
-
-        {message ? <p className="text-sm text-[#d4b483]">{message}</p> : null}
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-full bg-[#d4b483] px-6 py-3 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Connect & Save"}
-          </button>
-          <Link
-            href="/admin/settings"
-            className="rounded-full border border-white/15 px-6 py-3 text-[11px] tracking-[0.16em] text-[#f3efe6]/70 uppercase"
-          >
-            All settings
-          </Link>
-        </div>
-      </form>
+      <CryptoSection
+        form={crypto}
+        setForm={setCrypto}
+        saving={saving === "crypto"}
+        onSave={(v) => saveSection("crypto", v)}
+      />
 
       <div className="rounded-2xl border border-white/10 p-5 text-sm text-[#f3efe6]/55">
-        <p className="text-[11px] tracking-[0.16em] text-[#d4b483] uppercase">
-          How it works
+        <p className="text-[11px] tracking-[0.16em] text-[#4a8cff] uppercase">
+          Stripe webhook
         </p>
-        <ol className="mt-3 list-decimal space-y-2 ps-5">
-          <li>Create a REST app in PayPal Developer Dashboard</li>
-          <li>Paste Client ID + Secret here and enable Live when ready</li>
-          <li>Customer pays → money to your PayPal Business → order = Paid</li>
-        </ol>
+        <p className="mt-2 font-mono text-xs break-all">
+          POST /api/stripe/webhook
+        </p>
+        <p className="mt-2">
+          Listen for <code className="text-[#f3efe6]/70">checkout.session.completed</code>
+        </p>
       </div>
+
+      <Link
+        href="/admin/settings"
+        className="inline-block rounded-full border border-white/15 px-6 py-3 text-[11px] tracking-[0.16em] text-[#f3efe6]/70 uppercase"
+      >
+        All settings
+      </Link>
     </div>
+  );
+}
+
+function PaypalSection({
+  form,
+  setForm,
+  saving,
+  onSave,
+}: {
+  form: PaypalForm;
+  setForm: React.Dispatch<React.SetStateAction<PaypalForm | null>>;
+  saving: boolean;
+  onSave: (v: PaypalForm) => void;
+}) {
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave({
+          ...form,
+          connectedAt:
+            form.clientId && form.clientSecret
+              ? new Date().toISOString()
+              : form.connectedAt,
+        });
+      }}
+      className="space-y-5 rounded-2xl border border-white/10 bg-[#121212] p-6"
+    >
+      <h2 className="text-lg text-[#f3efe6]">PayPal</h2>
+      <Toggle
+        checked={form.enabled}
+        onChange={(v) => setForm((p) => (p ? { ...p, enabled: v } : p))}
+        label="Enable PayPal Checkout"
+      />
+      <SelectField
+        label="Mode"
+        value={form.mode}
+        onChange={(v) =>
+          setForm((p) => (p ? { ...p, mode: v as "sandbox" | "live" } : p))
+        }
+        options={[
+          { value: "sandbox", label: "Sandbox" },
+          { value: "live", label: "Live" },
+        ]}
+      />
+      <Field label="Business Email" value={form.businessEmail} onChange={(v) => setForm((p) => (p ? { ...p, businessEmail: v } : p))} />
+      <Field label="Client ID" value={form.clientId} onChange={(v) => setForm((p) => (p ? { ...p, clientId: v } : p))} />
+      <Field label="Client Secret" value={form.clientSecret} onChange={(v) => setForm((p) => (p ? { ...p, clientSecret: v } : p))} type="password" />
+      <Field label="Brand name" value={form.brandName} onChange={(v) => setForm((p) => (p ? { ...p, brandName: v } : p))} />
+      <SaveButton saving={saving} />
+    </form>
+  );
+}
+
+function StripeSection({
+  form,
+  setForm,
+  saving,
+  onSave,
+}: {
+  form: StripeForm;
+  setForm: React.Dispatch<React.SetStateAction<StripeForm | null>>;
+  saving: boolean;
+  onSave: (v: StripeForm) => void;
+}) {
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(form);
+      }}
+      className="space-y-5 rounded-2xl border border-white/10 bg-[#121212] p-6"
+    >
+      <h2 className="text-lg text-[#f3efe6]">Stripe</h2>
+      <Toggle
+        checked={form.enabled}
+        onChange={(v) => setForm((p) => (p ? { ...p, enabled: v } : p))}
+        label="Enable Stripe Checkout"
+      />
+      <SelectField
+        label="Mode"
+        value={form.mode}
+        onChange={(v) =>
+          setForm((p) => (p ? { ...p, mode: v as "test" | "live" } : p))
+        }
+        options={[
+          { value: "test", label: "Test" },
+          { value: "live", label: "Live" },
+        ]}
+      />
+      <Field label="Publishable key" value={form.publishableKey} onChange={(v) => setForm((p) => (p ? { ...p, publishableKey: v } : p))} />
+      <Field label="Secret key" value={form.secretKey} onChange={(v) => setForm((p) => (p ? { ...p, secretKey: v } : p))} type="password" />
+      <Field label="Webhook secret" value={form.webhookSecret} onChange={(v) => setForm((p) => (p ? { ...p, webhookSecret: v } : p))} type="password" />
+      <Toggle checked={form.applePay} onChange={(v) => setForm((p) => (p ? { ...p, applePay: v } : p))} label="Apple Pay" />
+      <Toggle checked={form.googlePay} onChange={(v) => setForm((p) => (p ? { ...p, googlePay: v } : p))} label="Google Pay" />
+      <SaveButton saving={saving} />
+    </form>
+  );
+}
+
+function CryptoSection({
+  form,
+  setForm,
+  saving,
+  onSave,
+}: {
+  form: CryptoForm;
+  setForm: React.Dispatch<React.SetStateAction<CryptoForm | null>>;
+  saving: boolean;
+  onSave: (v: CryptoForm) => void;
+}) {
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(form);
+      }}
+      className="space-y-5 rounded-2xl border border-white/10 bg-[#121212] p-6"
+    >
+      <h2 className="text-lg text-[#f3efe6]">Cryptocurrency</h2>
+      <Toggle
+        checked={form.enabled}
+        onChange={(v) => setForm((p) => (p ? { ...p, enabled: v } : p))}
+        label="Enable crypto payments"
+      />
+      <div className="space-y-4">
+        {form.wallets.map((wallet, index) => (
+          <div
+            key={`${wallet.coin}-${wallet.network}`}
+            className="rounded-xl border border-white/8 p-4"
+          >
+            <p className="text-sm font-medium text-[#f3efe6]">
+              {wallet.coin} · {wallet.network}
+            </p>
+            <Field
+              label="Wallet address"
+              value={wallet.address}
+              onChange={(v) =>
+                setForm((p) => {
+                  if (!p) return p;
+                  const wallets = [...p.wallets];
+                  wallets[index] = { ...wallets[index], address: v };
+                  return { ...p, wallets };
+                })
+              }
+            />
+            <Toggle
+              checked={wallet.enabled}
+              onChange={(v) =>
+                setForm((p) => {
+                  if (!p) return p;
+                  const wallets = [...p.wallets];
+                  wallets[index] = { ...wallets[index], enabled: v };
+                  return { ...p, wallets };
+                })
+              }
+              label="Enabled"
+            />
+          </div>
+        ))}
+      </div>
+      <SaveButton saving={saving} />
+    </form>
+  );
+}
+
+function Toggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="flex items-center gap-3 text-sm">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-[#4a8cff]"
+      />
+      {label}
+    </label>
+  );
+}
+
+function SaveButton({ saving }: { saving: boolean }) {
+  return (
+    <button
+      type="submit"
+      disabled={saving}
+      className="rounded-full bg-[#4a8cff] px-6 py-3 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase disabled:opacity-60"
+    >
+      {saving ? "Saving…" : "Save"}
+    </button>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <label className="block text-sm">
+      <span className="text-[11px] tracking-[0.16em] text-[#f3efe6]/45 uppercase">
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3"
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -190,13 +395,11 @@ function Field({
   value,
   onChange,
   type = "text",
-  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
-  placeholder?: string;
 }) {
   return (
     <label className="block text-sm">
@@ -206,9 +409,8 @@ function Field({
       <input
         type={type}
         value={value}
-        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 outline-none focus:border-[#d4b483]"
+        className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3 outline-none focus:border-[#4a8cff]"
       />
     </label>
   );

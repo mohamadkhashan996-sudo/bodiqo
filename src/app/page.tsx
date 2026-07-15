@@ -29,7 +29,7 @@ export default async function HomePage() {
       <section className="mx-auto max-w-7xl px-5 py-24 md:px-8 md:py-32">
         <div className="mb-14 flex items-end justify-between gap-6">
           <div className="max-w-xl">
-            <p className="text-[11px] tracking-[0.28em] text-[#d4b483] uppercase">
+            <p className="text-[11px] tracking-[0.28em] text-[#4a8cff] uppercase">
               Featured
             </p>
             <h2 className="mt-4 font-[family-name:var(--font-display)] text-4xl leading-none text-[#f3efe6] md:text-5xl">
@@ -38,7 +38,7 @@ export default async function HomePage() {
           </div>
           <Link
             href="/shop"
-            className="hidden text-[11px] tracking-[0.22em] text-[#f3efe6]/55 uppercase transition hover:text-[#d4b483] md:inline"
+            className="hidden text-[11px] tracking-[0.22em] text-[#f3efe6]/55 uppercase transition hover:text-[#4a8cff] md:inline"
           >
             View all
           </Link>
@@ -81,7 +81,7 @@ export default async function HomePage() {
 
       <section className="mx-auto max-w-7xl px-5 py-24 md:px-8 md:py-32">
         <div className="mb-14 max-w-xl">
-          <p className="text-[11px] tracking-[0.28em] text-[#d4b483] uppercase">
+          <p className="text-[11px] tracking-[0.28em] text-[#4a8cff] uppercase">
             Collection
           </p>
           <h2 className="mt-4 font-[family-name:var(--font-display)] text-4xl leading-none text-[#f3efe6] md:text-5xl">

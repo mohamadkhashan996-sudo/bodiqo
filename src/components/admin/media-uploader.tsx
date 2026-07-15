@@ -67,7 +67,7 @@ export function MediaUploader({
         className={cn(
           "rounded-2xl border border-dashed px-6 py-10 text-center transition",
           dragging
-            ? "border-[#d4b483] bg-[#d4b483]/10"
+            ? "border-[#4a8cff] bg-[#4a8cff]/10"
             : "border-white/15 bg-[#0a0a0a]",
         )}
       >
@@ -75,7 +75,7 @@ export function MediaUploader({
         <p className="mt-1 text-xs text-[#f3efe6]/40">
           Images & videos · Shopify-style media upload
         </p>
-        <label className="mt-4 inline-block cursor-pointer rounded-full bg-[#d4b483] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase">
+        <label className="mt-4 inline-block cursor-pointer rounded-full bg-[#4a8cff] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase">
           {uploading ? "Uploading…" : "Choose files"}
           <input
             type="file"

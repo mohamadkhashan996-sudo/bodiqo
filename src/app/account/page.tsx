@@ -46,7 +46,7 @@ export default async function AccountPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-5 pt-28 pb-24 md:px-8 md:pt-36">
-      <p className="text-[11px] tracking-[0.24em] text-[#d4b483] uppercase">
+      <p className="text-[11px] tracking-[0.24em] text-[#4a8cff] uppercase">
         Account
       </p>
       <h1 className="mt-3 font-[family-name:var(--font-display)] text-5xl text-[#f3efe6]">
@@ -55,14 +55,26 @@ export default async function AccountPage() {
       <p className="mt-3 text-sm text-[#f3efe6]/55">{session.user.email}</p>
 
       <div className="mt-8 flex flex-wrap gap-3">
-        {session.user.role === "ADMIN" ? (
+        {session.user.role === "ADMIN" || session.user.role === "STAFF" ? (
           <Link
             href="/admin"
-            className="rounded-full bg-[#d4b483] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
+            className="rounded-full bg-[#4a8cff] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
           >
             Admin dashboard
           </Link>
         ) : null}
+        <Link
+          href="/wishlist"
+          className="rounded-full border border-white/15 px-5 py-2.5 text-[11px] tracking-[0.16em] text-[#f3efe6]/70 uppercase"
+        >
+          Wishlist
+        </Link>
+        <Link
+          href="/track-order"
+          className="rounded-full border border-white/15 px-5 py-2.5 text-[11px] tracking-[0.16em] text-[#f3efe6]/70 uppercase"
+        >
+          Track order
+        </Link>
         <form
           action={async () => {
             "use server";
@@ -87,7 +99,7 @@ export default async function AccountPage() {
         {orders.length === 0 ? (
           <p className="px-5 py-8 text-sm text-[#f3efe6]/55">
             No orders yet.{" "}
-            <Link href="/shop" className="text-[#d4b483]">
+            <Link href="/shop" className="text-[#4a8cff]">
               Start shopping
             </Link>
           </p>

@@ -73,7 +73,7 @@ export default function DropshipOrdersPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[11px] tracking-[0.2em] text-[#d4b483] uppercase">
+          <p className="text-[11px] tracking-[0.2em] text-[#4a8cff] uppercase">
             Fulfillment
           </p>
           <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl">
@@ -87,7 +87,7 @@ export default function DropshipOrdersPage() {
         <div className="flex flex-wrap gap-3">
           <a
             href="/api/admin/dropship/orders?format=csv&fulfillStatus=UNFULFILLED"
-            className="rounded-full bg-[#d4b483] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
+            className="rounded-full bg-[#4a8cff] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
           >
             Export unfulfilled CSV
           </a>
@@ -122,13 +122,13 @@ export default function DropshipOrdersPage() {
           type="button"
           onClick={markOrdered}
           disabled={!selected.length}
-          className="rounded-full bg-[#d4b483] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase disabled:opacity-40"
+          className="rounded-full bg-[#4a8cff] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase disabled:opacity-40"
         >
           Mark selected ordered ({selected.length})
         </button>
       </div>
 
-      {message ? <p className="text-sm text-[#d4b483]">{message}</p> : null}
+      {message ? <p className="text-sm text-[#4a8cff]">{message}</p> : null}
 
       <div className="space-y-4">
         {orders.map((order) => (
@@ -142,7 +142,7 @@ export default function DropshipOrdersPage() {
                   type="checkbox"
                   checked={selected.includes(order.id)}
                   onChange={() => toggle(order.id)}
-                  className="mt-1 accent-[#d4b483]"
+                  className="mt-1 accent-[#4a8cff]"
                 />
                 <div>
                   <p className="font-medium text-[#f3efe6]">
@@ -156,7 +156,7 @@ export default function DropshipOrdersPage() {
               </label>
               <Link
                 href={`/admin/orders/${order.id}`}
-                className="text-xs text-[#d4b483]"
+                className="text-xs text-[#4a8cff]"
               >
                 Details
               </Link>
@@ -181,7 +181,7 @@ export default function DropshipOrdersPage() {
                         href={item.supplierUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[#d4b483] hover:underline"
+                        className="text-[#4a8cff] hover:underline"
                       >
                         Buy on supplier
                       </a>

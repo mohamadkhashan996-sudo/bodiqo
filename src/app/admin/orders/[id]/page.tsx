@@ -18,7 +18,7 @@ export default async function AdminOrderDetailPage({ params }: Props) {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <div>
-        <p className="text-[11px] tracking-[0.18em] text-[#d4b483] uppercase">
+        <p className="text-[11px] tracking-[0.18em] text-[#4a8cff] uppercase">
           Order
         </p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl">

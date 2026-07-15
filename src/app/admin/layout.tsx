@@ -26,7 +26,7 @@ export default async function AdminLayout({
             >
               BODIQO
             </Link>
-            <p className="mt-1 text-[10px] tracking-[0.2em] text-[#d4b483] uppercase">
+            <p className="mt-1 text-[10px] tracking-[0.2em] text-[#4a8cff] uppercase">
               Admin
             </p>
           </div>
@@ -47,7 +47,7 @@ export default async function AdminLayout({
               BODIQO Admin
             </Link>
             <div className="ml-auto flex items-center gap-4 text-xs">
-              <Link href="/" className="text-[#f3efe6]/55 hover:text-[#d4b483]">
+              <Link href="/" className="text-[#f3efe6]/55 hover:text-[#4a8cff]">
                 View store
               </Link>
             </div>

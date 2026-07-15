@@ -18,14 +18,27 @@ const sans = Manrope({
 
 export const metadata: Metadata = {
   title: {
-    default: "BODIQO | Premium Automotive Accessories",
+    default: "BODIQO | Premium Marketplace",
     template: "%s | BODIQO",
   },
   description:
-    "BODIQO is a premium automotive accessories brand. Shop dash cams, phone holders, chargers, compressors, and interior essentials.",
+    "BODIQO is a premium international marketplace. Shop electronics, home, fashion, beauty, sports, and more.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
   ),
+  openGraph: {
+    title: "BODIQO | Premium Marketplace",
+    description:
+      "Shop electronics, home, fashion, beauty, sports, and everyday essentials.",
+    type: "website",
+    siteName: "BODIQO",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BODIQO | Premium Marketplace",
+    description:
+      "Shop electronics, home, fashion, beauty, sports, and everyday essentials.",
+  },
 };
 
 export default function RootLayout({

@@ -4,14 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Menu, Search, ShoppingBag, User, X } from "lucide-react";
+import { Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { useCart } from "@/store/cart";
 import { cn } from "@/lib/utils";
 
 const links = [
   { href: "/shop", label: "Shop" },
-  { href: "/shop?category=Dash%20Cameras", label: "Dash Cams" },
-  { href: "/shop?category=Interior%20Accessories", label: "Interior" },
+  { href: "/categories", label: "Categories" },
+  { href: "/blog", label: "Blog" },
+  { href: "/track-order", label: "Track" },
   { href: "/about", label: "About" },
 ];
 
@@ -67,7 +68,7 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="text-[11px] font-medium tracking-[0.22em] text-[#f3efe6]/65 uppercase transition hover:text-[#d4b483]"
+              className="text-[11px] font-medium tracking-[0.22em] text-[#f3efe6]/65 uppercase transition hover:text-[#4a8cff]"
             >
               {link.label}
             </Link>
@@ -77,26 +78,33 @@ export function SiteHeader() {
         <div className="flex items-center gap-4 md:gap-5">
           <Link
             href="/shop"
-            className="hidden text-[#f3efe6]/80 transition hover:text-[#d4b483] md:inline-flex"
+            className="hidden text-[#f3efe6]/80 transition hover:text-[#4a8cff] md:inline-flex"
             aria-label="Search"
           >
             <Search size={18} />
           </Link>
           <Link
+            href="/wishlist"
+            className="hidden text-[#f3efe6]/80 transition hover:text-[#4a8cff] md:inline-flex"
+            aria-label="Wishlist"
+          >
+            <Heart size={18} />
+          </Link>
+          <Link
             href={session ? "/account" : "/auth/sign-in"}
-            className="hidden text-[#f3efe6]/80 transition hover:text-[#d4b483] md:inline-flex"
+            className="hidden text-[#f3efe6]/80 transition hover:text-[#4a8cff] md:inline-flex"
             aria-label="Account"
           >
             <User size={18} />
           </Link>
           <Link
             href="/cart"
-            className="relative text-[#f3efe6] transition hover:text-[#d4b483]"
+            className="relative text-[#f3efe6] transition hover:text-[#4a8cff]"
             aria-label={`Cart${mounted && itemCount ? `, ${itemCount} items` : ""}`}
           >
             <ShoppingBag size={18} />
             {mounted && itemCount > 0 ? (
-              <span className="absolute -top-2 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#d4b483] px-1 text-[10px] font-semibold text-[#0b0b0b]">
+              <span className="absolute -top-2 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#4a8cff] px-1 text-[10px] font-semibold text-[#0b0b0b]">
                 {itemCount}
               </span>
             ) : null}
@@ -105,25 +113,31 @@ export function SiteHeader() {
       </div>
 
       {open ? (
-        <div className="border-t border-white/[0.07] bg-[#070707] px-5 py-7 md:hidden">
-          <div className="flex flex-col gap-5">
+        <nav
+          className="border-t border-white/[0.06] bg-[#070707]/95 px-5 py-6 md:hidden"
+          aria-label="Mobile"
+        >
+          <ul className="space-y-4">
             {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm tracking-[0.18em] text-[#f3efe6]/85 uppercase"
-              >
-                {link.label}
-              </Link>
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="block text-sm tracking-[0.18em] text-[#f3efe6]/80 uppercase"
+                >
+                  {link.label}
+                </Link>
+              </li>
             ))}
-            <Link
-              href={session ? "/account" : "/auth/sign-in"}
-              className="text-sm tracking-[0.18em] text-[#d4b483] uppercase"
-            >
-              Account
-            </Link>
-          </div>
-        </div>
+            <li>
+              <Link
+                href="/wishlist"
+                className="block text-sm tracking-[0.18em] text-[#f3efe6]/80 uppercase"
+              >
+                Wishlist
+              </Link>
+            </li>
+          </ul>
+        </nav>
       ) : null}
     </header>
   );

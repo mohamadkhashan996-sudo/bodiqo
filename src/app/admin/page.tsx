@@ -88,7 +88,7 @@ export default async function AdminHomePage() {
           <Link
             key={card.label}
             href={card.href}
-            className="rounded-2xl border border-white/10 bg-[#121212] p-5 transition hover:border-[#d4b483]/40"
+            className="rounded-2xl border border-white/10 bg-[#121212] p-5 transition hover:border-[#4a8cff]/40"
           >
             <p className="text-[10px] tracking-[0.2em] text-[#f3efe6]/40 uppercase">
               {card.label}
@@ -101,7 +101,7 @@ export default async function AdminHomePage() {
       <section className="rounded-2xl border border-white/10 bg-[#121212]">
         <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
           <h2 className="text-sm tracking-[0.14em] uppercase">Recent orders</h2>
-          <Link href="/admin/orders" className="text-xs text-[#d4b483]">
+          <Link href="/admin/orders" className="text-xs text-[#4a8cff]">
             View all
           </Link>
         </div>
@@ -128,7 +128,7 @@ export default async function AdminHomePage() {
                     <td className="px-5 py-3">
                       <Link
                         href={`/admin/orders/${order.id}`}
-                        className="text-[#d4b483] hover:underline"
+                        className="text-[#4a8cff] hover:underline"
                       >
                         {order.orderNumber}
                       </Link>
@@ -157,7 +157,7 @@ export default async function AdminHomePage() {
           <Link
             key={a.href}
             href={a.href}
-            className="rounded-2xl border border-dashed border-white/15 px-5 py-6 text-center text-sm tracking-[0.12em] uppercase transition hover:border-[#d4b483] hover:text-[#d4b483]"
+            className="rounded-2xl border border-dashed border-white/15 px-5 py-6 text-center text-sm tracking-[0.12em] uppercase transition hover:border-[#4a8cff] hover:text-[#4a8cff]"
           >
             {a.label}
           </Link>

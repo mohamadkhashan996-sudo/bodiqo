@@ -47,7 +47,7 @@ export default function ShippingSettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
-        <p className="text-[11px] tracking-[0.2em] text-[#d4b483] uppercase">
+        <p className="text-[11px] tracking-[0.2em] text-[#4a8cff] uppercase">
           Settings → Shipping
         </p>
         <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl">
@@ -85,11 +85,11 @@ export default function ShippingSettingsPage() {
             />
           </label>
         ))}
-        {message ? <p className="text-sm text-[#d4b483]">{message}</p> : null}
+        {message ? <p className="text-sm text-[#4a8cff]">{message}</p> : null}
         <div className="flex gap-3">
           <button
             type="submit"
-            className="rounded-full bg-[#d4b483] px-6 py-3 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
+            className="rounded-full bg-[#4a8cff] px-6 py-3 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
           >
             Save shipping
           </button>

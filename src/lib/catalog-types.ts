@@ -1,13 +1,23 @@
 export const CATEGORIES = [
-  "Car Phone Holders",
-  "Dash Cameras",
-  "Car Chargers",
-  "Air Compressors",
-  "Air Fresheners",
-  "Interior Accessories",
-  "Exterior Accessories",
-  "Emergency Tools",
-  "Car Cleaning Products",
+  "Electronics",
+  "Home",
+  "Kitchen",
+  "Pets",
+  "Gaming",
+  "Beauty",
+  "Fashion",
+  "Shoes",
+  "Jewelry",
+  "Sports",
+  "Outdoor",
+  "Furniture",
+  "Phones",
+  "Accessories",
+  "Tools",
+  "Baby",
+  "Health",
+  "Office",
+  "Automotive",
 ] as const;
 
 export type CatalogProduct = {
@@ -21,14 +31,27 @@ export type CatalogProduct = {
   compareAt: number | null;
   currency: string;
   category: string;
+  brand?: string | null;
   images: string[];
   image: string;
   featured: boolean;
   inStock: boolean;
   inventory?: number;
   reserved?: number;
+  soldCount?: number;
+  averageRating?: number;
   sku: string;
   vendor: string;
+  variantId?: string;
+  variants?: Array<{
+    id: string;
+    title: string;
+    sku: string;
+    price: number;
+    inventory: number;
+    inStock: boolean;
+    image?: string | null;
+  }>;
 };
 
 export function formatPrice(amount: number, currency = "ILS"): string {

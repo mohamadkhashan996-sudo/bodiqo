@@ -10,6 +10,17 @@ import {
   getPaypalApproveLink,
   getPaypalConfig,
 } from "@/lib/paypal";
+import { createCheckoutSession } from "@/lib/stripe";
+import {
+  computeCryptoAmount,
+  cryptoExpiresAt,
+  findWallet,
+} from "@/lib/crypto-payments";
+import {
+  fulfillManualOrder,
+  reserveAwaitingPayment,
+} from "@/lib/order-inventory";
+import { ProductStatus } from "@prisma/client";
 
 const emptyToUndefined = z.literal("").transform(() => undefined);
 
@@ -21,6 +32,7 @@ const optionalText = z
 const itemSchema = z.object({
   slug: z.string().trim().min(1),
   quantity: z.coerce.number().int().min(1).max(20),
+  variantId: optionalText,
 });
 
 const checkoutSchema = z.object({
@@ -35,8 +47,185 @@ const checkoutSchema = z.object({
     .optional()
     .transform((v) => v || "IL"),
   couponCode: optionalText,
+  paymentMethod: z
+    .enum(["paypal", "stripe", "crypto", "none"])
+    .optional()
+    .default("none"),
+  cryptoCoin: optionalText,
+  cryptoNetwork: optionalText,
   items: z.array(itemSchema).min(1, "Your cart is empty"),
 });
+
+type ResolvedLine = {
+  product: {
+    id: string | null;
+    slug: string;
+    title: string;
+    image: string;
+    price: number;
+    costPrice: number | null;
+    supplierUrl: string | null;
+    supplierSku: string | null;
+    variantId: string | null;
+    variantTitle: string | null;
+  };
+  quantity: number;
+};
+
+async function computeTax(
+  shippingCountry: string,
+  subtotal: number,
+  discount: number,
+  shipping: number,
+) {
+  const taxSettings = await getSetting(SETTING_KEYS.tax);
+  if (!taxSettings.enabled) {
+    return { tax: 0, taxRate: 0 };
+  }
+
+  const countryRate = await prisma.taxRate.findFirst({
+    where: { country: shippingCountry.toUpperCase(), enabled: true },
+    orderBy: { rate: "desc" },
+  });
+
+  const taxRate = countryRate
+    ? Number(countryRate.rate)
+    : taxSettings.defaultRate;
+
+  if (taxRate <= 0) {
+    return { tax: 0, taxRate: 0 };
+  }
+
+  const taxableBase = Math.max(0, subtotal - discount);
+  let tax: number;
+
+  if (taxSettings.pricesIncludeTax) {
+    tax = (taxableBase * taxRate) / (100 + taxRate);
+  } else {
+    tax = (taxableBase * taxRate) / 100;
+  }
+
+  if (!taxSettings.pricesIncludeTax && shipping > 0) {
+    tax += (shipping * taxRate) / 100;
+  }
+
+  return { tax: Math.round(tax * 100) / 100, taxRate };
+}
+
+async function resolveLineItems(
+  items: z.infer<typeof checkoutSchema>["items"],
+): Promise<{ lineItems: ResolvedLine[]; error?: string }> {
+  const lineItems: ResolvedLine[] = [];
+
+  for (const item of items) {
+    const dbProduct = await prisma.product.findFirst({
+      where: {
+        slug: item.slug,
+        enabled: true,
+        status: ProductStatus.PUBLISHED,
+      },
+      include: {
+        variants: item.variantId
+          ? { where: { id: item.variantId, enabled: true } }
+          : undefined,
+      },
+    });
+
+    if (dbProduct) {
+      const variant =
+        item.variantId && Array.isArray(dbProduct.variants)
+          ? dbProduct.variants[0]
+          : null;
+
+      if (item.variantId && !variant) {
+        return { lineItems: [], error: "Selected variant is unavailable." };
+      }
+
+      if (variant) {
+        if (!variant.inStock || variant.inventory < item.quantity) {
+          return {
+            lineItems: [],
+            error: `${dbProduct.title} (${variant.title}) is out of stock / نفد من المخزن`,
+          };
+        }
+        const images = Array.isArray(dbProduct.images)
+          ? (dbProduct.images as string[])
+          : [];
+        lineItems.push({
+          product: {
+            id: dbProduct.id,
+            slug: dbProduct.slug,
+            title: dbProduct.title,
+            image: variant.image || images[0] || "",
+            price: Number(variant.price),
+            costPrice:
+              variant.costPrice != null ? Number(variant.costPrice) : null,
+            supplierUrl: variant.supplierUrl || dbProduct.supplierProductUrl,
+            supplierSku:
+              variant.supplierSku ||
+              dbProduct.supplierSku ||
+              dbProduct.supplierProductId ||
+              null,
+            variantId: variant.id,
+            variantTitle: variant.title,
+          },
+          quantity: item.quantity,
+        });
+        continue;
+      }
+
+      const available = dbProduct.inventory - dbProduct.reserved;
+      if (available < item.quantity || !dbProduct.inStock) {
+        return {
+          lineItems: [],
+          error: `${dbProduct.title} is out of stock / نفد من المخزن`,
+        };
+      }
+      lineItems.push({
+        product: {
+          id: dbProduct.id,
+          slug: dbProduct.slug,
+          title: dbProduct.title,
+          image:
+            (Array.isArray(dbProduct.images)
+              ? (dbProduct.images as string[])[0]
+              : "") ?? "",
+          price: Number(dbProduct.price),
+          costPrice:
+            dbProduct.costPrice != null ? Number(dbProduct.costPrice) : null,
+          supplierUrl: dbProduct.supplierProductUrl,
+          supplierSku:
+            dbProduct.supplierSku || dbProduct.supplierProductId || null,
+          variantId: null,
+          variantTitle: null,
+        },
+        quantity: item.quantity,
+      });
+      continue;
+    }
+
+    const fallback = getProductBySlugSync(item.slug);
+    if (fallback) {
+      lineItems.push({
+        product: {
+          id: null,
+          slug: fallback.slug,
+          title: fallback.title,
+          image: fallback.image,
+          price: fallback.price,
+          costPrice: null,
+          supplierUrl: null,
+          supplierSku: null,
+          variantId: null,
+          variantTitle: null,
+        },
+        quantity: item.quantity,
+      });
+    }
+  }
+
+  return { lineItems };
+}
 
 export async function POST(request: Request) {
   try {
@@ -56,78 +245,44 @@ export async function POST(request: Request) {
       );
     }
 
-    const shippingSettings = await getSetting(SETTING_KEYS.shipping);
-    const storeSettings = await getSetting(SETTING_KEYS.store);
-    const paypal = await getPaypalConfig();
-
-    const lineItems: {
-      product: {
-        id: string | null;
-        slug: string;
-        title: string;
-        image: string;
-        price: number;
-        costPrice: number | null;
-        supplierUrl: string | null;
-        supplierSku: string | null;
-      };
-      quantity: number;
-    }[] = [];
-    for (const item of parsed.data.items) {
-      const dbProduct = await prisma.product.findFirst({
-        where: { slug: item.slug, enabled: true },
-      });
-      if (dbProduct) {
-        const available = dbProduct.inventory - dbProduct.reserved;
-        if (available < item.quantity || !dbProduct.inStock) {
-          return NextResponse.json(
-            {
-              error: `${dbProduct.title} is out of stock / نفد من المخزن`,
-            },
-            { status: 400 },
-          );
-        }
-        lineItems.push({
-          product: {
-            id: dbProduct.id,
-            slug: dbProduct.slug,
-            title: dbProduct.title,
-            image:
-              (Array.isArray(dbProduct.images)
-                ? (dbProduct.images as string[])[0]
-                : "") ?? "",
-            price: Number(dbProduct.price),
-            costPrice:
-              dbProduct.costPrice != null ? Number(dbProduct.costPrice) : null,
-            supplierUrl: dbProduct.supplierProductUrl,
-            supplierSku:
-              dbProduct.supplierSku || dbProduct.supplierProductId || null,
-          },
-          quantity: item.quantity,
-        });
-        continue;
-      }
-      const fallback = getProductBySlugSync(item.slug);
-      if (fallback) {
-        lineItems.push({
-          product: {
-            id: null,
-            slug: fallback.slug,
-            title: fallback.title,
-            image: fallback.image,
-            price: fallback.price,
-            costPrice: null,
-            supplierUrl: null,
-            supplierSku: null,
-          },
-          quantity: item.quantity,
-        });
-      }
+    const { lineItems, error: lineError } = await resolveLineItems(
+      parsed.data.items,
+    );
+    if (lineError) {
+      return NextResponse.json({ error: lineError }, { status: 400 });
     }
-
     if (!lineItems.length) {
       return NextResponse.json(
         { error: "No valid products in cart." },
+        { status: 400 },
+      );
+    }
+
+    const [shippingSettings, storeSettings, paypal, stripe, crypto] =
+      await Promise.all([
+        getSetting(SETTING_KEYS.shipping),
+        getSetting(SETTING_KEYS.store),
+        getPaypalConfig(),
+        getSetting(SETTING_KEYS.stripe),
+        getSetting(SETTING_KEYS.crypto),
+      ]);
+
+    const paymentMethod = parsed.data.paymentMethod;
+    if (paymentMethod === "paypal" && !paypal.enabled) {
+      return NextResponse.json(
+        { error: "PayPal is not enabled." },
+        { status: 400 },
+      );
+    }
+    if (paymentMethod === "stripe" && !stripe.enabled) {
+      return NextResponse.json(
+        { error: "Stripe is not enabled." },
+        { status: 400 },
+      );
+    }
+    if (paymentMethod === "crypto" && !crypto.enabled) {
+      return NextResponse.json(
+        { error: "Crypto payments are not enabled." },
         { status: 400 },
       );
     }
@@ -160,19 +315,41 @@ export async function POST(request: Request) {
       subtotal - discount >= shippingSettings.freeThreshold
         ? 0
         : shippingSettings.flatRate;
-    const total = Math.max(0, subtotal - discount + shipping);
+
+    const { tax } = await computeTax(
+      parsed.data.shippingCountry,
+      subtotal,
+      discount,
+      shipping,
+    );
+
+    const total = Math.max(0, subtotal - discount + shipping + tax);
     const currency = storeSettings.currency || "ILS";
     const orderNumber = `BQ-${Date.now().toString(36).toUpperCase()}`;
+
+    const awaitingPayment = ["paypal", "stripe", "crypto"].includes(
+      paymentMethod,
+    );
+
+    const paymentProvider =
+      paymentMethod === "paypal"
+        ? "PAYPAL"
+        : paymentMethod === "stripe"
+          ? "STRIPE"
+          : paymentMethod === "crypto"
+            ? "CRYPTO"
+            : "MANUAL";
 
     const order = await prisma.order.create({
       data: {
         orderNumber,
         userId: session?.user?.id,
         email: parsed.data.email.toLowerCase(),
-        status: paypal.enabled ? "AWAITING_PAYMENT" : "PENDING",
+        status: awaitingPayment ? "AWAITING_PAYMENT" : "PENDING",
         subtotal,
         shipping,
         discount,
+        tax,
         total,
         currency,
         couponCode: parsed.data.couponCode?.toUpperCase(),
@@ -183,10 +360,14 @@ export async function POST(request: Request) {
         shippingZip: parsed.data.shippingZip,
         shippingCountry: parsed.data.shippingCountry,
         fulfillStatus: "UNFULFILLED",
+        paymentProvider,
         items: {
           create: lineItems.map((li) => ({
             productId: li.product.id ?? undefined,
-            title: li.product.title,
+            variantId: li.product.variantId ?? undefined,
+            title: li.product.variantTitle
+              ? `${li.product.title} — ${li.product.variantTitle}`
+              : li.product.title,
             slug: li.product.slug,
             image: li.product.image,
             price: li.product.price,
@@ -199,40 +380,24 @@ export async function POST(request: Request) {
       },
     });
 
-    // Reserve stock while payment is pending / manual orders
-    for (const li of lineItems) {
-      if (!li.product.id) continue;
-      if (paypal.enabled) {
-        await prisma.product.update({
-          where: { id: li.product.id },
-          data: { reserved: { increment: li.quantity } },
-        });
-      } else {
-        await prisma.product.update({
-          where: { id: li.product.id },
-          data: {
-            inventory: { decrement: li.quantity },
-            soldCount: { increment: li.quantity },
-          },
-        });
-        const product = await prisma.product.findUnique({
-          where: { id: li.product.id },
-        });
-        if (product && product.inventory <= 0) {
-          await prisma.product.update({
-            where: { id: product.id },
-            data: { inStock: false, inventory: 0 },
-          });
-        }
-      }
+    const inventoryItems = lineItems.map((li) => ({
+      productId: li.product.id,
+      variantId: li.product.variantId,
+      quantity: li.quantity,
+    }));
+
+    if (awaitingPayment) {
+      await reserveAwaitingPayment(inventoryItems);
+    } else {
+      await fulfillManualOrder(inventoryItems);
     }
 
-    if (paypal.enabled) {
-      const origin =
-        request.headers.get("origin") ||
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        "http://localhost:3000";
+    const origin =
+      request.headers.get("origin") ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "http://localhost:3000";
 
+    if (paymentMethod === "paypal") {
       const paypalOrder = await createPaypalOrder({
         orderNumber: order.orderNumber,
         total: Number(order.total),
@@ -251,8 +416,124 @@ export async function POST(request: Request) {
         ok: true,
         orderNumber: order.orderNumber,
         total: Number(order.total),
+        tax: Number(order.tax),
         payment: "paypal",
         approveUrl,
+      });
+    }
+
+    if (paymentMethod === "stripe") {
+      const priceFactor =
+        subtotal > 0 ? (subtotal - discount) / subtotal : 1;
+      const stripeLines = lineItems.map((li) => ({
+        title: li.product.variantTitle
+          ? `${li.product.title} — ${li.product.variantTitle}`
+          : li.product.title,
+        quantity: li.quantity,
+        unitAmount: Math.round(li.product.price * priceFactor * 100) / 100,
+      }));
+      if (shipping > 0) {
+        stripeLines.push({
+          title: "Shipping",
+          quantity: 1,
+          unitAmount: shipping,
+        });
+      }
+      if (tax > 0) {
+        stripeLines.push({
+          title: "Tax",
+          quantity: 1,
+          unitAmount: tax,
+        });
+      }
+
+      const stripeSession = await createCheckoutSession({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        email: parsed.data.email,
+        total: Number(order.total),
+        currency,
+        successUrl: `${origin}/checkout/success?order=${order.orderNumber}&session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${origin}/checkout?cancelled=1&order=${order.orderNumber}`,
+        lineItems: stripeLines,
+      });
+
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { stripeSessionId: stripeSession.id },
+      });
+
+      await prisma.payment.create({
+        data: {
+          orderId: order.id,
+          provider: "STRIPE",
+          externalId: stripeSession.id,
+          amount: order.total,
+          currency,
+          status: "PENDING",
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        orderNumber: order.orderNumber,
+        total: Number(order.total),
+        tax: Number(order.tax),
+        payment: "stripe",
+        url: stripeSession.url,
+      });
+    }
+
+    if (paymentMethod === "crypto") {
+      const coin = parsed.data.cryptoCoin?.toUpperCase();
+      const network = parsed.data.cryptoNetwork?.trim();
+      if (!coin || !network) {
+        return NextResponse.json(
+          { error: "Select a coin and network for crypto payment." },
+          { status: 400 },
+        );
+      }
+
+      const wallet = findWallet(crypto, coin, network);
+      if (!wallet) {
+        return NextResponse.json(
+          { error: "Selected crypto wallet is not configured." },
+          { status: 400 },
+        );
+      }
+
+      const { amount, displayCurrency } = computeCryptoAmount(
+        Number(order.total),
+        currency,
+        coin,
+      );
+
+      const cryptoPayment = await prisma.cryptoPayment.create({
+        data: {
+          orderId: order.id,
+          coin,
+          network: wallet.network,
+          amount,
+          currency: displayCurrency,
+          address: wallet.address,
+          status: "WAITING",
+          expiresAt: cryptoExpiresAt(),
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        orderNumber: order.orderNumber,
+        total: Number(order.total),
+        tax: Number(order.tax),
+        payment: "crypto",
+        cryptoPaymentId: cryptoPayment.id,
+        coin,
+        network: wallet.network,
+        address: wallet.address,
+        amount: Number(cryptoPayment.amount),
+        currency: displayCurrency,
+        redirectUrl: `/checkout/crypto/${cryptoPayment.id}`,
       });
     }
 
@@ -260,6 +541,7 @@ export async function POST(request: Request) {
       ok: true,
       orderNumber: order.orderNumber,
       total: Number(order.total),
+      tax: Number(order.tax),
       payment: "manual",
       redirectUrl: `/checkout/success?order=${order.orderNumber}`,
     });
@@ -270,7 +552,7 @@ export async function POST(request: Request) {
         error:
           error instanceof Error
             ? error.message
-            : "Checkout failed. Ensure PostgreSQL is running and PayPal is configured if enabled.",
+            : "Checkout failed. Ensure the database is running and payment providers are configured.",
       },
       { status: 503 },
     );

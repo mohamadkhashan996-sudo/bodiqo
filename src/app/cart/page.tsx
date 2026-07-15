@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCart } from "@/store/cart";
+import { useCart, cartLineKey } from "@/store/cart";
 import { formatPrice } from "@/lib/catalog";
 
 export default function CartPage() {
@@ -21,7 +21,7 @@ export default function CartPage() {
         </p>
         <Link
           href="/shop"
-          className="mt-8 inline-block bg-[#d4b483] px-7 py-3.5 text-[11px] font-semibold tracking-[0.2em] text-[#0b0b0b] uppercase"
+          className="mt-8 inline-block bg-[#4a8cff] px-7 py-3.5 text-[11px] font-semibold tracking-[0.2em] text-[#0b0b0b] uppercase"
         >
           Continue shopping
         </Link>
@@ -38,7 +38,10 @@ export default function CartPage() {
       <div className="mt-12 grid gap-12 lg:grid-cols-[1.4fr_0.8fr]">
         <ul className="divide-y divide-white/10 border-y border-white/10">
           {items.map((item) => (
-            <li key={item.productId} className="flex gap-4 py-6 md:gap-6">
+            <li
+              key={cartLineKey(item.productId, item.variantId)}
+              className="flex gap-4 py-6 md:gap-6"
+            >
               <Link
                 href={`/product/${item.slug}`}
                 className="relative h-28 w-24 shrink-0 overflow-hidden bg-[#141414] md:h-32 md:w-28"
@@ -56,7 +59,7 @@ export default function CartPage() {
                   <div>
                     <Link
                       href={`/product/${item.slug}`}
-                      className="text-[#f3efe6] transition hover:text-[#d4b483]"
+                      className="text-[#f3efe6] transition hover:text-[#4a8cff]"
                     >
                       {item.title}
                     </Link>
@@ -66,21 +69,30 @@ export default function CartPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => removeItem(item.productId)}
-                    className="text-xs tracking-[0.12em] text-[#f3efe6]/45 uppercase hover:text-[#d4b483]"
+                    onClick={() =>
+                      removeItem(item.productId, item.variantId)
+                    }
+                    className="text-xs tracking-[0.12em] text-[#f3efe6]/45 uppercase hover:text-[#4a8cff]"
                   >
                     Remove
                   </button>
                 </div>
                 <div className="mt-4 flex items-center gap-3">
-                  <label className="sr-only" htmlFor={`qty-${item.productId}`}>
+                  <label
+                    className="sr-only"
+                    htmlFor={`qty-${cartLineKey(item.productId, item.variantId)}`}
+                  >
                     Quantity
                   </label>
                   <select
-                    id={`qty-${item.productId}`}
+                    id={`qty-${cartLineKey(item.productId, item.variantId)}`}
                     value={item.quantity}
                     onChange={(e) =>
-                      updateQuantity(item.productId, Number(e.target.value))
+                      updateQuantity(
+                        item.productId,
+                        Number(e.target.value),
+                        item.variantId,
+                      )
                     }
                     className="border border-white/15 bg-transparent px-3 py-2 text-sm text-[#f3efe6]"
                   >
@@ -100,7 +112,7 @@ export default function CartPage() {
         </ul>
 
         <aside className="h-fit border border-white/10 bg-[#101010] p-6 md:p-8">
-          <h2 className="text-[11px] tracking-[0.22em] text-[#d4b483] uppercase">
+          <h2 className="text-[11px] tracking-[0.22em] text-[#4a8cff] uppercase">
             Summary
           </h2>
           <dl className="mt-6 space-y-3 text-sm">
@@ -124,7 +136,7 @@ export default function CartPage() {
           </p>
           <Link
             href="/checkout"
-            className="mt-8 block bg-[#d4b483] px-6 py-3.5 text-center text-[11px] font-semibold tracking-[0.2em] text-[#0b0b0b] uppercase transition hover:bg-[#e2c69a]"
+            className="mt-8 block bg-[#4a8cff] px-6 py-3.5 text-center text-[11px] font-semibold tracking-[0.2em] text-[#0b0b0b] uppercase transition hover:bg-[#6aa0ff]"
           >
             Checkout
           </Link>

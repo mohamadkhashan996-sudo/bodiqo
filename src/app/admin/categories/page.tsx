@@ -60,11 +60,11 @@ export default function AdminCategoriesPage() {
         />
         <button
           type="submit"
-          className="rounded-full bg-[#d4b483] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
+          className="rounded-full bg-[#4a8cff] px-5 py-2.5 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase"
         >
           Add category
         </button>
-        {message ? <p className="text-sm text-[#d4b483]">{message}</p> : null}
+        {message ? <p className="text-sm text-[#4a8cff]">{message}</p> : null}
       </form>
       <ul className="divide-y divide-white/10 rounded-2xl border border-white/10">
         {categories.map((c) => (
