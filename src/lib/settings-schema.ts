@@ -120,6 +120,11 @@ export const homepageSettingsSchema = z.object({
   sections: z.array(homepageSectionSchema).default([]),
 });
 
+export const setupSettingsSchema = z.object({
+  completedAt: z.string().default(""),
+  version: z.number().int().default(1),
+});
+
 export type StoreSettings = z.infer<typeof storeSettingsSchema>;
 export type PaypalSettings = z.infer<typeof paypalSettingsSchema>;
 export type StripeSettings = z.infer<typeof stripeSettingsSchema>;
@@ -129,6 +134,7 @@ export type SmtpSettings = z.infer<typeof smtpSettingsSchema>;
 export type ShippingSettings = z.infer<typeof shippingSettingsSchema>;
 export type SeoSettings = z.infer<typeof seoSettingsSchema>;
 export type HomepageSettings = z.infer<typeof homepageSettingsSchema>;
+export type SetupSettings = z.infer<typeof setupSettingsSchema>;
 
 export const SETTING_KEYS = {
   store: "store",
@@ -140,6 +146,7 @@ export const SETTING_KEYS = {
   shipping: "shipping",
   seo: "seo",
   homepage: "homepage",
+  setup: "setup",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -154,4 +161,5 @@ export const settingSchemas = {
   shipping: shippingSettingsSchema,
   seo: seoSettingsSchema,
   homepage: homepageSettingsSchema,
+  setup: setupSettingsSchema,
 } as const;

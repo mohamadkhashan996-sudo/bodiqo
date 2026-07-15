@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import catalog from "@/data/catalog.json";
 import type { CatalogProduct } from "@/lib/catalog-types";
 import { ProductStatus } from "@prisma/client";
 
@@ -10,10 +9,6 @@ const PUBLIC_PRODUCT_WHERE = {
   enabled: true,
   status: ProductStatus.PUBLISHED,
 } as const;
-
-function fromJson(): CatalogProduct[] {
-  return catalog.products as CatalogProduct[];
-}
 
 function asImageList(images: unknown): string[] {
   if (Array.isArray(images)) {
@@ -150,11 +145,11 @@ export async function getProducts(): Promise<CatalogProduct[]> {
       include: productInclude,
       orderBy: [{ featured: "desc" }, { createdAt: "desc" }],
     });
-    if (rows.length > 0) return rows.map(mapDbProduct);
+    return rows.map(mapDbProduct);
   } catch {
-    // DB unavailable — fall back to static catalog
+    // Never ship demo catalog.json to customers — empty when DB is down
+    return [];
   }
-  return fromJson();
 }
 
 export async function getFeaturedProducts(limit = 4) {
@@ -171,9 +166,9 @@ export async function getProductBySlug(slug: string) {
     });
     if (row) return mapDbProduct(row);
   } catch {
-    // fall through
+    // ignore
   }
-  return fromJson().find((p) => p.slug === slug);
+  return undefined;
 }
 
 export async function getProductsByCategory(category: string) {
@@ -203,9 +198,8 @@ export async function getCategoryNames() {
       where: { enabled: true },
       orderBy: { sortOrder: "asc" },
     });
-    if (cats.length) return cats.map((c) => c.name);
+    return cats.map((c) => c.name);
   } catch {
-    // fall through
+    return [];
   }
-  return [...new Set(fromJson().map((p) => p.category))];
 }

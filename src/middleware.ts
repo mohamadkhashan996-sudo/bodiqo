@@ -1,0 +1,33 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { SETUP_COOKIE, isValidSetupCookie } from "@/lib/setup-cookie";
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  const allowed =
+    pathname.startsWith("/setup") ||
+    pathname.startsWith("/api/setup") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/uploads") ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml";
+
+  if (allowed) {
+    return NextResponse.next();
+  }
+
+  const cookie = request.cookies.get(SETUP_COOKIE)?.value;
+  if (isValidSetupCookie(cookie)) {
+    return NextResponse.next();
+  }
+
+  const url = request.nextUrl.clone();
+  url.pathname = "/setup";
+  url.search = "";
+  return NextResponse.redirect(url);
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+};

@@ -22,7 +22,7 @@ export default function SignInPage() {
     });
     setLoading(false);
     if (result?.error) {
-      setError("Invalid email or password. Ensure the database is seeded.");
+      setError("Invalid email or password.");
       return;
     }
     router.push("/shop");
@@ -77,9 +77,6 @@ export default function SignInPage() {
         <Link href="/auth/sign-up" className="text-[#4a8cff] hover:underline">
           Create an account
         </Link>
-      </p>
-      <p className="mt-3 text-xs text-[#f3efe6]/40">
-        Demo: demo@bodiqo.com / bodiqo1234 (after seeding)
       </p>
     </div>
   );

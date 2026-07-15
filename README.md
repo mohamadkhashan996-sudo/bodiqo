@@ -68,9 +68,19 @@ npm run db:seed
 npm run dev
 ```
 
+On first launch the app opens **`/setup`** — create your admin account, store name/logo, PayPal, and crypto wallets. No demo catalog is loaded.
+
 - Store: [http://localhost:3000](http://localhost:3000)
-- Admin: [http://localhost:3000/admin](http://localhost:3000/admin)
-- Demo admin: `demo@bodiqo.com` / `bodiqo1234`
+- Setup wizard: [http://localhost:3000/setup](http://localhost:3000/setup)
+- Admin (after setup): [http://localhost:3000/admin](http://localhost:3000/admin)
+
+```bash
+# Remove leftover demo data and force the wizard again
+npm run db:purge-demo
+
+# Optional local-only sample catalog (never on production)
+npm run db:seed:demo
+```
 
 ## GitHub
 
