@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bodiqo-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: bodiqo
+      POSTGRES_PASSWORD: bodiqo
+      POSTGRES_DB: bodiqo
+    volumes:
+      - bodiqo_pg_data:/var/lib/postgresql/data
+
+volumes:
+  bodiqo_pg_data:
