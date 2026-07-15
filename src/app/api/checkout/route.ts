@@ -78,6 +78,15 @@ export async function POST(request: Request) {
         where: { slug: item.slug, enabled: true },
       });
       if (dbProduct) {
+        const available = dbProduct.inventory - dbProduct.reserved;
+        if (available < item.quantity || !dbProduct.inStock) {
+          return NextResponse.json(
+            {
+              error: `${dbProduct.title} is out of stock / نفد من المخزن`,
+            },
+            { status: 400 },
+          );
+        }
         lineItems.push({
           product: {
             id: dbProduct.id,
@@ -189,6 +198,34 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    // Reserve stock while payment is pending / manual orders
+    for (const li of lineItems) {
+      if (!li.product.id) continue;
+      if (paypal.enabled) {
+        await prisma.product.update({
+          where: { id: li.product.id },
+          data: { reserved: { increment: li.quantity } },
+        });
+      } else {
+        await prisma.product.update({
+          where: { id: li.product.id },
+          data: {
+            inventory: { decrement: li.quantity },
+            soldCount: { increment: li.quantity },
+          },
+        });
+        const product = await prisma.product.findUnique({
+          where: { id: li.product.id },
+        });
+        if (product && product.inventory <= 0) {
+          await prisma.product.update({
+            where: { id: product.id },
+            data: { inStock: false, inventory: 0 },
+          });
+        }
+      }
+    }
 
     if (paypal.enabled) {
       const origin =

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { MediaUploader } from "@/components/admin/media-uploader";
 
 type Category = { id: string; name: string };
 type Supplier = { id: string; name: string };
@@ -353,6 +354,28 @@ export default function ProductEditorPage() {
           onChange={(v) => set("description", v)}
           rows={6}
         />
+        <div>
+          <p className="mb-2 text-[11px] tracking-[0.16em] text-[#f3efe6]/45 uppercase">
+            Media — drag & drop images / video
+          </p>
+          <MediaUploader
+            onUploaded={(urls) => {
+              const images = urls.filter(
+                (u) => !/\.(mp4|webm|mov)(\?|$)/i.test(u),
+              );
+              const videos = urls.filter((u) =>
+                /\.(mp4|webm|mov)(\?|$)/i.test(u),
+              );
+              setForm((prev) => ({
+                ...prev,
+                images: images.length
+                  ? [prev.images, ...images].filter(Boolean).join("\n")
+                  : prev.images,
+                videoUrl: videos[0] || prev.videoUrl,
+              }));
+            }}
+          />
+        </div>
         <Text
           label="Image URLs (one per line)"
           value={form.images}
@@ -398,7 +421,11 @@ export default function ProductEditorPage() {
             disabled={saving}
             className="rounded-full bg-[#d4b483] px-6 py-3 text-[11px] font-semibold tracking-[0.16em] text-[#0b0b0b] uppercase disabled:opacity-60"
           >
-            {saving ? "Saving…" : "Save product"}
+            {saving
+              ? "Saving…"
+              : form.enabled
+                ? "Publish product"
+                : "Save as draft"}
           </button>
           {id !== "new" ? (
             <button

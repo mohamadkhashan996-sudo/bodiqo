@@ -25,6 +25,8 @@ export type CatalogProduct = {
   image: string;
   featured: boolean;
   inStock: boolean;
+  inventory?: number;
+  reserved?: number;
   sku: string;
   vendor: string;
 };

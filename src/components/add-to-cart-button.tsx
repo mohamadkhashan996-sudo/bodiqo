@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CatalogProduct } from "@/lib/catalog";
 import { useCart } from "@/store/cart";
 import { cn } from "@/lib/utils";
+import { stockStatus } from "@/lib/inventory";
 
 type Props = {
   product: CatalogProduct;
@@ -20,6 +21,24 @@ export function AddToCartButton({
 }: Props) {
   const addItem = useCart((s) => s.addItem);
   const [added, setAdded] = useState(false);
+  const status = stockStatus(
+    product.inventory ?? (product.inStock ? 1 : 0),
+    product.reserved ?? 0,
+  );
+  const outOfStock = status === "OUT_OF_STOCK" || !product.inStock;
+
+  if (outOfStock) {
+    return (
+      <div
+        className={cn(
+          "w-full rounded-full border border-white/10 px-6 py-3.5 text-center text-[11px] font-semibold tracking-[0.2em] text-[#f3efe6]/35 uppercase",
+          className,
+        )}
+      >
+        Out of stock · نفد من المخزن
+      </div>
+    );
+  }
 
   return (
     <button

@@ -154,9 +154,14 @@ export default function AdminSettingsPage() {
               label="Logo URL"
               defaultValue={String(data.store.logoUrl ?? "")}
             />
+            <Field
+              name="bannerUrl"
+              label="Banner URL"
+              defaultValue={String(data.store.bannerUrl ?? "")}
+            />
             <Select
               name="language"
-              label="Language"
+              label="Language / اللغة"
               defaultValue={String(data.store.language ?? "en")}
               options={[
                 { value: "en", label: "English" },
@@ -179,6 +184,41 @@ export default function AdminSettingsPage() {
               label="Timezone"
               defaultValue={String(data.store.timezone ?? "")}
             />
+            <Field
+              name="instagram"
+              label="Instagram"
+              defaultValue={String(data.store.instagram ?? "")}
+            />
+            <Field
+              name="facebook"
+              label="Facebook"
+              defaultValue={String(data.store.facebook ?? "")}
+            />
+            <Field
+              name="tiktok"
+              label="TikTok"
+              defaultValue={String(data.store.tiktok ?? "")}
+            />
+            <Field
+              name="whatsapp"
+              label="WhatsApp"
+              defaultValue={String(data.store.whatsapp ?? "")}
+            />
+            <Field
+              name="youtube"
+              label="YouTube"
+              defaultValue={String(data.store.youtube ?? "")}
+            />
+            <p className="text-xs text-[#f3efe6]/40">
+              PayPal →{" "}
+              <a href="/admin/payments" className="text-[#d4b483]">
+                Payments page
+              </a>{" "}
+              · Shipping →{" "}
+              <a href="/admin/shipping" className="text-[#d4b483]">
+                Shipping page
+              </a>
+            </p>
           </>
         )}
 
@@ -199,6 +239,11 @@ export default function AdminSettingsPage() {
               ]}
             />
             <Field
+              name="businessEmail"
+              label="PayPal Business Email"
+              defaultValue={String(data.paypal.businessEmail ?? "")}
+            />
+            <Field
               name="clientId"
               label="PayPal Client ID"
               defaultValue={String(data.paypal.clientId ?? "")}
@@ -215,9 +260,12 @@ export default function AdminSettingsPage() {
               defaultValue={String(data.paypal.brandName ?? "BODIQO")}
             />
             <p className="text-xs leading-relaxed text-[#f3efe6]/45">
-              Create a REST app in the PayPal Developer Dashboard, paste Client
-              ID and Secret here. Payments go to the PayPal Business account
-              linked to that app. Switch to Live when ready.
+              Or use the dedicated{" "}
+              <a href="/admin/payments" className="text-[#d4b483]">
+                Payments
+              </a>{" "}
+              page. First time only — then customers pay and money goes to your
+              PayPal Business account.
             </p>
           </>
         )}

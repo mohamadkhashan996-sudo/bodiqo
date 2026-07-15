@@ -9,6 +9,12 @@ import {
   getProducts,
   getProductsByCategory,
 } from "@/lib/products";
+import {
+  availableStock,
+  stockBadgeClass,
+  stockLabel,
+  stockStatus,
+} from "@/lib/inventory";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -39,6 +45,14 @@ export default async function ProductPage({ params }: Props) {
     .slice(0, 4);
   const onSale = Boolean(
     product.compareAt && product.compareAt > product.price,
+  );
+  const status = stockStatus(
+    product.inventory ?? (product.inStock ? 1 : 0),
+    product.reserved ?? 0,
+  );
+  const available = availableStock(
+    product.inventory ?? 0,
+    product.reserved ?? 0,
   );
 
   return (
@@ -119,8 +133,9 @@ export default async function ProductPage({ params }: Props) {
             </div>
             <div className="flex gap-6">
               <dt className="w-24 tracking-[0.14em] uppercase">Stock</dt>
-              <dd className="text-[#f3efe6]/85">
-                {product.inStock ? "In stock" : "Sold out"}
+              <dd className={stockBadgeClass(status)}>
+                {stockLabel(status)} · {stockLabel(status, "ar")}
+                {available > 0 && available <= 5 ? ` (${available})` : null}
               </dd>
             </div>
           </dl>

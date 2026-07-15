@@ -17,7 +17,7 @@ export default async function AdminOrdersPage() {
           Orders
         </h1>
         <p className="mt-2 text-sm text-[#f3efe6]/55">
-          Track payments, fulfillments, and shipments.
+          تتبع الدفع والشحن — غيّر الحالة من داخل كل طلب بسهولة
         </p>
       </div>
       <div className="overflow-hidden rounded-2xl border border-white/10">

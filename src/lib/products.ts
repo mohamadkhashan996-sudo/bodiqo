@@ -28,6 +28,8 @@ function mapDbProduct(p: {
   images: unknown;
   featured: boolean;
   inStock: boolean;
+  inventory?: number;
+  reserved?: number;
   enabled?: boolean;
   sku: string;
   vendor: string;
@@ -58,7 +60,9 @@ function mapDbProduct(p: {
     images,
     image: images[0] ?? "",
     featured: p.featured,
-    inStock: p.inStock,
+    inStock: p.inStock && (p.inventory == null || p.inventory - (p.reserved ?? 0) > 0),
+    inventory: p.inventory,
+    reserved: p.reserved,
     sku: p.sku,
     vendor: p.vendor,
   };

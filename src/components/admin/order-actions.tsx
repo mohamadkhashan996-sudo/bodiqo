@@ -54,18 +54,20 @@ export function OrderActions({
           defaultValue={status}
           className="mt-2 w-full rounded-xl border border-white/10 bg-[#0a0a0a] px-4 py-3"
         >
-          {[
-            "PENDING",
-            "AWAITING_PAYMENT",
-            "PAID",
-            "PROCESSING",
-            "SHIPPED",
-            "DELIVERED",
-            "CANCELLED",
-            "REFUNDED",
-          ].map((s) => (
-            <option key={s} value={s}>
-              {s}
+          {(
+            [
+              ["PENDING", "Pending / قيد الانتظار"],
+              ["AWAITING_PAYMENT", "Awaiting payment / بانتظار الدفع"],
+              ["PAID", "Paid / مدفوع"],
+              ["PROCESSING", "Processing / قيد التجهيز"],
+              ["SHIPPED", "Shipped / تم الشحن"],
+              ["DELIVERED", "Delivered / تم التسليم"],
+              ["CANCELLED", "Cancelled / ملغى"],
+              ["REFUNDED", "Refunded / مسترجع"],
+            ] as const
+          ).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
             </option>
           ))}
         </select>

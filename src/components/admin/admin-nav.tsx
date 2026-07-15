@@ -6,15 +6,19 @@ import { cn } from "@/lib/utils";
 
 const sections = [
   {
-    title: "Commerce",
+    title: "Menu",
     items: [
-      { href: "/admin", label: "Overview" },
+      { href: "/admin", label: "Dashboard" },
       { href: "/admin/products", label: "Products" },
-      { href: "/admin/categories", label: "Categories" },
       { href: "/admin/orders", label: "Orders" },
       { href: "/admin/customers", label: "Customers" },
+      { href: "/admin/categories", label: "Categories" },
+      { href: "/admin/inventory", label: "Inventory" },
       { href: "/admin/coupons", label: "Coupons" },
-      { href: "/admin/reviews", label: "Reviews" },
+      { href: "/admin/analytics", label: "Analytics" },
+      { href: "/admin/payments", label: "Payments" },
+      { href: "/admin/shipping", label: "Shipping" },
+      { href: "/admin/settings", label: "Settings" },
     ],
   },
   {
@@ -29,17 +33,7 @@ const sections = [
     title: "Content",
     items: [
       { href: "/admin/banners", label: "Banners" },
-      { href: "/admin/pages", label: "Pages" },
-      { href: "/admin/blog", label: "Blog" },
-      { href: "/admin/menus", label: "Menus" },
       { href: "/admin/media", label: "Media" },
-    ],
-  },
-  {
-    title: "System",
-    items: [
-      { href: "/admin/dropship", label: "Import products" },
-      { href: "/admin/settings", label: "Settings" },
       { href: "/admin/seo", label: "SEO" },
     ],
   },
@@ -60,7 +54,9 @@ export function AdminNav() {
               const active =
                 item.href === "/admin"
                   ? pathname === "/admin"
-                  : pathname.startsWith(item.href);
+                  : pathname === item.href ||
+                    (item.href !== "/admin" &&
+                      pathname.startsWith(`${item.href}/`));
               return (
                 <li key={item.href}>
                   <Link

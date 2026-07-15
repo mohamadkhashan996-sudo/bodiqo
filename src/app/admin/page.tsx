@@ -55,10 +55,10 @@ export default async function AdminHomePage() {
     <div className="space-y-10">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-4xl">
-          Overview
+          Dashboard
         </h1>
         <p className="mt-2 text-sm text-[#f3efe6]/55">
-          Manage your store without touching code.
+          لوحة تحكم مثل Shopify — أدِر المتجر بدون كود
         </p>
       </div>
 

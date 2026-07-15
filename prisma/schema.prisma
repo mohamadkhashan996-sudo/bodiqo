@@ -136,6 +136,10 @@ model Product {
   enabled            Boolean          @default(true)
   inStock            Boolean          @default(true)
   inventory          Int              @default(100)
+  /// Units held for unpaid/processing carts/orders
+  reserved           Int              @default(0)
+  /// Lifetime units sold (incremented on paid orders)
+  soldCount          Int              @default(0)
   weightGrams        Int?
   seoTitle           String?
   seoDescription     String?

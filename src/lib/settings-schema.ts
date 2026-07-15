@@ -7,18 +7,26 @@ export const storeSettingsSchema = z.object({
   domain: z.string().default("localhost:3000"),
   logoUrl: z.string().default(""),
   faviconUrl: z.string().default(""),
+  bannerUrl: z.string().default(""),
   language: z.enum(["en", "ar", "he"]).default("en"),
   currency: z.string().default("ILS"),
   currencySymbol: z.string().default("₪"),
   timezone: z.string().default("Asia/Jerusalem"),
+  instagram: z.string().default(""),
+  facebook: z.string().default(""),
+  tiktok: z.string().default(""),
+  whatsapp: z.string().default(""),
+  youtube: z.string().default(""),
 });
 
 export const paypalSettingsSchema = z.object({
   enabled: z.boolean().default(false),
   mode: z.enum(["sandbox", "live"]).default("sandbox"),
+  businessEmail: z.string().default(""),
   clientId: z.string().default(""),
   clientSecret: z.string().default(""),
   brandName: z.string().default("BODIQO"),
+  connectedAt: z.string().default(""),
 });
 
 export const smtpSettingsSchema = z.object({
