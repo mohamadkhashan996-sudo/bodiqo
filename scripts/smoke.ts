@@ -25,6 +25,8 @@ async function main() {
   if (body.service !== "relune") console.warn("warn: service name", body.service);
   await check("/api/health?mode=live");
   await check("/sign-in");
+  await check("/terms");
+  await check("/privacy");
   console.log("smoke passed");
 }
 

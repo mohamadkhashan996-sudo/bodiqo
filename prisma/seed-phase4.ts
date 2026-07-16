@@ -1,9 +1,11 @@
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
+import { assertDemoSeedsAllowed } from "./seed-guard";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  assertDemoSeedsAllowed();
   const passwordHash = await bcrypt.hash("cirqua1234", 12);
 
   const admin = await prisma.user.upsert({

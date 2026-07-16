@@ -1,8 +1,10 @@
 import { PrismaClient } from "@prisma/client";
+import { assertDemoSeedsAllowed } from "./seed-guard";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  assertDemoSeedsAllowed();
   const users = await Promise.all(["maya", "leo", "sana"].map((handle) => prisma.user.findUnique({ where: { handle } })));
   if (users.some((user) => !user)) throw new Error("Run db:seed:phase2 before db:seed:phase3.");
   const [maya, leo, sana] = users as [NonNullable<(typeof users)[number]>, NonNullable<(typeof users)[number]>, NonNullable<(typeof users)[number]>];

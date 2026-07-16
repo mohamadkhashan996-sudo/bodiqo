@@ -8,6 +8,7 @@ import { body, fail } from "@/lib/api";
 import { createEmailToken } from "@/modules/auth/email-tokens";
 import { sendMail, welcomeEmail } from "@/lib/mail";
 import { absoluteUrl } from "@/lib/url";
+import { getSetting } from "@/modules/admin/services/settings";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -24,8 +25,12 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const ip = request.headers.get("x-forwarded-for") ?? "anon";
-    if (!rateLimit(`register:${ip}`, 8, 60000).ok)
+    if (!(await rateLimit(`register:${ip}`, 8, 60000)).ok)
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    const registration = (await getSetting<{ open?: boolean }>("registration")) ?? {};
+    if (registration.open === false) {
+      return NextResponse.json({ error: "Registration is closed" }, { status: 403 });
+    }
     const data = await body(request, schema);
     const email = data.email.toLowerCase();
     const exists = await prisma.user.findFirst({

@@ -27,9 +27,22 @@ export default function MarketingLayout({
       </header>
       {children}
       <footer className="mx-auto max-w-6xl border-t border-[var(--mist)] px-5 py-10 text-sm text-[var(--muted)] md:px-8">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <p className="tracking-[0.22em] uppercase">Relune</p>
-          <p>Presence, beautifully shared.</p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="tracking-[0.22em] uppercase">Relune</p>
+            <p className="mt-1">Presence, beautifully shared.</p>
+          </div>
+          <nav className="flex flex-wrap gap-4">
+            <Link href="/terms" className="hover:text-[var(--ink)]">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-[var(--ink)]">
+              Privacy
+            </Link>
+            <Link href="/sign-in" className="hover:text-[var(--ink)]">
+              Sign in
+            </Link>
+          </nav>
         </div>
       </footer>
     </div>

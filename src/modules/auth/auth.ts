@@ -86,7 +86,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
 
         const key = `auth:${parsed.data.email.toLowerCase()}`;
-        const limited = rateLimit(key, 8, 60_000);
+        const limited = await rateLimit(key, 8, 60_000);
         if (!limited.ok) return null;
 
         const user = await prisma.user.findUnique({

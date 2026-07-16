@@ -12,6 +12,11 @@ export async function sendMail(
 ): Promise<{ ok: true; previewToken?: string; id?: string }> {
   const provider = (process.env.MAIL_PROVIDER || "log").toLowerCase();
 
+  if (process.env.NODE_ENV === "production" && provider !== "resend") {
+    logger.error("mail_not_configured", { provider });
+    throw new Error("Email delivery is not configured");
+  }
+
   if (provider === "resend" && process.env.RESEND_API_KEY) {
     try {
       const res = await fetch("https://api.resend.com/emails", {

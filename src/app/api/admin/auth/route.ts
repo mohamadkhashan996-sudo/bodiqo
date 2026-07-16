@@ -5,7 +5,7 @@ import {
   setAuthProviderFlags,
 } from "@/modules/auth/provider-settings";
 import { getAuthAdminStats } from "@/modules/admin/services/auth-stats";
-import { providerEnvReady, type OAuthProviderId } from "@/modules/auth/providers";
+import { providerEnvReady } from "@/modules/auth/providers";
 import { writeAudit } from "@/modules/admin/services/audit";
 
 export async function GET(request: Request) {

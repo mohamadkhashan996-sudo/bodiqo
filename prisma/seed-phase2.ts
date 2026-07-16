@@ -1,9 +1,11 @@
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
+import { assertDemoSeedsAllowed } from "./seed-guard";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  assertDemoSeedsAllowed();
   const interests = [
     "Technology", "Design", "Music", "Photography", "Gaming", "Sports",
     "Travel", "Food", "Film", "Books", "Science", "Fitness",

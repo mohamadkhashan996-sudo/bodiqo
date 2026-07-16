@@ -3,20 +3,21 @@
 ## Engines
 | Environment | Engine |
 | --- | --- |
-| Local default | SQLite (`file:./dev.db`) |
-| Production | PostgreSQL 16 (see `docker-compose.yml`) |
+| Local | PostgreSQL 16 via Docker (`docker compose up postgres -d`) |
+| Production | PostgreSQL 16 + Redis |
 
 ## Schema
 Source of truth: `prisma/schema.prisma`
 
-Key domains: users/auth, feed/media, messaging/calls, communities, moderation/admin, analytics.
-
 ## Commands
 ```bash
 npx prisma generate
-npx prisma db push
+npm run db:migrate:dev   # local schema changes
+npm run db:migrate       # production deploy
 npx prisma studio
 ```
+
+Legacy `db push` remains for quick experiments only — prefer migrations.
 
 Seeds:
 ```bash

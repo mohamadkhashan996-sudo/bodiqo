@@ -95,7 +95,7 @@ export async function guardApiAbuse(
 ) {
   assertSameOrigin(request);
   const ip = clientIp(request);
-  const result = rateLimit(`${bucket}:${ip}`, limit, windowMs);
+  const result = await rateLimit(`${bucket}:${ip}`, limit, windowMs);
   if (!result.ok) {
     await writeSecurityEvent({
       type: "api.rate_limited",

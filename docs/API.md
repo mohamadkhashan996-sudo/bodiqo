@@ -24,6 +24,7 @@ Base URL: `AUTH_URL` (local `http://localhost:3000`)
 | GET/DELETE | `/api/auth/sessions` | Device sessions (`{ all: true }` revokes all) |
 | GET | `/api/auth/login-history` | Login history |
 | GET/DELETE | `/api/auth/trusted-devices` | Trusted devices |
+| POST | `/api/upload` | Authenticated media upload (multipart `file`) |
 
 ## Social / feed
 | Method | Path |

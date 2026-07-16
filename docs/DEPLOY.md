@@ -23,9 +23,11 @@ Relune runs as a **custom Node server** (`server.ts`) that mounts Next.js and So
 
 ## Build & run
 ```bash
+docker compose up postgres redis -d
 npm ci
 npx prisma generate
-npx prisma db push   # or migrate deploy when migrations are adopted
+npm run db:migrate:dev   # first time / schema changes
+npm run db:migrate       # production
 npm run build
 NODE_ENV=production npm start
 ```

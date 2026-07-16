@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+prisma/dev.db
+prisma/dev.db-journal
+public/uploads/*
+!public/uploads/.gitkeep
+data/backups
+coverage
+*.log
+.DS_Store
+bodiqo-store-backup
+.cursor
+agent-transcripts

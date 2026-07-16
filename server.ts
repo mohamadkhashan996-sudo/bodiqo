@@ -2,7 +2,10 @@ import { createServer } from "node:http";
 import next from "next";
 import { getToken } from "next-auth/jwt";
 import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { createClient } from "redis";
 import { CallType, PresenceStatus, Prisma } from "@prisma/client";
+import { assertBootEnv, socketAllowedOrigins } from "./src/config/env";
 import { prisma } from "./src/lib/prisma";
 import { setIo } from "./src/lib/socket";
 import { assertConversationMember } from "./src/modules/messaging/services/conversations";
@@ -40,9 +43,34 @@ async function members(conversationId: string) {
   return prisma.conversationMember.findMany({ where: { conversationId, leftAt: null }, select: { userId: true } });
 }
 
-void app.prepare().then(() => {
+void app.prepare().then(async () => {
+  assertBootEnv();
   const server = createServer(handler);
-  const io = setIo(new Server(server, { path: "/socket.io", cors: { origin: true, credentials: true } }));
+  const origins = socketAllowedOrigins();
+  const io = setIo(
+    new Server(server, {
+      path: "/socket.io",
+      cors: {
+        origin: origins.length ? origins : true,
+        credentials: true,
+      },
+    }),
+  );
+
+  if (process.env.REDIS_URL) {
+    try {
+      const pub = createClient({ url: process.env.REDIS_URL });
+      const sub = pub.duplicate();
+      await Promise.all([pub.connect(), sub.connect()]);
+      io.adapter(createAdapter(pub, sub));
+      console.log("> Socket.io Redis adapter enabled");
+    } catch (error) {
+      console.warn(
+        "> Socket.io Redis adapter unavailable",
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
 
   io.use(async (socket, nextMiddleware) => {
     try {
