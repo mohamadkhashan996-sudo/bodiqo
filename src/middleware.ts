@@ -1,13 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Phase 1: lightweight edge guard.
- * Auth gating for private app routes lands in Phase 2 with full session checks.
+ * Edge security headers + lightweight route signals.
+ * AuthZ for /admin is enforced in the admin layout + API requireStaff().
  */
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Security headers for all navigations
   const response = NextResponse.next();
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -16,15 +13,38 @@ export function middleware(request: NextRequest) {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()",
   );
+  response.headers.set(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "media-src 'self' blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' ws: wss: https:",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; "),
+  );
+  response.headers.set("X-XSS-Protection", "0");
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=63072000; includeSubDomains; preload",
+  );
 
-  // Placeholder for future private-route enforcement
-  if (pathname.startsWith("/home") || pathname.startsWith("/admin")) {
-    // Session enforcement arrives with completed Auth.js wiring (Phase 2).
-  }
+  // Request id for tracing
+  response.headers.set(
+    "x-request-id",
+    request.headers.get("x-request-id") || crypto.randomUUID(),
+  );
 
   return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+  ],
 };

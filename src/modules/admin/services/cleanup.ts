@@ -1,0 +1,32 @@
+import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
+
+/** Soft cleanup jobs — expired stories, old search history, revoked sessions */
+export async function runAutomaticCleanup() {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60_000);
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60_000);
+
+  try {
+    const [stories, search, sessions, media] = await Promise.all([
+      prisma.story.deleteMany({ where: { expiresAt: { lt: now } } }),
+      prisma.searchHistory.deleteMany({ where: { createdAt: { lt: thirtyDaysAgo } } }),
+      prisma.deviceSession.deleteMany({
+        where: { revokedAt: { not: null, lt: thirtyDaysAgo } },
+      }),
+      prisma.mediaAsset.deleteMany({
+        where: { status: "DELETED", createdAt: { lt: ninetyDaysAgo } },
+      }),
+    ]);
+    logger.info("cleanup_completed", {
+      stories: stories.count,
+      search: search.count,
+      sessions: sessions.count,
+      media: media.count,
+    });
+    return { stories: stories.count, search: search.count, sessions: sessions.count, media: media.count };
+  } catch (error) {
+    logger.error("cleanup_failed", { error: String(error) });
+    return null;
+  }
+}

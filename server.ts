@@ -155,5 +155,18 @@ void app.prepare().then(() => {
       emitPresence(io, userId, "OFFLINE");
     });
   });
-  server.listen(Number(process.env.PORT) || 3000, () => console.log(`> Ready on http://localhost:${process.env.PORT || 3000}`));
+  server.listen(Number(process.env.PORT) || 3000, () => {
+    console.log(`> Ready on http://localhost:${process.env.PORT || 3000}`);
+    void import("./src/modules/admin/services/backups")
+      .then(({ runScheduledBackups }) => runScheduledBackups())
+      .catch(() => undefined);
+    void import("./src/modules/admin/services/cleanup")
+      .then(({ runAutomaticCleanup }) => runAutomaticCleanup())
+      .catch(() => undefined);
+    setInterval(() => {
+      void import("./src/modules/admin/services/cleanup")
+        .then(({ runAutomaticCleanup }) => runAutomaticCleanup())
+        .catch(() => undefined);
+    }, 6 * 60 * 60_000);
+  });
 });

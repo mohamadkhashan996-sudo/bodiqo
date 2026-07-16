@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "db:seed:phase2": "tsx prisma/seed-phase2.ts",
     "db:seed:phase3": "tsx prisma/seed-phase3.ts",
+    "db:seed:phase4": "tsx prisma/seed-phase4.ts",
     "prebuild": "prisma generate"
   },
   "dependencies": {

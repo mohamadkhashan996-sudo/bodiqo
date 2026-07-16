@@ -9,14 +9,18 @@ datasource db {
 
 enum Role {
   USER
+  SUPPORT
   MODERATOR
   ADMIN
+  OWNER
+  SUPER_ADMIN
 }
 
 enum AccountStatus {
   ACTIVE
   PENDING
   SUSPENDED
+  BANNED
   DELETED
 }
 
@@ -53,6 +57,8 @@ enum MediaKind {
   IMAGE
   VIDEO
   GIF
+  VOICE
+  DOCUMENT
 }
 
 enum NotificationType {
@@ -188,6 +194,9 @@ model User {
   onboardingDone   Boolean         @default(false)
   twoFactorEnabled Boolean         @default(false)
   twoFactorSecret  String?
+  bannedUntil      DateTime?
+  banReason        String?
+  warningCount     Int             @default(0)
   followersCount   Int             @default(0)
   followingCount   Int             @default(0)
   postsCount       Int             @default(0)
@@ -233,6 +242,12 @@ model User {
   callParticipants CallParticipant[]
   communityMembers CommunityMember[]
   communitiesOwned Community[]     @relation("CommunityOwner")
+  userNotes        UserNote[]      @relation("UserNotes")
+  authoredNotes    UserNote[]      @relation("NoteAuthor")
+  userWarnings     UserWarning[]   @relation("UserWarnings")
+  issuedWarnings   UserWarning[]   @relation("WarningIssuer")
+  verificationRequests VerificationRequest[]
+  mediaAssets      MediaAsset[]
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -241,6 +256,9 @@ model User {
   @@index([isVerified])
   @@index([followersCount])
   @@index([presence, lastSeenAt])
+  @@index([role])
+  @@index([email])
+  @@index([lastSeenAt])
 }
 
 model Account {
@@ -409,17 +427,44 @@ model Mute {
 }
 
 model Report {
-  id         String       @id @default(cuid())
-  reporterId String
-  reporter   User         @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  targetType ReportTarget
-  targetId   String
-  reason     String
-  details    String?
-  createdAt  DateTime     @default(now())
+  id          String         @id @default(cuid())
+  reporterId  String
+  reporter    User           @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType  ReportTarget
+  targetId    String
+  reason      String
+  category    ReportCategory @default(OTHER)
+  details     String?
+  status      ReportStatus   @default(OPEN)
+  assigneeId  String?
+  resolution  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   @@index([targetType, targetId])
   @@index([reporterId, createdAt])
+  @@index([status, createdAt])
+  @@index([category, status])
+}
+
+enum ReportCategory {
+  SPAM
+  FAKE_ACCOUNT
+  SCAM
+  HARASSMENT
+  COPYRIGHT
+  NUDITY
+  VIOLENCE
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  DISMISSED
+  ESCALATED
 }
 
 model Post {
@@ -887,4 +932,168 @@ model CommunityEvent {
   createdAt   DateTime  @default(now())
 
   @@index([communityId, startsAt])
+}
+
+// ─── Phase 4: Admin, settings, media, backups ───────────────────────────────
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model CustomRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model VerificationRequest {
+  id           String                   @id @default(cuid())
+  userId       String
+  user         User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status       VerificationRequestStatus @default(PENDING)
+  fullName     String
+  category     String
+  evidenceUrls Json?
+  notes        String?
+  adminNote    String?
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum VerificationRequestStatus {
+  PENDING
+  NEEDS_INFO
+  APPROVED
+  REJECTED
+}
+
+model UserNote {
+  id        String   @id @default(cuid())
+  userId    String
+  authorId  String
+  user      User     @relation("UserNotes", fields: [userId], references: [id], onDelete: Cascade)
+  author    User     @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model UserWarning {
+  id        String   @id @default(cuid())
+  userId    String
+  issuerId  String
+  user      User     @relation("UserWarnings", fields: [userId], references: [id], onDelete: Cascade)
+  issuer    User     @relation("WarningIssuer", fields: [issuerId], references: [id], onDelete: Cascade)
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model MediaAsset {
+  id           String      @id @default(cuid())
+  ownerId      String?
+  owner        User?       @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  kind         MediaKind
+  originalUrl  String
+  optimizedUrl String?
+  thumbUrl     String?
+  mimeType     String?
+  sizeBytes    Int         @default(0)
+  width        Int?
+  height       Int?
+  durationMs   Int?
+  status       MediaStatus @default(READY)
+  meta         Json?
+  createdAt    DateTime    @default(now())
+
+  @@index([ownerId, createdAt])
+  @@index([kind, createdAt])
+  @@index([status])
+}
+
+enum MediaStatus {
+  PROCESSING
+  READY
+  FAILED
+  DELETED
+}
+
+model BackupRecord {
+  id         String       @id @default(cuid())
+  type       BackupType
+  scope      BackupScope
+  status     BackupStatus @default(PENDING)
+  path       String?
+  sizeBytes  Int          @default(0)
+  note       String?
+  createdBy  String?
+  startedAt  DateTime     @default(now())
+  finishedAt DateTime?
+  error      String?
+
+  @@index([status, startedAt])
+  @@index([type, startedAt])
+}
+
+enum BackupType {
+  MANUAL
+  DAILY
+  WEEKLY
+}
+
+enum BackupScope {
+  DATABASE
+  MEDIA
+  FULL
+}
+
+enum BackupStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  type      String
+  severity  String   @default("info")
+  actorId   String?
+  ip        String?
+  userAgent String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([severity, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model AnalyticsDaily {
+  id              String   @id @default(cuid())
+  date            DateTime @unique
+  newUsers        Int      @default(0)
+  activeUsers     Int      @default(0)
+  posts           Int      @default(0)
+  videos          Int      @default(0)
+  stories         Int      @default(0)
+  messages        Int      @default(0)
+  communities     Int      @default(0)
+  reports         Int      @default(0)
+  createdAt       DateTime @default(now())
 }

@@ -60,9 +60,39 @@ export async function muteUser(muterId: string, mutedId: string) {
 export async function unmuteUser(muterId: string, mutedId: string) {
   return prisma.mute.deleteMany({ where: { muterId, mutedId } });
 }
-export async function reportEntity(reporterId: string, targetType: ReportTarget, targetId: string, reason: string, details?: string) {
-  return prisma.report.create({ data: { reporterId, targetType, targetId, reason, details } });
+export async function reportEntity(
+  reporterId: string,
+  targetType: ReportTarget,
+  targetId: string,
+  reason: string,
+  details?: string,
+  category?: import("@prisma/client").ReportCategory,
+) {
+  const inferred =
+    category ??
+    (/spam/i.test(reason)
+      ? "SPAM"
+      : /scam|phish/i.test(reason)
+        ? "SCAM"
+        : /harass|bully/i.test(reason)
+          ? "HARASSMENT"
+          : /copyright|dmca/i.test(reason)
+            ? "COPYRIGHT"
+            : /fake/i.test(reason)
+              ? "FAKE_ACCOUNT"
+              : "OTHER");
+  return prisma.report.create({
+    data: {
+      reporterId,
+      targetType,
+      targetId,
+      reason,
+      details,
+      category: inferred,
+    },
+  });
 }
+
 export async function sendFriendRequest(fromUserId: string, toUserId: string) {
   await assertDistinct(fromUserId, toUserId);
   const request = await prisma.friendRequest.upsert({
