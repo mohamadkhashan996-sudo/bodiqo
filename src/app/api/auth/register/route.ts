@@ -9,6 +9,7 @@ import { sendMail, welcomeEmail } from "@/lib/mail";
 import { absoluteUrl } from "@/lib/url";
 import { getSetting } from "@/modules/admin/services/settings";
 import { hashPassword } from "@/modules/auth/password";
+import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Registration is closed" }, { status: 403 });
     }
     const data = await body(request, schema);
+    assertHandleAvailable(data.handle);
     const email = data.email.toLowerCase();
     const exists = await prisma.user.findFirst({
       where: { OR: [{ email }, { handle: data.handle }] },

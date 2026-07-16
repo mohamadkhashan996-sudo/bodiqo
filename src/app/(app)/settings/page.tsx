@@ -25,10 +25,13 @@ import {
   type OAuthProviderId,
 } from "@/modules/auth/providers";
 import { SecuritySettings } from "@/components/auth/security-settings";
+import { BlockedMutedList } from "@/components/social/blocked-muted-list";
 
 const links = [
+  { href: "/settings/profile", icon: UserRound, key: "profile" },
   { href: "/settings/privacy", icon: Lock, key: "privacy" },
-  { href: "/settings#security", icon: Shield, key: "security" },
+  { href: "/settings/security", icon: Shield, key: "security" },
+  { href: "/settings/bookmarks", icon: Link2, key: "bookmarks" },
   { href: "/settings#appearance", icon: Palette, key: "appearance" },
   { href: "/settings#language", icon: Globe2, key: "language" },
   { href: "/settings#accessibility", icon: UserRound, key: "accessibility" },
@@ -44,7 +47,15 @@ const links = [
 
 export default function SettingsPage() {
   const { t, theme, setTheme, locale, setLocale } = useExperience();
-  const [sessions, setSessions] = useState<Array<{ id: string; deviceLabel: string | null }>>([]);
+  const [sessions, setSessions] = useState<
+    Array<{
+      id: string;
+      deviceLabel: string | null;
+      current?: boolean;
+      lastActiveAt?: string;
+      ip?: string | null;
+    }>
+  >([]);
   const [devices, setDevices] = useState<Array<{ id: string; label: string | null }>>([]);
   const [history, setHistory] = useState<Array<{ id: string; provider: string | null; createdAt: string }>>([]);
   const [accounts, setAccounts] = useState<Array<{ id: string; provider: string; label: string }>>([]);
@@ -85,19 +96,32 @@ export default function SettingsPage() {
   }, [highContrast, largeText]);
 
   return (
-    <PageTransition className="mx-auto max-w-3xl">
+    <PageTransition className="section-shell max-w-5xl px-5 md:px-8">
+      <div className="glass-strong premium-ring rounded-[2rem] p-6 md:p-8">
       <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--signal)]">
         Control
       </p>
       <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl tracking-tight">
         {t("settings", "title")}
       </h1>
-      <p className="mt-2 text-sm text-[var(--muted)]">{t("settings", "subtitle")}</p>
+      <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted)]">{t("settings", "subtitle")}</p>
+      <div className="mt-6 grid gap-3 md:grid-cols-3">
+        {[
+          "Account, privacy, and security controls in one place",
+          "Appearance and accessibility tuned for every device",
+          "Production-grade session, device, and login management",
+        ].map((item) => (
+          <div key={item} className="rounded-[var(--radius-xl)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)] shadow-[var(--shadow-sm)]">
+            {item}
+          </div>
+        ))}
+      </div>
+      </div>
 
-      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+      <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {links.map(({ href, icon: Icon, key }) => (
           <Link key={key} href={href}>
-            <Card interactive className="flex items-center gap-3">
+            <Card interactive className="flex items-center gap-3 p-5">
               <Icon className="size-4 text-[var(--signal)]" />
               <span className="text-sm font-medium">{t("settings", key)}</span>
             </Card>
@@ -153,6 +177,13 @@ export default function SettingsPage() {
           <p className="mt-2 text-sm text-[var(--muted)]">
             Push and email preferences sync with your account. In-app alerts stay on by default.
           </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {["Official platform updates", "Security alerts", "Community activity", "Product announcements"].map((item) => (
+              <div key={item} className="rounded-[var(--radius-xl)] bg-[var(--surface)] px-4 py-3 text-sm shadow-[var(--shadow-sm)]">
+                {item}
+              </div>
+            ))}
+          </div>
         </Card>
 
         <Card id="accessibility">
@@ -177,6 +208,9 @@ export default function SettingsPage() {
           <p className="mt-2 text-sm text-[var(--muted)]">
             Control whether media can be saved from your public posts and stories.
           </p>
+          <div className="mt-4 rounded-[var(--radius-xl)] bg-[var(--surface)] p-4 text-sm leading-7 text-[var(--muted)] shadow-[var(--shadow-sm)]">
+            Downloads are governed by your privacy settings, post visibility, and future creator permissions.
+          </div>
         </Card>
 
         <Card id="data">
@@ -215,23 +249,49 @@ export default function SettingsPage() {
 
         <Card id="sessions">
           <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "sessions")}</h2>
+          {sessions.length === 0 ? (
+            <p className="mt-3 text-sm text-[var(--muted)]">No active sessions.</p>
+          ) : null}
           {sessions.map((s) => (
-            <div key={s.id} className="mt-3 flex justify-between text-sm">
-              <span>{s.deviceLabel ?? "Unknown device"}</span>
-              <button
-                type="button"
-                className="text-[var(--signal)]"
-                onClick={async () => {
-                  await fetch("/api/auth/sessions", {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: s.id }),
-                  });
-                  setSessions((old) => old.filter((x) => x.id !== s.id));
-                }}
-              >
-                Revoke
-              </button>
+            <div key={s.id} className="mt-3 flex items-start justify-between gap-3 text-sm">
+              <div>
+                <p>
+                  {s.deviceLabel ?? "Unknown device"}
+                  {s.current ? (
+                    <span className="ml-2 text-[11px] uppercase tracking-[0.14em] text-[var(--signal-deep)]">
+                      This device
+                    </span>
+                  ) : null}
+                </p>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {[
+                    s.ip,
+                    s.lastActiveAt
+                      ? `Active ${new Date(s.lastActiveAt).toLocaleString()}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              {s.current ? (
+                <span className="text-xs text-[var(--muted)]">Current</span>
+              ) : (
+                <button
+                  type="button"
+                  className="text-[var(--signal)]"
+                  onClick={async () => {
+                    await fetch("/api/auth/sessions", {
+                      method: "DELETE",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: s.id }),
+                    });
+                    setSessions((old) => old.filter((x) => x.id !== s.id));
+                  }}
+                >
+                  Revoke
+                </button>
+              )}
             </div>
           ))}
           <h3 className="mt-6 text-sm font-semibold">Trusted devices</h3>
@@ -283,6 +343,20 @@ export default function SettingsPage() {
                 await fetch("/api/auth/sessions", {
                   method: "DELETE",
                   headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ others: true }),
+                });
+                setSessions((old) => old.filter((s) => s.current));
+              }}
+            >
+              Log out other devices
+            </Button>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={async () => {
+                await fetch("/api/auth/sessions", {
+                  method: "DELETE",
+                  headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ all: true }),
                 });
                 setSessions([]);
@@ -296,11 +370,11 @@ export default function SettingsPage() {
 
         <Card id="blocked">
           <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "blocked")}</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">Manage blocks from profiles. List sync arrives with account graph APIs.</p>
+          <BlockedMutedList mode="blocked" />
         </Card>
         <Card id="muted">
           <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "muted")}</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">Muted accounts stay out of your feed without blocking.</p>
+          <BlockedMutedList mode="muted" />
         </Card>
         <Card id="accounts">
           <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "accounts")}</h2>

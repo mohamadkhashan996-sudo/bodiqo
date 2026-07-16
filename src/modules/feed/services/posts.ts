@@ -16,6 +16,7 @@ const include = {
       displayName: true,
       image: true,
       isVerified: true,
+      isOfficial: true,
       isPrivate: true,
     },
   },
@@ -43,6 +44,13 @@ export async function createPost(
 ) {
   if (!data.body?.trim() && !data.media?.length)
     throw new AppError("A post needs content", 400);
+
+  let type = data.type ?? "TEXT";
+  if (!data.type && data.media?.length) {
+    const hasVideo = data.media.some((item) => item.kind === "VIDEO");
+    if (hasVideo) type = "VIDEO";
+  }
+
   const tags = [
     ...new Set(
       (data.body?.match(/#([\p{L}\p{N}_]{1,50})/gu) ?? []).map((tag) =>
@@ -55,7 +63,7 @@ export async function createPost(
       data: {
         authorId,
         body: data.body?.trim() ?? "",
-        type: data.type ?? "TEXT",
+        type: type ?? "TEXT",
         visibility: data.visibility ?? "PUBLIC",
         linkUrl: data.linkUrl,
         publishedAt: new Date(),
@@ -126,13 +134,13 @@ export async function likePost(userId: string, postId: string) {
     const existing = await tx.postLike.findUnique({
       where: { postId_userId: { postId, userId } },
     });
-    if (existing) return existing;
+    if (existing) return { like: existing, isNew: false };
     const like = await tx.postLike.create({ data: { postId, userId } });
     await tx.post.update({
       where: { id: postId },
       data: { likeCount: { increment: 1 } },
     });
-    return like;
+    return { like, isNew: true };
   });
 }
 
@@ -223,6 +231,7 @@ export async function getSuggestedUsers(limit = 5) {
       displayName: true,
       image: true,
       isVerified: true,
+      isOfficial: true,
     },
     orderBy: { followersCount: "desc" },
     take: Math.min(limit, 20),
@@ -258,7 +267,7 @@ export async function getPostsByHandle(
       visibility: { in: ["PUBLIC", "FOLLOWERS"] },
     },
     include,
-    orderBy: { publishedAt: "desc" },
+    orderBy: [{ isPinned: "desc" }, { publishedAt: "desc" }],
     take: Math.min(limit, 50),
   });
 
@@ -269,6 +278,52 @@ export async function getPostsByHandle(
     authorId: author.id,
     visibility,
     locked: false,
+  };
+}
+
+export async function getShorts(viewerId?: string, cursor?: string, limit = 20) {
+  const take = Math.min(Math.max(limit, 1), 50);
+  const posts = await prisma.post.findMany({
+    where: {
+      type: "SHORT",
+      status: "PUBLISHED",
+      deletedAt: null,
+      visibility: "PUBLIC",
+      author: { status: "ACTIVE" },
+    },
+    include,
+    orderBy: { publishedAt: "desc" },
+    take: take + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+  });
+  const visible = await filterVisiblePostIds(viewerId, posts);
+  const page = visible.slice(0, take);
+  return {
+    posts: await Promise.all(page.map((p) => serializePost(p, viewerId))),
+    nextCursor: visible.length > take ? visible[take].id : null,
+  };
+}
+
+export async function getBookmarks(userId: string, cursor?: string, limit = 20) {
+  const take = Math.min(Math.max(limit, 1), 50);
+  const bookmarks = await prisma.bookmark.findMany({
+    where: { userId },
+    include: {
+      post: { include },
+    },
+    orderBy: { createdAt: "desc" },
+    take: take + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+  });
+
+  const page = bookmarks.slice(0, take);
+  const posts = page
+    .map((bookmark) => bookmark.post)
+    .filter((post) => post && post.status === "PUBLISHED" && !post.deletedAt);
+
+  return {
+    posts: await Promise.all(posts.map((post) => serializePost(post, userId))),
+    nextCursor: bookmarks.length > take ? bookmarks[take].id : null,
   };
 }
 
@@ -285,23 +340,6 @@ export async function getPostById(id: string, viewerId?: string) {
   );
   if (!allowed) throw new AppError("Post not found", 404);
   return serializePost(post, viewerId);
-}
-
-export async function getShorts(viewerId?: string, limit = 50) {
-  const posts = await prisma.post.findMany({
-    where: {
-      type: "SHORT",
-      status: "PUBLISHED",
-      deletedAt: null,
-      visibility: "PUBLIC",
-      author: { status: "ACTIVE" },
-    },
-    include,
-    orderBy: { publishedAt: "desc" },
-    take: Math.min(limit, 50),
-  });
-  const visible = await filterVisiblePostIds(viewerId, posts);
-  return Promise.all(visible.map((p) => serializePost(p, viewerId)));
 }
 
 export async function serializePost<T extends { id: string; hashtags?: { hashtag: unknown }[] }>(

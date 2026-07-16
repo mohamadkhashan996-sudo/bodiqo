@@ -18,7 +18,12 @@ export async function listNotifications(userId: string, cursor?: string, limit =
   const take = Math.min(Math.max(limit, 1), 50);
   const notifications = await prisma.notification.findMany({
     where: { userId },
-    include: { actor: { select: { id: true, handle: true, name: true, image: true } }, post: { select: { id: true, body: true } } },
+    include: {
+      actor: {
+        select: { id: true, handle: true, name: true, displayName: true, image: true },
+      },
+      post: { select: { id: true, body: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

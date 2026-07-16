@@ -8,12 +8,15 @@ declare module "next-auth" {
       handle: string | null;
       onboardingDone: boolean;
     } & DefaultSession["user"];
+    deviceSessionId?: string;
   }
 
   interface User {
     role?: string;
     handle?: string | null;
     onboardingDone?: boolean;
+    sessionVersion?: number;
+    remember?: boolean;
   }
 }
 
@@ -24,5 +27,8 @@ declare module "next-auth/jwt" {
     onboardingDone?: boolean;
     image?: string | null;
     sessionVersion?: number;
+    sessionKey?: string;
+    deviceSessionId?: string;
+    remember?: boolean;
   }
 }

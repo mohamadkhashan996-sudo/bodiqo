@@ -2,6 +2,7 @@ import { FriendRequestStatus, ReportTarget } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/modules/notifications/services/notify";
+import { canFollow } from "@/modules/messaging/services/privacy-gate";
 
 async function assertDistinct(actorId: string, targetId: string) {
   if (actorId === targetId) throw new AppError("You cannot perform this action on yourself", 400);
@@ -14,6 +15,9 @@ export async function followUser(followerId: string, followingId: string) {
     select: { id: true, status: true, isPrivate: true },
   });
   if (!target || target.status !== "ACTIVE") throw new AppError("User not found", 404);
+  if (!(await canFollow(followerId, followingId))) {
+    throw new AppError("This user is unavailable", 403);
+  }
   const blocked = await prisma.block.findFirst({
     where: {
       OR: [
@@ -41,6 +45,13 @@ export async function followUser(followerId: string, followingId: string) {
 }
 
 export async function unfollowUser(followerId: string, followingId: string) {
+  await prisma.friendRequest.deleteMany({
+    where: {
+      fromUserId: followerId,
+      toUserId: followingId,
+      status: "PENDING",
+    },
+  });
   const deleted = await prisma.$transaction(async (tx) => {
     const existing = await tx.follow.findUnique({ where: { followerId_followingId: { followerId, followingId } } });
     if (!existing) return false;

@@ -193,6 +193,7 @@ model User {
   theme            ThemePreference @default(SYSTEM)
   isPrivate        Boolean         @default(false)
   isVerified       Boolean         @default(false)
+  isOfficial       Boolean         @default(false)
   onboardingDone   Boolean         @default(false)
   twoFactorEnabled Boolean         @default(false)
   twoFactorSecret  String?
@@ -258,6 +259,7 @@ model User {
   issuedWarnings   UserWarning[]   @relation("WarningIssuer")
   verificationRequests VerificationRequest[]
   mediaAssets      MediaAsset[]
+  encryptionKey    UserEncryptionKey?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -270,6 +272,15 @@ model User {
   @@index([email])
   @@index([phone])
   @@index([lastSeenAt])
+}
+
+model UserEncryptionKey {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  publicKey String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
@@ -835,6 +846,10 @@ model Message {
   forwardedFromId String?
   isPinned       Boolean           @default(false)
   isEdited       Boolean           @default(false)
+  isEncrypted    Boolean           @default(false)
+  ciphertext     String?
+  nonce          String?
+  senderEphemeralKey String?
   delivery       MessageDelivery   @default(SENT)
   deletedForAll  Boolean           @default(false)
   createdAt      DateTime          @default(now())

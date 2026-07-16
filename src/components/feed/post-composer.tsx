@@ -2,14 +2,17 @@
 
 import { FormEvent, useRef, useState } from "react";
 import { ImagePlus, Sparkles, Hash, Send, X } from "lucide-react";
-import { MediaKind } from "@prisma/client";
+import { MediaKind, PostType } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
+import { Tabs } from "@/components/ui/tabs";
 import { useExperience } from "@/components/experience-provider";
+import { uploadFile } from "@/lib/upload-client";
 
 export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => void }) {
   const { t } = useExperience();
   const [body, setBody] = useState("");
+  const [kind, setKind] = useState<"Post" | "Video" | "Reel">("Post");
   const [sending, setSending] = useState(false);
   const [hints, setHints] = useState<string[]>([]);
   const [media, setMedia] = useState<
@@ -22,18 +25,13 @@ export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => voi
     setUploading(true);
     setHints([]);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) {
-        setHints([data.error || "Upload failed"]);
-        return;
-      }
+      const data = await uploadFile(file);
       setMedia((prev) => [
         ...prev,
         { url: data.url, kind: data.kind as MediaKind, name: file.name },
       ]);
+    } catch (error) {
+      setHints([error instanceof Error ? error.message : "Upload failed"]);
     } finally {
       setUploading(false);
     }
@@ -53,11 +51,14 @@ export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => voi
       setHints([spam.assistance || "This may look like spam. Please revise."]);
       return;
     }
+    const type: PostType =
+      kind === "Reel" ? "SHORT" : kind === "Video" ? "VIDEO" : media.some((m) => m.kind === "VIDEO") ? "VIDEO" : "TEXT";
     const response = await fetch("/api/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         body,
+        type,
         media: media.map((m) => ({ url: m.url, kind: m.kind })),
       }),
     });
@@ -68,6 +69,8 @@ export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => voi
       setHints([]);
       setMedia([]);
       onCreated?.(data.post);
+    } else {
+      setHints([data.error || "Could not publish post"]);
     }
   }
 
@@ -89,6 +92,7 @@ export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => voi
       onSubmit={submit}
       className="rounded-[1.75rem] border border-[var(--mist)] bg-[var(--glass)] p-4 shadow-[var(--shadow-lg)] backdrop-blur-xl"
     >
+      <Tabs items={["Post", "Video", "Reel"]} value={kind} onChange={(value) => setKind(value as typeof kind)} />
       <Textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
@@ -138,7 +142,7 @@ export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => voi
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,video/mp4,video/webm,audio/mpeg,application/pdf"
+            accept={kind === "Reel" || kind === "Video" ? "video/mp4,video/webm,image/*" : "image/*,video/mp4,video/webm,audio/mpeg,application/pdf"}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];

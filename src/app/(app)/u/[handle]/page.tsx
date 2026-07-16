@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { BadgeCheck, MoreHorizontal } from "lucide-react";
+import { Lock, MessageCircle, MoreHorizontal, Pencil } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
@@ -13,6 +15,7 @@ import { MediaLightbox } from "@/components/media/lightbox";
 import { PostCard } from "@/components/feed/post-card";
 import { useExperience } from "@/components/experience-provider";
 import { useGuest } from "@/components/auth/guest-provider";
+import { VerificationBadge } from "@/components/brand/official-badge";
 
 type ProfileVisibility = {
   isPrivate?: boolean;
@@ -24,9 +27,12 @@ type ProfileVisibility = {
 
 export default function ProfilePage() {
   const { handle } = useParams<{ handle: string }>();
+  const router = useRouter();
+  const { data: session } = useSession();
   const { t } = useExperience();
   const { requireAuth } = useGuest();
   const [user, setUser] = useState<Record<string, unknown> | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [visibility, setVisibility] = useState<ProfileVisibility>({});
   const [posts, setPosts] = useState<Array<Record<string, unknown>>>([]);
   const [locked, setLocked] = useState(false);
@@ -34,13 +40,23 @@ export default function ProfilePage() {
   const [lightbox, setLightbox] = useState<number | null>(null);
 
   useEffect(() => {
+    setNotFound(false);
+    setUser(null);
     fetch(`/api/users/${handle}`)
-      .then((r) => r.json())
-      .then((d) => {
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok || !d.user) {
+          setNotFound(true);
+          setUser(null);
+          return;
+        }
         setUser(d.user);
         setVisibility((d.user?.visibility as ProfileVisibility) ?? {});
       })
-      .catch(() => setUser(null));
+      .catch(() => {
+        setNotFound(true);
+        setUser(null);
+      });
     fetch(`/api/posts?author=${handle}`)
       .then((r) => r.json())
       .then((d) => {
@@ -79,7 +95,7 @@ export default function ProfilePage() {
             ? "requested"
             : "following";
       setVisibility((v) => ({ ...v, followStatus: next }));
-      if (next === "following") {
+      if (next === "following" || next === "none") {
         fetch(`/api/posts?author=${handle}`)
           .then((r) => r.json())
           .then((d) => {
@@ -98,9 +114,44 @@ export default function ProfilePage() {
         ? "Requested"
         : t("common", "follow");
 
+  const isOwner =
+    Boolean(session?.user?.handle) &&
+    session!.user.handle!.toLowerCase() === String(handle).toLowerCase();
+
+  async function startMessage() {
+    if (!requireAuth()) return;
+    const userId = user?.id as string | undefined;
+    if (!userId) return;
+    const res = await fetch("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "DIRECT", userId }),
+    });
+    const data = await res.json();
+    if (res.ok && data.conversation?.id) {
+      router.push(`/messages/${data.conversation.id}`);
+    }
+  }
+
+  if (notFound) {
+    return (
+      <PageTransition className="section-shell max-w-3xl px-5 md:px-8">
+        <EmptyState
+          title="Profile not found"
+          description="That username doesn’t exist or isn’t available."
+        />
+        <div className="mt-6 text-center">
+          <Link href="/explore" className="text-sm text-[var(--signal-deep)] hover:underline">
+            Explore Relune
+          </Link>
+        </div>
+      </PageTransition>
+    );
+  }
+
   if (!user) {
     return (
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-4xl space-y-4 px-5">
         <Skeleton className="h-52 w-full rounded-[2rem]" />
         <Skeleton className="h-40 w-full rounded-[2rem]" />
       </div>
@@ -109,15 +160,31 @@ export default function ProfilePage() {
 
   const displayName = String(user.displayName ?? user.name ?? handle);
   const cover = user.coverImage as string | undefined;
+  const isPrivateAccount = Boolean(visibility.isPrivate);
+  const joined = user.createdAt
+    ? new Date(String(user.createdAt)).toLocaleDateString(undefined, {
+        month: "long",
+        year: "numeric",
+      })
+    : null;
 
   return (
-    <PageTransition className="mx-auto max-w-4xl">
-      <div className="overflow-hidden rounded-[2rem] border border-[var(--mist)] bg-[var(--glass)] backdrop-blur-xl">
+    <PageTransition className="section-shell max-w-5xl px-5 md:px-8">
+      <div className="glass-strong premium-ring overflow-hidden rounded-[2rem]">
+        {user.isOfficial ? (
+          <div className="border-b border-[var(--signal)]/20 bg-gradient-to-r from-[var(--signal)]/10 via-transparent to-[var(--ember)]/10 px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--signal)]">
+            Official RELUNE Platform Account
+          </div>
+        ) : null}
         <motion.div
           className="relative h-56 bg-gradient-to-br from-[var(--signal)]/70 via-[var(--ember)]/45 to-[var(--mist)]"
           style={
             cover
-              ? { backgroundImage: `url(${cover})`, backgroundSize: "cover", backgroundPosition: "center" }
+              ? {
+                  backgroundImage: `url(${cover})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                }
               : undefined
           }
           initial={{ opacity: 0.7 }}
@@ -130,78 +197,164 @@ export default function ProfilePage() {
             <Avatar
               src={user.image as string | null}
               name={displayName}
-              className="size-28 rounded-[1.75rem] border-4 border-[var(--cloud)] shadow-xl"
+              className="size-28 rounded-[1.75rem] border-4 border-[var(--cloud)] shadow-[var(--shadow-lg)]"
             />
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => void social("follow")}>
-                {followLabel}
-              </Button>
+              {isOwner ? (
+                <Button variant="outline" onClick={() => router.push("/settings/profile")}>
+                  <Pencil className="size-4" />
+                  Edit profile
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={() => void social("follow")}>
+                    {followLabel}
+                  </Button>
+                  <Button variant="quiet" onClick={() => void startMessage()}>
+                    <MessageCircle className="size-4" />
+                    Message
+                  </Button>
+                </>
+              )}
               <details className="relative">
                 <summary className="list-none rounded-full border border-[var(--mist)] bg-[var(--glass)] p-2.5">
                   <MoreHorizontal className="size-4" />
                 </summary>
-                <div className="absolute end-0 z-10 mt-2 w-40 rounded-2xl border border-[var(--mist)] bg-[var(--cloud)] p-2 text-sm shadow-xl">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!requireAuth()) return;
-                      void social("mute");
-                    }}
-                    className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
-                  >
-                    Mute
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!requireAuth()) return;
-                      void social("block");
-                    }}
-                    className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
-                  >
-                    Block
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!requireAuth()) return;
-                      void fetch("/api/social/report", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          targetType: "USER",
-                          targetId: user.id,
-                          reason: "Other",
-                        }),
-                      });
-                    }}
-                    className="block w-full rounded-xl px-3 py-2 text-start text-[var(--danger)] hover:bg-[var(--mist)]"
-                  >
-                    {t("common", "report")}
-                  </button>
+                <div className="absolute end-0 z-10 mt-2 w-40 rounded-[1.25rem] border border-[var(--mist)] bg-[var(--cloud)] p-2 text-sm shadow-xl">
+                  {isOwner ? (
+                    <Link
+                      href="/settings/privacy"
+                      className="block rounded-xl px-3 py-2 hover:bg-[var(--mist)]"
+                    >
+                      Privacy settings
+                    </Link>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!requireAuth()) return;
+                          void social("mute");
+                        }}
+                        className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
+                      >
+                        Mute
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!requireAuth()) return;
+                          void social("block");
+                        }}
+                        className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
+                      >
+                        Block
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!requireAuth()) return;
+                          void fetch("/api/social/report", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              targetType: "USER",
+                              targetId: user.id,
+                              reason: "Other",
+                            }),
+                          });
+                        }}
+                        className="block w-full rounded-xl px-3 py-2 text-start text-[var(--danger)] hover:bg-[var(--mist)]"
+                      >
+                        {t("common", "report")}
+                      </button>
+                    </>
+                  )}
                 </div>
               </details>
             </div>
           </div>
 
-          <h1 className="mt-5 flex items-center gap-2 font-[family-name:var(--font-display)] text-3xl tracking-tight md:text-4xl">
+          <h1 className="mt-5 flex flex-wrap items-center gap-2 font-[family-name:var(--font-display)] text-3xl tracking-tight md:text-4xl">
             {displayName}
-            {user.isVerified ? <BadgeCheck className="size-5 text-[var(--signal)]" /> : null}
+            {user.isVerified || user.isOfficial ? (
+              <VerificationBadge
+                isOfficial={Boolean(user.isOfficial)}
+                isVerified={Boolean(user.isVerified)}
+                className="size-5"
+              />
+            ) : null}
+            {isPrivateAccount ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-[var(--mist)] bg-[var(--surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
+                <Lock className="size-3" />
+                Private
+              </span>
+            ) : null}
           </h1>
           <p className="text-[var(--muted)]">@{String(user.handle)}</p>
-          {user.bio ? <p className="mt-4 max-w-xl text-sm leading-6">{String(user.bio)}</p> : null}
+          {user.bio ? (
+            <p className="mt-4 max-w-xl whitespace-pre-wrap text-sm leading-6">
+              {String(user.bio)}
+            </p>
+          ) : null}
+
+          {user.isOfficial ? (
+            <div className="mt-5 rounded-[var(--radius-xl)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--signal)]">
+                Platform identity
+              </p>
+              <p className="mt-2 text-sm leading-7 text-[var(--muted)]">
+                This is the permanent official RELUNE platform account for announcements,
+                safety guidance, feature launches, and maintenance updates.
+              </p>
+            </div>
+          ) : null}
 
           <div className="mt-6 grid grid-cols-3 gap-3 sm:flex sm:gap-8">
             {[
-              [visibility.canViewFollowers ? user.followersCount : "—", t("profile", "followers")],
-              [visibility.canViewFollowing ? user.followingCount : "—", t("profile", "following")],
-              [visibility.canViewContent ? user.postsCount : "—", t("profile", "posts")],
-            ].map(([value, label]) => (
-              <div key={String(label)} className="rounded-2xl bg-white/40 px-4 py-3 text-center dark:bg-white/5">
-                <p className="font-[family-name:var(--font-display)] text-xl font-semibold">{String(value ?? 0)}</p>
-                <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">{String(label)}</p>
-              </div>
-            ))}
+              {
+                value: visibility.canViewFollowers ? user.followersCount : "—",
+                label: t("profile", "followers"),
+                href: visibility.canViewFollowers ? `/u/${handle}/followers` : null,
+              },
+              {
+                value: visibility.canViewFollowing ? user.followingCount : "—",
+                label: t("profile", "following"),
+                href: visibility.canViewFollowing ? `/u/${handle}/following` : null,
+              },
+              {
+                value: visibility.canViewContent ? user.postsCount : "—",
+                label: t("profile", "posts"),
+                href: null,
+              },
+            ].map(({ value, label, href }) => {
+              const inner = (
+                <>
+                  <p className="font-[family-name:var(--font-display)] text-xl font-semibold">
+                    {String(value ?? 0)}
+                  </p>
+                  <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                    {String(label)}
+                  </p>
+                </>
+              );
+              return href ? (
+                <Link
+                  key={String(label)}
+                  href={href}
+                  className="rounded-[var(--radius-xl)] bg-[var(--surface)] px-4 py-4 text-center shadow-[var(--shadow-sm)] transition hover:-translate-y-0.5"
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <div
+                  key={String(label)}
+                  className="rounded-[var(--radius-xl)] bg-[var(--surface)] px-4 py-4 text-center shadow-[var(--shadow-sm)]"
+                >
+                  {inner}
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-8">
@@ -211,12 +364,13 @@ export default function ProfilePage() {
               onChange={setTab}
             />
             <div className="mt-6">
-              {locked ? (
+              {locked && tab !== "About" ? (
                 <EmptyState
                   title="This account is private"
-                  description="Follow this account to see their photos, videos, and reels."
+                  description="Follow this account and wait for approval to see their posts and media."
                 />
               ) : null}
+
               {!locked && tab === "Posts" ? (
                 posts.length ? (
                   <div className="grid gap-4">
@@ -240,7 +394,11 @@ export default function ProfilePage() {
                         onClick={() => setLightbox(i)}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={m.url} alt="" className="size-full object-cover transition hover:scale-105" />
+                        <img
+                          src={m.url}
+                          alt=""
+                          className="size-full object-cover transition hover:scale-105"
+                        />
                       </button>
                     ))}
                   </div>
@@ -262,16 +420,54 @@ export default function ProfilePage() {
               ) : null}
 
               {tab === "About" ? (
-                <Card>
-                  <p className="text-sm text-[var(--muted)]">
-                    {user.website ? String(user.website) : "No links shared yet."}
-                  </p>
+                <Card className="space-y-4">
+                  {user.bio ? (
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                        Bio
+                      </p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6">
+                        {String(user.bio)}
+                      </p>
+                    </div>
+                  ) : null}
+                  {user.website ? (
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                        Website
+                      </p>
+                      <a
+                        href={String(user.website)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-block text-sm text-[var(--signal-deep)] hover:underline"
+                      >
+                        {String(user.website)}
+                      </a>
+                    </div>
+                  ) : null}
                   {user.city || user.country ? (
-                    <p className="mt-3 text-sm">
-                      {[String(user.city ?? ""), String(user.country ?? "")]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                        Location
+                      </p>
+                      <p className="mt-2 text-sm">
+                        {[String(user.city ?? ""), String(user.country ?? "")]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+                    </div>
+                  ) : null}
+                  {joined ? (
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                        Joined
+                      </p>
+                      <p className="mt-2 text-sm">{joined}</p>
+                    </div>
+                  ) : null}
+                  {!user.bio && !user.website && !user.city && !user.country && !joined ? (
+                    <p className="text-sm text-[var(--muted)]">No profile details yet.</p>
                   ) : null}
                 </Card>
               ) : null}

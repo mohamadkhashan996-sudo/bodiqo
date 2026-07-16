@@ -8,7 +8,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
     <input
       ref={ref}
       className={cn(
-        "w-full rounded-2xl border border-[var(--mist)] bg-[var(--glass)] px-4 py-3 text-sm text-[var(--ink)] outline-none backdrop-blur transition placeholder:text-[var(--muted)] focus:border-[var(--signal)]",
+        "w-full rounded-[var(--radius-lg)] border border-[var(--mist)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--ink)] outline-none shadow-[var(--shadow-sm)] transition placeholder:text-[var(--muted)] focus:border-[var(--signal)] focus:bg-[var(--cloud-elevated)]",
         className,
       )}
       {...props}
@@ -24,7 +24,7 @@ export const Textarea = forwardRef<
   <textarea
     ref={ref}
     className={cn(
-      "w-full resize-none rounded-3xl border border-[var(--mist)] bg-[var(--glass)] px-4 py-3 text-sm text-[var(--ink)] outline-none backdrop-blur transition placeholder:text-[var(--muted)] focus:border-[var(--signal)]",
+      "w-full resize-none rounded-[var(--radius-xl)] border border-[var(--mist)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--ink)] outline-none shadow-[var(--shadow-sm)] transition placeholder:text-[var(--muted)] focus:border-[var(--signal)] focus:bg-[var(--cloud-elevated)]",
       className,
     )}
     {...props}

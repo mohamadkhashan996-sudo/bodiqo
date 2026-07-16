@@ -10,6 +10,11 @@ import { prisma } from "@/lib/prisma";
 import { cacheDelPrefix } from "@/lib/cache";
 import { ROLE_RANK } from "@/lib/permissions";
 import { writeAudit } from "./audit";
+import {
+  assertCanManageOfficialAccount,
+  assertOfficialAccountProtected,
+} from "@/modules/platform/official-account";
+import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
 
 const userSelect = {
   id: true,
@@ -21,6 +26,7 @@ const userSelect = {
   role: true,
   status: true,
   isVerified: true,
+  isOfficial: true,
   trustScore: true,
   warningCount: true,
   bannedUntil: true,
@@ -143,7 +149,15 @@ export async function updateUserAdmin(
 ) {
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
+  assertCanManageOfficialAccount(actorRole, target);
   assertCanManage(actorRole, target, actorId);
+
+  if (data.handle) {
+    assertHandleAvailable(data.handle);
+    if (target.isOfficial && data.handle !== "relune") {
+      throw new AppError("The official RELUNE handle cannot be changed.", 403);
+    }
+  }
 
   if (data.role && ROLE_RANK[actorRole] <= ROLE_RANK[data.role]) {
     throw new AppError("Cannot assign equal or higher role", 403);
@@ -205,6 +219,7 @@ export async function banUser(
 ) {
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
+  assertOfficialAccountProtected(target);
   assertCanManage(actorRole, target, actorId);
 
   const bannedUntil = opts.permanent
@@ -253,6 +268,7 @@ export async function unbanUser(actorId: string, actorRole: Role, userId: string
 export async function softDeleteUser(actorId: string, actorRole: Role, userId: string) {
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
+  assertOfficialAccountProtected(target);
   assertCanManage(actorRole, target, actorId);
   const updated = await prisma.user.update({
     where: { id: userId },
@@ -306,6 +322,7 @@ export async function setVerified(
 ) {
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
+  assertOfficialAccountProtected(target);
   assertCanManage(actorRole, target, actorId);
   const updated = await prisma.user.update({
     where: { id: userId },

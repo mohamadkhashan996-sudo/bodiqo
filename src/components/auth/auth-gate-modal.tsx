@@ -37,7 +37,7 @@ export function AuthGateModal({ open, onClose, callbackUrl }: AuthGateModalProps
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/20 bg-gradient-to-b from-[var(--cloud)] to-[var(--cloud)]/95 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.35)]"
+            className="surface-panel-strong premium-ring relative w-full max-w-md overflow-hidden rounded-[var(--radius-2xl)] p-8 shadow-[var(--shadow-xl)]"
             role="dialog"
             aria-modal="true"
             aria-labelledby="auth-gate-title"
@@ -70,14 +70,14 @@ export function AuthGateModal({ open, onClose, callbackUrl }: AuthGateModalProps
                 <Link
                   href={`/sign-in?callbackUrl=${encodeURIComponent(next)}`}
                   onClick={persistBrowse}
-                  className="inline-flex h-12 items-center justify-center rounded-2xl bg-[var(--ink)] text-sm font-semibold text-[var(--cloud)] shadow-lg transition hover:opacity-90"
+                  className="inline-flex h-12 items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold uppercase tracking-[0.14em] text-[var(--cloud)] shadow-[var(--shadow-md)] transition hover:-translate-y-0.5 hover:bg-[var(--ink-soft)]"
                 >
                   Sign In
                 </Link>
                 <Link
                   href={`/sign-up?callbackUrl=${encodeURIComponent(next)}`}
                   onClick={persistBrowse}
-                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-[var(--mist)] bg-white/60 text-sm font-semibold transition hover:bg-white/80 dark:bg-white/5 dark:hover:bg-white/10"
+                  className="inline-flex h-12 items-center justify-center rounded-full border border-[var(--mist)] bg-[var(--glass-strong)] text-sm font-semibold uppercase tracking-[0.14em] transition hover:-translate-y-0.5 hover:bg-[var(--surface)]"
                 >
                   Create Account
                 </Link>

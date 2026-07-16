@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { PostCard } from "@/components/feed/post-card";
 import { Avatar } from "@/components/ui/avatar";
@@ -16,8 +17,8 @@ type Reco = {
     displayName: string | null;
     image: string | null;
     isVerified: boolean;
-    followersCount: number;
-    bio: string | null;
+    followersCount?: number;
+    bio?: string | null;
   }>;
   posts: Array<Record<string, unknown>>;
   videos: Array<Record<string, unknown>>;
@@ -30,35 +31,122 @@ type Reco = {
   topics: Array<{ topic: string; score: number }>;
 };
 
+const emptyReco: Reco = {
+  creators: [],
+  posts: [],
+  videos: [],
+  communities: [],
+  topics: [],
+};
+
+function isApiError(value: unknown): value is { error: string } {
+  return Boolean(value && typeof value === "object" && "error" in value);
+}
+
+function normalizeReco(data: unknown): Reco {
+  if (!data || typeof data !== "object" || isApiError(data)) return emptyReco;
+
+  const payload = data as Partial<Reco>;
+  const posts = Array.isArray(payload.posts) ? payload.posts : [];
+  const videos = Array.isArray(payload.videos)
+    ? payload.videos
+    : posts.filter(
+        (post) =>
+          (post as { type?: string }).type === "VIDEO" ||
+          (post as { type?: string }).type === "SHORT",
+      );
+
+  return {
+    creators: Array.isArray(payload.creators) ? payload.creators : [],
+    posts,
+    videos,
+    communities: Array.isArray(payload.communities) ? payload.communities : [],
+    topics: Array.isArray(payload.topics) ? payload.topics : [],
+  };
+}
+
+async function loadGuestExplore(): Promise<Reco> {
+  const [exploreRes, usersRes] = await Promise.all([
+    fetch("/api/explore?limit=20"),
+    fetch("/api/explore?mode=users&limit=6"),
+  ]);
+  const explore = await exploreRes.json();
+  const users = await usersRes.json();
+
+  return normalizeReco({
+    creators: users.users ?? [],
+    posts: explore.posts ?? [],
+    communities: [],
+    topics: [],
+  });
+}
+
+async function loadMemberExplore(): Promise<{ reco: Reco; trending: Array<{ tag: string; predictedGrowth: number }> }> {
+  const [recommendRes, trendingRes] = await Promise.all([
+    fetch("/api/ai?kind=recommend"),
+    fetch("/api/ai?kind=trending"),
+  ]);
+  const recommend = await recommendRes.json();
+  const trending = await trendingRes.json();
+
+  if (!recommendRes.ok || isApiError(recommend)) {
+    return { reco: await loadGuestExplore(), trending: [] };
+  }
+
+  return {
+    reco: normalizeReco(recommend),
+    trending: Array.isArray(trending.predictions) ? trending.predictions : [],
+  };
+}
+
 export default function ExplorePage() {
   const { t } = useExperience();
-  const [reco, setReco] = useState<Reco | null>(null);
+  const { data: session, status } = useSession();
+  const [reco, setReco] = useState<Reco>(emptyReco);
   const [trending, setTrending] = useState<Array<{ tag: string; predictedGrowth: number }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/ai?kind=recommend").then((r) => r.json()),
-      fetch("/api/ai?kind=trending").then((r) => r.json()),
-    ])
-      .then(([r, tr]) => {
-        setReco(r);
-        setTrending(tr.predictions ?? []);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    if (status === "loading") return;
+
+    setLoading(true);
+    const load = session?.user
+      ? loadMemberExplore().then(({ reco: nextReco, trending: nextTrending }) => {
+          setReco(nextReco);
+          setTrending(nextTrending);
+        })
+      : loadGuestExplore().then((nextReco) => {
+          setReco(nextReco);
+          setTrending([]);
+        });
+
+    void load.finally(() => setLoading(false));
+  }, [session?.user, status]);
 
   return (
-    <PageTransition className="mx-auto max-w-6xl">
+    <PageTransition className="section-shell px-5 md:px-8">
+      <div className="glass-strong premium-ring rounded-[2rem] p-6 md:p-8">
       <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--signal)]">
         Discovery
       </p>
       <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl tracking-tight md:text-5xl">
         {t("explore", "title")}
       </h1>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+      <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted)]">
         {t("explore", "subtitle")}
       </p>
+      <div className="mt-6 grid gap-3 md:grid-cols-3">
+        {[
+          "Public posts and videos surfaced for discovery",
+          "Creators, communities, and hashtags in one space",
+          "Smooth loading states and premium editorial rhythm",
+        ].map((item) => (
+          <div key={item} className="rounded-[var(--radius-xl)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)] shadow-[var(--shadow-sm)]">
+            {item}
+          </div>
+        ))}
+      </div>
+      </div>
 
       {loading ? (
         <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -68,18 +156,19 @@ export default function ExplorePage() {
         </div>
       ) : null}
 
-      {!loading && reco ? (
+      {!loading ? (
         <>
           <section className="mt-10">
             <h2 className="font-[family-name:var(--font-display)] text-2xl">
               {t("explore", "recommended")}
             </h2>
+            {reco.creators.length ? (
             <Stagger className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {reco.creators.slice(0, 6).map((user) => (
                 <motion.div key={user.id} variants={staggerItem}>
                   <Link href={`/u/${user.handle}`}>
-                    <Card interactive className="h-full">
-                      <Avatar src={user.image} name={user.displayName ?? user.handle ?? "?"} />
+                    <Card interactive className="h-full p-6">
+                      <Avatar src={user.image} name={user.displayName ?? user.handle ?? "?"} className="size-12" />
                       <p className="mt-3 font-medium">
                         {user.displayName ?? user.handle}
                         {user.isVerified ? " ✓" : ""}
@@ -93,6 +182,13 @@ export default function ExplorePage() {
                 </motion.div>
               ))}
             </Stagger>
+            ) : (
+              <EmptyState
+                title="No creators to recommend yet"
+                description="Public profiles will appear here as the community grows."
+                className="mt-4"
+              />
+            )}
           </section>
 
           <section className="mt-12 grid gap-8 lg:grid-cols-[1fr_280px]">
@@ -110,7 +206,7 @@ export default function ExplorePage() {
               ) : null}
             </div>
             <aside className="space-y-6">
-              <Card>
+              <Card className="p-6">
                 <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
                   {t("explore", "trendingHashtags")}
                 </h3>
@@ -123,7 +219,7 @@ export default function ExplorePage() {
                   ))}
                 </ul>
               </Card>
-              <Card>
+              <Card className="p-6">
                 <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-[var(--muted)]">
                   {t("explore", "communities")}
                 </h3>

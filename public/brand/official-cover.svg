@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" role="img" aria-label="RELUNE cover">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f1218"/>
+      <stop offset="40%" stop-color="#1F9B8E"/>
+      <stop offset="100%" stop-color="#D98A4E"/>
+    </linearGradient>
+    <radialGradient id="orb" cx="72%" cy="42%" r="45%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="600" fill="url(#sky)"/>
+  <ellipse cx="1150" cy="250" rx="420" ry="280" fill="url(#orb)"/>
+  <circle cx="220" cy="480" r="180" fill="#1F9B8E" opacity="0.18"/>
+  <text x="120" y="280" fill="#F4F2EE" font-family="system-ui,sans-serif" font-size="92" font-weight="700" letter-spacing="18">RELUNE</text>
+  <text x="124" y="360" fill="#F4F2EE" opacity="0.82" font-family="system-ui,sans-serif" font-size="34" letter-spacing="6">PRESENCE, BEAUTIFULLY SHARED.</text>
+  <text x="124" y="430" fill="#F4F2EE" opacity="0.65" font-family="system-ui,sans-serif" font-size="22">Privacy First · Security First · Creators First</text>
+</svg>

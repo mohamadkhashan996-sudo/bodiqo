@@ -25,21 +25,21 @@ export default async function AppShellLayout({
       <BrowseRestore />
       {session?.user ? (
         <RealtimeProvider>
-          <div className="min-h-screen bg-[var(--cloud)] text-[var(--ink)] lg:flex">
+          <div className="app-shell lg:flex">
             <AppNavigation
               handle={session.user.handle}
               role={session.user.role}
               isGuest={false}
             />
-            <main className="min-w-0 flex-1 px-5 py-8 md:px-8 lg:px-12 lg:py-10">
+            <main className="min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-5 md:px-7 md:pb-16 lg:px-10 lg:pb-10 lg:pt-6 xl:px-12">
               {children}
             </main>
           </div>
         </RealtimeProvider>
       ) : (
-        <div className="min-h-screen bg-[var(--cloud)] text-[var(--ink)] lg:flex">
+        <div className="app-shell lg:flex">
           <AppNavigation isGuest />
-          <main className="min-w-0 flex-1 px-5 py-8 md:px-8 lg:px-12 lg:py-10">
+          <main className="min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-5 md:px-7 md:pb-16 lg:px-10 lg:pb-10 lg:pt-6 xl:px-12">
             {children}
           </main>
         </div>

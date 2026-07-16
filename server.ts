@@ -12,6 +12,7 @@ import { assertConversationMember } from "./src/modules/messaging/services/conve
 import { deleteMessage, editMessage, markDelivered, markSeen, reactMessage, sendMessage } from "./src/modules/messaging/services/messages";
 import { addParticipant, createCall, updateCallStatus } from "./src/modules/media/services/calls";
 import { createNotification } from "./src/modules/notifications/services/notify";
+import { shouldShowTyping } from "./src/modules/messaging/services/privacy-gate";
 
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
@@ -109,6 +110,7 @@ void app.prepare().then(async () => {
     for (const event of ["typing:start", "typing:stop"] as const) {
       socket.on(event, (input: { conversationId: string }, callback?: Ack) => ack(callback, async () => {
         await assertConversationMember(userId, input.conversationId);
+        if (event === "typing:start" && !(await shouldShowTyping(userId))) return null;
         socket.to(`conversation:${input.conversationId}`).emit(event, { conversationId: input.conversationId, userId });
         return null;
       }));
@@ -173,6 +175,23 @@ void app.prepare().then(async () => {
         return call;
       }));
     }
+    socket.on("call:missed", (input: { callId: string }, callback?: Ack) => ack(callback, async () => {
+      const call = await updateCallStatus(userId, input.callId, "MISSED");
+      const participants = await prisma.callParticipant.findMany({
+        where: { callId: input.callId },
+        select: { userId: true },
+      });
+      await createNotification({
+        userId: call.callerId,
+        actorId: userId,
+        type: "MISSED_CALL",
+        body: "Missed call",
+      });
+      for (const participant of participants) {
+        io.to(`user:${participant.userId}`).emit("call:missed", { callId: input.callId, userId });
+      }
+      return call;
+    }));
     socket.on("disconnect", () => {
       const sockets = presenceSockets.get(userId);
       if (!sockets) return;

@@ -18,7 +18,7 @@ export function Card({
     <div
       id={id}
       className={cn(
-        "rounded-[var(--radius-xl)] border border-[var(--mist)] bg-[var(--glass)] p-5 backdrop-blur-xl",
+        "surface-panel rounded-[var(--radius-xl)] p-5 backdrop-blur-xl transition-[transform,box-shadow,border-color,background-color] duration-[var(--duration)] ease-[var(--ease-out)]",
         className,
       )}
     >
@@ -42,7 +42,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-[var(--radius-xl)] border border-dashed border-[var(--mist)] px-6 py-16 text-center",
+        "surface-subtle flex flex-col items-center justify-center rounded-[var(--radius-xl)] border border-dashed border-[var(--mist)] px-6 py-16 text-center shadow-[var(--shadow-sm)]",
         className,
       )}
     >

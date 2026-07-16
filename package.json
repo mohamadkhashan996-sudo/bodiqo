@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch server.ts",
+    "dev:clean": "rm -rf .next && tsx watch server.ts",
     "dev:next": "next dev --turbopack",
     "build": "next build",
     "start": "NODE_ENV=production tsx server.ts",
@@ -17,6 +18,8 @@
     "db:seed:phase2": "tsx prisma/seed-phase2.ts",
     "db:seed:phase3": "tsx prisma/seed-phase3.ts",
     "db:seed:phase4": "tsx prisma/seed-phase4.ts",
+    "db:seed:official": "tsx prisma/seed-official.ts",
+    "db:setup:official": "bash scripts/setup-official-account.sh",
     "test:smoke": "tsx scripts/smoke.ts",
     "prebuild": "prisma generate"
   },

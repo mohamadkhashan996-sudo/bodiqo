@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="RELUNE official">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#12141A"/>
+      <stop offset="55%" stop-color="#1F9B8E"/>
+      <stop offset="100%" stop-color="#D98A4E"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="210" r="180" fill="url(#glow)"/>
+  <circle cx="256" cy="256" r="118" fill="none" stroke="#F4F2EE" stroke-width="10" opacity="0.9"/>
+  <path d="M256 168c-48 0-86 38-86 86s38 86 86 86 86-38 86-86-38-86-86-86zm0 28c32 0 58 26 58 58s-26 58-58 58-58-26-58-58 26-58 58-58z" fill="#F4F2EE"/>
+  <text x="256" y="420" text-anchor="middle" fill="#F4F2EE" font-family="system-ui,sans-serif" font-size="54" font-weight="700" letter-spacing="12">RELUNE</text>
+</svg>

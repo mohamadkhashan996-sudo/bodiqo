@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { body, fail, ok, requireUser } from "@/lib/api";
 import { addComment, listComments } from "@/modules/feed/services/comments";
+import { createNotification } from "@/modules/notifications/services/notify";
+import { prisma } from "@/lib/prisma";
+
 export async function GET(
   r: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -24,6 +27,7 @@ export async function POST(
 ) {
   try {
     const u = await requireUser();
+    const postId = (await params).id;
     const d = await body(
       r,
       z.object({
@@ -31,12 +35,21 @@ export async function POST(
         parentId: z.string().optional(),
       }),
     );
-    return ok(
-      {
-        comment: await addComment(u.id, (await params).id, d.body, d.parentId),
-      },
-      201,
-    );
+    const comment = await addComment(u.id, postId, d.body, d.parentId);
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { authorId: true },
+    });
+    if (post) {
+      await createNotification({
+        userId: post.authorId,
+        actorId: u.id,
+        type: d.parentId ? "REPLY" : "COMMENT",
+        postId,
+        body: d.body.slice(0, 180),
+      }).catch(() => undefined);
+    }
+    return ok({ comment }, 201);
   } catch (e) {
     return fail(e);
   }

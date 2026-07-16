@@ -58,14 +58,14 @@ export function AuthProviderButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "group flex w-full items-center gap-4 rounded-2xl border border-[var(--mist)] bg-[var(--glass)] px-5 py-4 text-left backdrop-blur transition",
+        "group flex w-full items-center gap-4 rounded-[var(--radius-xl)] border border-[var(--mist)] bg-[var(--surface)] px-5 py-4 text-left shadow-[var(--shadow-sm)] transition",
         disabled
           ? "cursor-not-allowed opacity-55"
-          : "hover:border-[var(--ink)]/25 hover:shadow-[var(--shadow-lg)]",
+          : "hover:-translate-y-0.5 hover:border-[var(--ink)]/25 hover:shadow-[var(--shadow-md)]",
       )}
       aria-label={label}
     >
-      <span className="grid size-10 place-items-center rounded-xl bg-white/70 dark:bg-white/10">
+      <span className="grid size-11 place-items-center rounded-[1rem] border border-[var(--mist)]/60 bg-[var(--cloud-elevated)] dark:bg-white/10">
         {icons[id] ?? icons.credentials}
       </span>
       <span className="min-w-0 flex-1">

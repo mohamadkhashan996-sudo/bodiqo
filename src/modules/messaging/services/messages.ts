@@ -16,18 +16,38 @@ export type SendMessageInput = {
   replyToId?: string;
   mediaMeta?: Prisma.InputJsonValue;
   linkPreview?: Prisma.InputJsonValue;
+  isEncrypted?: boolean;
+  ciphertext?: string;
+  nonce?: string;
+  senderEphemeralKey?: string;
 };
 
 export async function sendMessage(senderId: string, conversationId: string, input: SendMessageInput) {
   await assertConversationMember(senderId, conversationId);
-  if (!input.body.trim() && !input.mediaUrl) throw new AppError("A message needs text or media", 400);
+  const hasCipher = Boolean(input.isEncrypted && input.ciphertext && input.nonce);
+  if (!input.body.trim() && !input.mediaUrl && !hasCipher) {
+    throw new AppError("A message needs text or media", 400);
+  }
   if (input.replyToId) {
     const reply = await prisma.message.findFirst({ where: { id: input.replyToId, conversationId }, select: { id: true } });
     if (!reply) throw new AppError("Reply message not found", 404);
   }
   return prisma.$transaction(async (tx) => {
     const message = await tx.message.create({
-      data: { ...input, body: input.body.trim(), senderId, conversationId },
+      data: {
+        type: input.type,
+        body: hasCipher ? "" : input.body.trim(),
+        mediaUrl: input.mediaUrl,
+        replyToId: input.replyToId,
+        mediaMeta: input.mediaMeta,
+        linkPreview: input.linkPreview,
+        isEncrypted: Boolean(input.isEncrypted),
+        ciphertext: input.ciphertext,
+        nonce: input.nonce,
+        senderEphemeralKey: input.senderEphemeralKey,
+        senderId,
+        conversationId,
+      },
       include,
     });
     await tx.conversation.update({ where: { id: conversationId }, data: { lastMessageAt: message.createdAt } });
@@ -89,11 +109,22 @@ export async function listMessages(userId: string, conversationId: string, curso
 
 export async function markSeen(userId: string, conversationId: string, messageId?: string) {
   await assertConversationMember(userId, conversationId);
+  const { shouldShowReadReceipts } = await import("./privacy-gate");
   const now = new Date();
-  await prisma.$transaction([
-    prisma.conversationMember.update({ where: { conversationId_userId: { conversationId, userId } }, data: { lastReadAt: now, unreadCount: 0 } }),
-    prisma.message.updateMany({ where: { conversationId, senderId: { not: userId }, ...(messageId ? { id: messageId } : {}), delivery: { not: "SEEN" } }, data: { delivery: "SEEN" } }),
-  ]);
+  await prisma.conversationMember.update({
+    where: { conversationId_userId: { conversationId, userId } },
+    data: { lastReadAt: now, unreadCount: 0 },
+  });
+  if (!(await shouldShowReadReceipts(userId))) return;
+  await prisma.message.updateMany({
+    where: {
+      conversationId,
+      senderId: { not: userId },
+      ...(messageId ? { id: messageId } : {}),
+      delivery: { not: "SEEN" },
+    },
+    data: { delivery: "SEEN" },
+  });
 }
 
 export async function markDelivered(userId: string, conversationId: string, messageId?: string) {

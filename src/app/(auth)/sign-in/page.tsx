@@ -41,6 +41,8 @@ function SignInForm() {
   const params = useSearchParams();
   const callbackUrl = safeCallbackUrl(params.get("callbackUrl") ?? params.get("next"));
   const [error, setError] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const [loading, setLoading] = useState(false);
   const [oauth, setOauth] = useState<ProviderRow[]>([]);
   const [credentialsEnabled, setCredentialsEnabled] = useState(true);
@@ -94,6 +96,7 @@ function SignInForm() {
 
   async function onOAuth(id: OAuthProviderId, available: boolean) {
     setError(null);
+    setUnverifiedEmail(null);
     if (!available) {
       setError(
         `${PROVIDER_LABELS[id].replace("Continue with ", "")} sign-in isn’t configured on this server yet.`,
@@ -101,6 +104,22 @@ function SignInForm() {
       return;
     }
     await signIn(id, { callbackUrl });
+  }
+
+  async function resendVerification() {
+    if (!unverifiedEmail) return;
+    setResendState("sending");
+    try {
+      await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: unverifiedEmail }),
+      });
+      setResendState("sent");
+    } catch {
+      setResendState("idle");
+      setError("Could not resend verification email.");
+    }
   }
 
   async function onEmailSubmit(e: FormEvent<HTMLFormElement>) {
@@ -111,12 +130,39 @@ function SignInForm() {
     }
     setLoading(true);
     setError(null);
+    setUnverifiedEmail(null);
+    setResendState("idle");
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email"));
-    const result = await signIn("credentials", {
-      email,
-      password: String(form.get("password")),
-      totpCode: String(form.get("totpCode") || ""),
+    const password = String(form.get("password"));
+
+    const pre = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await pre.json().catch(() => ({}));
+    if (!pre.ok) {
+      setLoading(false);
+      if (data.error === "EMAIL_NOT_VERIFIED") {
+        setUnverifiedEmail(email);
+        setError("Verify your email before signing in.");
+        return;
+      }
+      setError(data.error || FRIENDLY_ERRORS.CredentialsSignin);
+      return;
+    }
+
+    if (data.requires2fa) {
+      setLoading(false);
+      router.push(
+        `/sign-in/2fa?token=${encodeURIComponent(data.token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`,
+      );
+      return;
+    }
+
+    const result = await signIn("challenge", {
+      token: data.token,
       remember: remember ? "true" : "false",
       redirect: false,
     });
@@ -173,7 +219,9 @@ function SignInForm() {
       return;
     }
     if (data.requires2fa) {
-      router.push(`/sign-in/2fa?token=${encodeURIComponent(data.token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+      router.push(
+        `/sign-in/2fa?token=${encodeURIComponent(data.token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`,
+      );
       return;
     }
     const result = await signIn("challenge", {
@@ -199,11 +247,9 @@ function SignInForm() {
         Continue into Relune with a method you trust.
       </p>
 
-      {params.get("verified") === "1" || params.get("registered") === "1" ? (
+      {params.get("verified") === "1" ? (
         <p className="mt-5 rounded-2xl border border-[var(--signal)]/30 bg-[var(--signal)]/10 px-4 py-3 text-sm text-[var(--signal-deep)]">
-          {params.get("registered") === "1"
-            ? "Account created. Check your email to verify, then sign in."
-            : "Email verified. You can sign in now."}
+          Email verified. You can sign in now.
         </p>
       ) : null}
 
@@ -277,17 +323,6 @@ function SignInForm() {
               required
               minLength={8}
               autoComplete="current-password"
-              className="mt-2 w-full rounded-2xl border border-[var(--mist)] bg-white/70 px-4 py-3 outline-none focus:border-[var(--signal)] dark:bg-white/5"
-            />
-          </label>
-          <label className="block">
-            <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-              Authenticator or recovery code
-            </span>
-            <input
-              name="totpCode"
-              autoComplete="one-time-code"
-              placeholder="If 2FA is enabled"
               className="mt-2 w-full rounded-2xl border border-[var(--mist)] bg-white/70 px-4 py-3 outline-none focus:border-[var(--signal)] dark:bg-white/5"
             />
           </label>
@@ -366,12 +401,26 @@ function SignInForm() {
       ) : null}
 
       {error ? (
-        <p
+        <div
           className="mt-5 rounded-2xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-4 py-3 text-sm text-[var(--danger)]"
           role="alert"
         >
-          {error}
-        </p>
+          <p>{error}</p>
+          {unverifiedEmail ? (
+            <button
+              type="button"
+              disabled={resendState !== "idle"}
+              onClick={() => void resendVerification()}
+              className="mt-2 text-[var(--signal-deep)] underline disabled:opacity-60"
+            >
+              {resendState === "sent"
+                ? "Verification email sent"
+                : resendState === "sending"
+                  ? "Sending…"
+                  : "Resend verification email"}
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="mt-8 space-y-4 border-t border-[var(--mist)] pt-6">

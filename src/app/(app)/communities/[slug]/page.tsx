@@ -2,6 +2,10 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Image, Users } from "lucide-react";
+import { PageTransition } from "@/components/motion/primitives";
+import { Button } from "@/components/ui/button";
+import { Card, EmptyState } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/input";
 
 type Community = { name: string; description: string | null; rules: string | null; image: string | null; coverImage: string | null; membersCount: number; postsCount: number; members: { user: { id: string; name: string | null; handle: string | null; image: string | null } }[]; posts: { id: string; body: string; mediaUrl: string | null; createdAt: string }[] };
 export default function CommunityPage() {
@@ -11,5 +15,59 @@ export default function CommunityPage() {
   async function toggle() { const data = await fetch(`/api/communities/${slug}/join`, { method: "POST" }).then((response) => response.json()); setJoined(Boolean(data.joined)); load(); }
   async function post(event: FormEvent) { event.preventDefault(); if (!body.trim()) return; await fetch(`/api/communities/${slug}/posts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body }) }); setBody(""); load(); }
   if (!community) return <div className="p-10 text-center text-[var(--muted)]">Finding this space…</div>;
-  return <div className="mx-auto max-w-5xl"><section className="overflow-hidden rounded-[2rem] bg-[var(--ink)] text-white">{community.coverImage && <img src={community.coverImage} alt="" className="h-44 w-full object-cover opacity-65" />}<div className="p-7"><div className="flex flex-wrap items-end justify-between gap-5"><div><p className="text-xs uppercase tracking-[.2em] text-[var(--ember)]">Community</p><h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl">{community.name}</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">{community.description}</p></div><button onClick={toggle} className="rounded-2xl bg-[var(--ember)] px-5 py-3 text-sm font-bold text-[var(--ink)]">{joined ? "Leave space" : "Join space"}</button></div><p className="mt-6 text-xs text-white/55">{community.membersCount} members · {community.postsCount} posts</p></div></section><div className="mt-6 grid gap-6 lg:grid-cols-[1fr_18rem]"><main className="space-y-4">{joined && <form onSubmit={post} className="rounded-[1.5rem] bg-white/65 p-4"><textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder={`Share with ${community.name}…`} className="w-full resize-none bg-transparent text-sm outline-none" /><button className="mt-2 rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">Publish</button></form>}{community.posts.map((post) => <article key={post.id} className="rounded-[1.5rem] bg-white/65 p-5"><p className="whitespace-pre-wrap text-sm leading-7">{post.body}</p>{post.mediaUrl && <img src={post.mediaUrl} alt="" className="mt-4 rounded-2xl" />}<p className="mt-3 text-xs text-[var(--muted)]">{new Date(post.createdAt).toLocaleString()}</p></article>)}</main><aside className="space-y-4"><section className="rounded-[1.5rem] bg-white/55 p-5"><h2 className="flex items-center gap-2 font-[family-name:var(--font-display)] text-xl"><Users className="size-4" />People</h2><div className="mt-3 space-y-2">{community.members.map((member) => <p key={member.user.id} className="text-sm">{member.user.name ?? member.user.handle}</p>)}</div></section><section className="rounded-[1.5rem] bg-white/55 p-5"><h2 className="font-[family-name:var(--font-display)] text-xl">House rules</h2><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{community.rules ?? "Bring curiosity. Leave room for others."}</p></section><section className="rounded-[1.5rem] bg-white/55 p-5"><h2 className="flex items-center gap-2 font-[family-name:var(--font-display)] text-xl"><Image className="size-4" />Media gallery</h2><div className="mt-3 grid grid-cols-3 gap-2">{community.posts.filter((post) => post.mediaUrl).slice(0, 6).map((post) => <img key={post.id} src={post.mediaUrl!} alt="" className="aspect-square rounded-lg object-cover" />)}</div></section></aside></div></div>;
+  return (
+    <PageTransition className="page-shell page-stack">
+      <section className="overflow-hidden rounded-[var(--radius-2xl)] bg-[var(--ink)] text-white shadow-[var(--shadow-xl)]">
+        {community.coverImage ? <img src={community.coverImage} alt="" className="h-44 w-full object-cover opacity-65" /> : null}
+        <div className="p-7">
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <div>
+              <p className="text-xs uppercase tracking-[.2em] text-[var(--ember)]">Community</p>
+              <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl">{community.name}</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">{community.description}</p>
+            </div>
+            <Button onClick={toggle} variant="signal">
+              {joined ? "Leave space" : "Join space"}
+            </Button>
+          </div>
+          <p className="mt-6 text-xs text-white/55">{community.membersCount} members · {community.postsCount} posts</p>
+        </div>
+      </section>
+      <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
+        <main className="space-y-4">
+          {joined ? (
+            <Card className="p-4">
+              <form onSubmit={post}>
+                <Textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder={`Share with ${community.name}…`} className="min-h-32 border-0 bg-transparent p-0 shadow-none" />
+                <Button className="mt-3">Publish</Button>
+              </form>
+            </Card>
+          ) : null}
+          {community.posts.length ? community.posts.map((post) => (
+            <Card key={post.id} className="p-5">
+              <p className="whitespace-pre-wrap text-sm leading-7">{post.body}</p>
+              {post.mediaUrl ? <img src={post.mediaUrl} alt="" className="mt-4 rounded-[var(--radius-xl)]" /> : null}
+              <p className="mt-3 text-xs text-[var(--muted)]">{new Date(post.createdAt).toLocaleString()}</p>
+            </Card>
+          )) : (
+            <EmptyState title="No community posts yet" description="When members start sharing, the conversation will begin here." />
+          )}
+        </main>
+        <aside className="space-y-4">
+          <Card className="p-5">
+            <h2 className="flex items-center gap-2 font-[family-name:var(--font-display)] text-xl"><Users className="size-4" />People</h2>
+            <div className="mt-3 space-y-2">{community.members.map((member) => <p key={member.user.id} className="text-sm">{member.user.name ?? member.user.handle}</p>)}</div>
+          </Card>
+          <Card className="p-5">
+            <h2 className="font-[family-name:var(--font-display)] text-xl">House rules</h2>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{community.rules ?? "Bring curiosity. Leave room for others."}</p>
+          </Card>
+          <Card className="p-5">
+            <h2 className="flex items-center gap-2 font-[family-name:var(--font-display)] text-xl"><Image className="size-4" />Media gallery</h2>
+            <div className="mt-3 grid grid-cols-3 gap-2">{community.posts.filter((post) => post.mediaUrl).slice(0, 6).map((post) => <img key={post.id} src={post.mediaUrl!} alt="" className="aspect-square rounded-lg object-cover" />)}</div>
+          </Card>
+        </aside>
+      </div>
+    </PageTransition>
+  );
 }

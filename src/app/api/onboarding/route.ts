@@ -1,7 +1,9 @@
 import { ThemePreference } from "@prisma/client";
 import { z } from "zod";
 import { body, fail, ok, requireUser } from "@/lib/api";
+import { optionalMediaUrlSchema } from "@/lib/media-url";
 import { prisma } from "@/lib/prisma";
+import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
 const schema = z.object({
   handle: z
     .string()
@@ -11,6 +13,7 @@ const schema = z.object({
     .optional(),
   displayName: z.string().max(80).optional(),
   bio: z.string().max(500).optional(),
+  image: optionalMediaUrlSchema,
   website: z.string().url().optional(),
   country: z.string().max(80).optional(),
   city: z.string().max(80).optional(),
@@ -23,6 +26,7 @@ export async function POST(r: Request) {
     const u = await requireUser();
     const d = await body(r, schema);
     if (d.handle) {
+      assertHandleAvailable(d.handle);
       const existing = await prisma.user.findFirst({
         where: { handle: d.handle, NOT: { id: u.id } },
         select: { id: true },

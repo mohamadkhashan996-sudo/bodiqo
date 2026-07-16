@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { followUser, unfollowUser } from "@/modules/users/services/social";
 async function target(h: string) {
   const u = await prisma.user.findUnique({
-    where: { handle: h },
+    where: { handle: h.toLowerCase() },
     select: { id: true },
   });
   if (!u) throw new Error("User not found");

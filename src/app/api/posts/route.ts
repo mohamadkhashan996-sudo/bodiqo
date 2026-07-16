@@ -7,6 +7,7 @@ import {
 import { MediaKind, PostType, PostVisibility } from "@prisma/client";
 import { z } from "zod";
 import { body, guardApiAbuse, requireUser } from "@/lib/api";
+import { mediaUrlSchema } from "@/lib/media-url";
 
 const schema = z.object({
   body: z.string().max(10000).optional(),
@@ -16,7 +17,7 @@ const schema = z.object({
   media: z
     .array(
       z.object({
-        url: z.string().url(),
+        url: mediaUrlSchema,
         kind: z.nativeEnum(MediaKind),
         width: z.number().int().positive().optional(),
         height: z.number().int().positive().optional(),

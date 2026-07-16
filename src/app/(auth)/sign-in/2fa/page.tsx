@@ -6,6 +6,9 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageTransition } from "@/components/motion/primitives";
 import { safeCallbackUrl } from "@/lib/guest/paths";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { StateBanner } from "@/components/ui/card";
 
 function TwoFactorForm() {
   const params = useSearchParams();
@@ -57,7 +60,7 @@ function TwoFactorForm() {
       <h1 className="font-[family-name:var(--font-display)] text-4xl tracking-tight">
         Confirm it’s you
       </h1>
-      <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
+      <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
         Enter an authenticator code or a recovery code
         {email ? ` for ${email}` : ""}.
       </p>
@@ -66,25 +69,21 @@ function TwoFactorForm() {
           <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
             Security code
           </span>
-          <input
+          <Input
             name="totpCode"
             required
             autoComplete="one-time-code"
-            className="mt-2 w-full rounded-2xl border border-[var(--mist)] bg-white/70 px-4 py-3 outline-none focus:border-[var(--signal)] dark:bg-white/5"
+            className="mt-2"
           />
         </label>
-        <button
-          type="submit"
-          disabled={loading || !token}
-          className="w-full rounded-full bg-[var(--signal)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--ink)] disabled:opacity-60"
-        >
+        <Button type="submit" variant="signal" disabled={loading || !token} className="w-full py-3.5 text-[11px]">
           {loading ? "Verifying…" : "Continue"}
-        </button>
+        </Button>
       </form>
       {error ? (
-        <p className="mt-5 text-sm text-[var(--danger)]" role="alert">
-          {error}
-        </p>
+        <div className="mt-5">
+          <StateBanner tone="error">{error}</StateBanner>
+        </div>
       ) : null}
       <p className="mt-8 text-sm text-[var(--muted)]">
         <Link href="/sign-in" className="text-[var(--signal-deep)] hover:underline">

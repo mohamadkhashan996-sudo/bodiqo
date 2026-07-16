@@ -3,7 +3,10 @@ import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
 async function targetId(handle: string) {
-  const user = await prisma.user.findUnique({ where: { handle }, select: { id: true } });
+  const user = await prisma.user.findUnique({
+    where: { handle: handle.toLowerCase() },
+    select: { id: true },
+  });
   if (!user) throw new AppError("User not found", 404);
   return user.id;
 }

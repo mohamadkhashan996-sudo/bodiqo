@@ -1,5 +1,5 @@
-import { BrandLockup } from "@/components/brand/logo";
 import Link from "next/link";
+import { MarketingHeader } from "@/components/marketing/marketing-header";
 
 export default function MarketingLayout({
   children,
@@ -7,42 +7,64 @@ export default function MarketingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[var(--cloud)] text-[var(--ink)]">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-6 md:px-8">
-        <BrandLockup />
-        <nav className="flex items-center gap-3 text-sm md:gap-5">
-          <Link
-            href="/sign-in"
-            className="text-[var(--muted)] transition hover:text-[var(--ink)]"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/sign-up"
-            className="rounded-full bg-[var(--ink)] px-5 py-2.5 text-[11px] font-semibold tracking-[0.18em] text-[var(--cloud)] uppercase"
-          >
-            Join Relune
-          </Link>
-        </nav>
-      </header>
-      {children}
-      <footer className="mx-auto max-w-6xl border-t border-[var(--mist)] px-5 py-10 text-sm text-[var(--muted)] md:px-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="tracking-[0.22em] uppercase">Relune</p>
-            <p className="mt-1">Presence, beautifully shared.</p>
+    <div className="min-h-screen overflow-x-hidden bg-[var(--cloud)] text-[var(--ink)]">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[calc(var(--z-nav)+1)] focus:rounded-[1rem] focus:bg-[var(--ink)] focus:px-4 focus:py-2 focus:text-sm focus:text-[var(--cloud)]"
+      >
+        Skip to content
+      </a>
+
+      <MarketingHeader />
+
+      <div>{children}</div>
+
+      <footer className="relative mt-2 border-t border-[var(--mist)]/70">
+        <div className="section-shell px-5 py-16 md:px-8 md:py-20">
+          <div className="grid gap-12 md:grid-cols-[1.45fr_1fr] md:items-start">
+            <div>
+              <p className="font-[family-name:var(--font-display)] text-2xl uppercase tracking-[0.3em] text-[var(--ink)]">
+                Relune
+              </p>
+              <p className="mt-5 max-w-md text-sm leading-7 text-[var(--muted)] md:text-base md:leading-8">
+                Presence, beautifully shared. A privacy-first social platform
+                for creators, communities, and meaningful conversation.
+              </p>
+            </div>
+            <div className="grid gap-10 sm:grid-cols-2">
+              <nav className="flex flex-col gap-3.5 text-sm text-[var(--muted)]" aria-label="Product">
+                <Link href="/explore" className="transition hover:text-[var(--ink)]">
+                  Explore
+                </Link>
+                <Link href="/shorts" className="transition hover:text-[var(--ink)]">
+                  Reels
+                </Link>
+                <Link href="/search" className="transition hover:text-[var(--ink)]">
+                  Search
+                </Link>
+                <Link href="/sign-in" className="transition hover:text-[var(--ink)]">
+                  Sign In
+                </Link>
+              </nav>
+              <nav className="flex flex-col gap-3.5 text-sm text-[var(--muted)]" aria-label="Company">
+                <Link href="/terms" className="transition hover:text-[var(--ink)]">
+                  Terms
+                </Link>
+                <Link href="/privacy" className="transition hover:text-[var(--ink)]">
+                  Privacy
+                </Link>
+                <Link href="/sign-up" className="transition hover:text-[var(--ink)]">
+                  Create Account
+                </Link>
+                <Link href="/home" className="transition hover:text-[var(--ink)]">
+                  Continue as Guest
+                </Link>
+              </nav>
+            </div>
           </div>
-          <nav className="flex flex-wrap gap-4">
-            <Link href="/terms" className="hover:text-[var(--ink)]">
-              Terms
-            </Link>
-            <Link href="/privacy" className="hover:text-[var(--ink)]">
-              Privacy
-            </Link>
-            <Link href="/sign-in" className="hover:text-[var(--ink)]">
-              Sign in
-            </Link>
-          </nav>
+          <p className="mt-14 text-xs tracking-[0.1em] text-[var(--muted)]">
+            © {new Date().getFullYear()} RELUNE. Crafted for presence.
+          </p>
         </div>
       </footer>
     </div>

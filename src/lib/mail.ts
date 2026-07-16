@@ -44,8 +44,15 @@ export async function sendMail(
       logger.error("mail_send_failed", {
         error: error instanceof Error ? error.message : String(error),
       });
-      // Fall through to log mode so auth flows don't hard-fail in misconfigured envs
+      if (process.env.NODE_ENV === "production") {
+        throw error instanceof Error ? error : new Error("Email delivery failed");
+      }
+      // Dev: fall through to log mode
     }
+  }
+
+  if (process.env.NODE_ENV === "production" && provider === "resend") {
+    throw new Error("Email delivery is not configured");
   }
 
   const previewToken = crypto.randomUUID();

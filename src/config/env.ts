@@ -1,7 +1,14 @@
 import { z } from "zod";
 
 const baseSchema = z.object({
-  DATABASE_URL: z.string().min(1),
+  DATABASE_URL: z
+    .string()
+    .min(1)
+    .refine(
+      (url) =>
+        url.startsWith("postgresql://") || url.startsWith("postgres://"),
+      "DATABASE_URL must be a PostgreSQL connection string (see .env.example)",
+    ),
   AUTH_SECRET: z.string().min(16).optional(),
   AUTH_URL: z.string().url().optional(),
   NEXTAUTH_URL: z.string().url().optional(),

@@ -1,3 +1,77 @@
 "use client";
+
+import Link from "next/link";
 import { FormEvent, useState } from "react";
-export default function ForgotPasswordPage() { const [sent, setSent] = useState(false); async function submit(e: FormEvent<HTMLFormElement>) { e.preventDefault(); await fetch("/api/auth/forgot-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: new FormData(e.currentTarget).get("email") }) }); setSent(true); } return <div><h1 className="font-[family-name:var(--font-display)] text-4xl">Reset your password</h1><p className="mt-3 text-sm text-[var(--muted)]">We’ll send a quiet note with the next step.</p>{sent ? <p className="mt-8 rounded-2xl bg-[var(--signal)]/10 p-4 text-sm">If that email belongs to Relune, a reset link is on its way.</p> : <form onSubmit={submit} className="mt-8 space-y-4"><input required name="email" type="email" placeholder="you@example.com" className="w-full rounded-2xl border border-[var(--mist)] bg-white/60 p-4 outline-none" /><button className="w-full rounded-full bg-[var(--ink)] p-3 text-xs font-bold tracking-[.15em] text-[var(--cloud)] uppercase">Send reset link</button></form>}</div>; }
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { StateBanner } from "@/components/ui/card";
+import { PageTransition } from "@/components/motion/primitives";
+
+export default function ForgotPasswordPage() {
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [devResetUrl, setDevResetUrl] = useState<string | null>(null);
+
+  async function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: new FormData(e.currentTarget).get("email"),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Could not send reset email.");
+        setLoading(false);
+        return;
+      }
+      if (data.resetUrl) setDevResetUrl(data.resetUrl);
+      setSent(true);
+    } catch {
+      setError("Network error. Please try again.");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <PageTransition>
+      <h1 className="page-title">Reset your password</h1>
+      <p className="page-subtitle mt-3">We’ll email a link to choose a new password.</p>
+      {sent ? (
+        <div className="mt-8 space-y-4">
+          <StateBanner tone="success">
+            If that email belongs to Relune, a reset link is on its way.
+          </StateBanner>
+          {devResetUrl ? (
+            <p className="text-xs text-[var(--signal-deep)] break-all">
+              Dev reset link:{" "}
+              <Link href={devResetUrl} className="underline">
+                {devResetUrl}
+              </Link>
+            </p>
+          ) : null}
+          <Link href="/sign-in" className="text-sm text-[var(--signal-deep)] hover:underline">
+            Back to sign in
+          </Link>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="mt-8 space-y-4">
+          <Input required name="email" type="email" placeholder="you@example.com" autoComplete="email" />
+          {error ? <StateBanner tone="error">{error}</StateBanner> : null}
+          <Button className="w-full" disabled={loading}>
+            {loading ? "Sending…" : "Send reset link"}
+          </Button>
+          <Link href="/sign-in" className="block text-center text-sm text-[var(--muted)] hover:underline">
+            Back to sign in
+          </Link>
+        </form>
+      )}
+    </PageTransition>
+  );
+}

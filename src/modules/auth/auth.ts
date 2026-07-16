@@ -17,6 +17,7 @@ import { verifyPassword } from "@/modules/auth/password";
 import { verifyTotpOrBackup } from "@/modules/auth/two-factor";
 import { createAuthChallenge, consumeAuthChallenge } from "@/modules/auth/challenges";
 import { alertNewLogin } from "@/modules/auth/security";
+import { officialFollowNewUser } from "@/modules/platform/official-account";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -248,7 +249,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             !pending ||
             pending.usedAt ||
             pending.expiresAt < new Date() ||
-            !["SESSION_READY", "OAUTH_2FA", "PHONE_2FA"].includes(pending.purpose)
+            ![
+              "SESSION_READY",
+              "OAUTH_2FA",
+              "PHONE_2FA",
+              "CREDENTIALS_2FA",
+            ].includes(pending.purpose)
           ) {
             return null;
           }
@@ -262,7 +268,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null;
           }
 
-          if (pending.purpose === "OAUTH_2FA" || pending.purpose === "PHONE_2FA") {
+          if (
+            pending.purpose === "OAUTH_2FA" ||
+            pending.purpose === "PHONE_2FA" ||
+            pending.purpose === "CREDENTIALS_2FA"
+          ) {
             if (!user.twoFactorEnabled) return null;
             await verifyTotpOrBackup(
               user.id,
@@ -272,15 +282,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
 
           await consumeAuthChallenge(parsed.data.token, pending.purpose);
+          const metaProvider =
+            (pending.meta as { provider?: string } | null)?.provider;
           await trackLogin({
             userId: user.id,
             success: true,
             provider:
-              pending.purpose === "PHONE_2FA" || pending.purpose === "SESSION_READY"
-                ? ((pending.meta as { provider?: string } | null)?.provider ??
-                  "phone")
-                : ((pending.meta as { provider?: string } | null)?.provider ??
-                  "oauth"),
+              metaProvider ??
+              (pending.purpose === "PHONE_2FA"
+                ? "phone"
+                : pending.purpose === "CREDENTIALS_2FA" ||
+                    pending.purpose === "SESSION_READY"
+                  ? "credentials"
+                  : "oauth"),
             ip: meta.ip,
             ua: meta.ua,
           });
@@ -382,19 +396,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       return true;
     },
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, account, trigger }) {
       if (user) {
+        const userId = user.id;
+        if (!userId) return null;
         token.role = (user as { role?: string }).role;
         token.handle = (user as { handle?: string | null }).handle ?? null;
         token.onboardingDone =
           (user as { onboardingDone?: boolean }).onboardingDone ?? false;
         token.image = user.image;
-        token.sub = user.id;
+        token.sub = userId;
         token.sessionVersion =
           (user as { sessionVersion?: number }).sessionVersion ?? 0;
         const remember = (user as { remember?: boolean }).remember;
+        token.remember = remember !== false;
         if (remember === false) {
           token.exp = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+        }
+
+        const meta = await requestMeta();
+        const provider = account?.provider ?? "credentials";
+        const sessionKey = `${provider}:${account?.providerAccountId ?? userId}:${meta.ip ?? "local"}`;
+        const device = await upsertDeviceSession({
+          userId,
+          sessionKey,
+          label: provider,
+          ip: meta.ip,
+          ua: meta.ua,
+        });
+        token.sessionKey = sessionKey;
+        token.deviceSessionId = device.id;
+      } else if (token.remember === false) {
+        const max = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+        if (typeof token.exp !== "number" || token.exp > max) {
+          token.exp = max;
         }
       }
 
@@ -419,6 +454,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         ) {
           return null;
         }
+
+        if (typeof token.sessionKey === "string") {
+          const device = await prisma.deviceSession.findUnique({
+            where: { sessionKey: token.sessionKey },
+            select: { revokedAt: true, id: true, lastActiveAt: true },
+          });
+          if (!device || device.revokedAt) return null;
+          token.deviceSessionId = device.id;
+          if (Date.now() - device.lastActiveAt.getTime() > 5 * 60_000) {
+            await prisma.deviceSession
+              .update({
+                where: { id: device.id },
+                data: { lastActiveAt: new Date() },
+              })
+              .catch(() => undefined);
+          }
+        }
+
         token.role = dbUser.role;
         token.handle = dbUser.handle;
         token.onboardingDone = dbUser.onboardingDone;
@@ -440,6 +493,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.onboardingDone = Boolean(token.onboardingDone);
         session.user.image =
           (token.image as string | null) ?? session.user.image;
+        (session as { deviceSessionId?: string }).deviceSessionId =
+          (token.deviceSessionId as string | undefined) ?? undefined;
       }
       return session;
     },
@@ -448,7 +503,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       if (!user.id) return;
       const meta = await requestMeta();
-      if (user.email) {
+      if (
+        user.email &&
+        account?.provider &&
+        account.provider !== "credentials" &&
+        account.provider !== "challenge"
+      ) {
         await prisma.user.updateMany({
           where: { id: user.id, emailVerified: null },
           data: { emailVerified: new Date(), status: "ACTIVE" },
@@ -478,6 +538,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           ua: meta.ua,
           provider: account?.provider,
         }),
+        officialFollowNewUser(user.id),
       ]);
     },
   },

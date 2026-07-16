@@ -2,7 +2,7 @@ import { z } from "zod";
 import { body, fail, ok } from "@/lib/api";
 import { consumeEmailToken } from "@/modules/auth/email-tokens";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/modules/auth/password";
+import { assertStrongPassword, hashPassword } from "@/modules/auth/password";
 import { bumpSessionVersion, sendSecurityAlert } from "@/modules/auth/security";
 
 export async function POST(r: Request) {
@@ -14,6 +14,7 @@ export async function POST(r: Request) {
         password: z.string().min(8).max(128),
       }),
     );
+    assertStrongPassword(password);
     const record = await consumeEmailToken(token, "RESET_PASSWORD");
     await prisma.user.update({
       where: { id: record.userId },
