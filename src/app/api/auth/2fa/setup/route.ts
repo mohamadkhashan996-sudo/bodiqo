@@ -9,7 +9,7 @@ export async function POST() {
       where: { id: user.id },
       data: { twoFactorSecret: secret, twoFactorEnabled: false },
     });
-    return ok({ secret, otpauthUrl: generateURI({ issuer: "Cirqua", label: user.email ?? user.id, secret }) });
+    return ok({ secret, otpauthUrl: generateURI({ issuer: "Relune", label: user.email ?? user.id, secret }) });
   } catch (e) {
     return fail(e);
   }

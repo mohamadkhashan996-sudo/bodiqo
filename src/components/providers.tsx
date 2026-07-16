@@ -2,6 +2,8 @@
 
 import { SessionProvider } from "next-auth/react";
 import { ExperienceProvider } from "@/components/experience-provider";
+import { AnalyticsProvider } from "@/components/analytics-provider";
+import { ServiceWorkerRegister } from "@/components/pwa-register";
 
 export function Providers({
   children,
@@ -15,7 +17,10 @@ export function Providers({
   return (
     <SessionProvider>
       <ExperienceProvider initialLocale={locale} initialTheme={theme}>
-        {children}
+        <AnalyticsProvider>
+          <ServiceWorkerRegister />
+          {children}
+        </AnalyticsProvider>
       </ExperienceProvider>
     </SessionProvider>
   );

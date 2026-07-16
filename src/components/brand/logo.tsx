@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export function CirquaMark({
+export function ReluneMark({
   className,
   size = 36,
 }: {
@@ -21,8 +21,8 @@ export function CirquaMark({
   );
 }
 
-/** @deprecated use ReluneMark */
-export const ReluneMark = CirquaMark;
+/** @deprecated alias */
+export const CirquaMark = ReluneMark;
 
 export function BrandLockup({
   href = "/",
@@ -33,7 +33,7 @@ export function BrandLockup({
 }) {
   return (
     <Link href={href} className={cn("inline-flex items-center gap-3", className)}>
-      <CirquaMark size={34} />
+      <ReluneMark size={34} />
       <span className="font-[family-name:var(--font-display)] text-xl uppercase tracking-[0.28em]">
         Relune
       </span>

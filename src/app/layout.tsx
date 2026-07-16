@@ -18,21 +18,59 @@ const dmSans = DM_Sans({
   display: "swap",
 });
 
+const description = `${site.tagline} A premium social platform for cinematic presence, conversation, and communities.`;
+
 export const metadata: Metadata = {
+  metadataBase: new URL(site.url),
   title: {
-    default: site.name,
+    default: `${site.name} — ${site.tagline}`,
     template: `%s · ${site.name}`,
   },
-  description: `${site.tagline} A premium social platform.`,
+  description,
   applicationName: site.name,
+  keywords: [
+    "Relune",
+    "social network",
+    "communities",
+    "messaging",
+    "stories",
+    "premium social",
+  ],
+  authors: [{ name: site.name }],
+  creator: site.name,
   icons: {
-    icon: "/favicon.png",
-    apple: "/apple-touch-icon.png",
+    icon: [{ url: "/favicon.png", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png" }],
   },
+  manifest: "/manifest.webmanifest",
   openGraph: {
     title: site.name,
     description: site.tagline,
     type: "website",
+    url: site.url,
+    siteName: site.name,
+    locale: "en_US",
+    images: [
+      {
+        url: "/brand/app-icon.png",
+        width: 512,
+        height: 512,
+        alt: site.name,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: site.name,
+    description: site.tagline,
+    images: ["/brand/app-icon.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "/",
   },
 };
 
@@ -43,6 +81,7 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
+  maximumScale: 5,
 };
 
 export default async function RootLayout({
@@ -67,6 +106,17 @@ export default async function RootLayout({
     }
   }
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: site.name,
+    description: site.tagline,
+    url: site.url,
+    applicationCategory: "SocialNetworkingApplication",
+    operatingSystem: "Web",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  };
+
   return (
     <html
       lang={locale}
@@ -75,6 +125,10 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <Providers locale={locale} theme={theme}>
           <SplashScreen />
           <a

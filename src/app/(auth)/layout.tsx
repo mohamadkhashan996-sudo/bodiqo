@@ -13,7 +13,7 @@ export default function AuthLayout({
         <div className="mt-12">{children}</div>
         <p className="mt-10 text-sm text-[var(--muted)]">
           <Link href="/" className="text-[var(--signal)] hover:underline">
-            Back to Cirqua
+            Back to Relune
           </Link>
         </p>
       </div>

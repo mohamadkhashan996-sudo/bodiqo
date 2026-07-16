@@ -2,30 +2,31 @@
 
 Presence, beautifully shared.
 
-Relune is a premium social platform — modular, production-shaped, and independent from the BODIQO storefront.
+Premium social platform — modular, production-shaped, independent from the BODIQO storefront (`bodiqo-store-backup` branch).
 
-## Stack
-Next.js 15 · React 19 · Prisma · NextAuth · Socket.io · Tailwind 4 · Framer Motion
+## Quick start
+See **[docs/INSTALL.md](docs/INSTALL.md)**.
 
-## Develop
 ```bash
+cp .env.example .env
 npm install
 npx prisma db push
-npm run db:seed:phase2
-npm run db:seed:phase3
-npm run db:seed:phase4
+npm run db:seed:phase2 && npm run db:seed:phase3 && npm run db:seed:phase4
 npm run dev
 ```
 
-Demo logins (password `cirqua1234`):
-- `maya@cirqua.local`
-- `leo@cirqua.local`
-- `sana@cirqua.local`
-- `admin@cirqua.local` (SUPER_ADMIN)
+Demo password: `cirqua1234` · `maya@cirqua.local` · `admin@cirqua.local` (admin)
 
-## Brand
-See `docs/brand/BRAND.md`. Cirqua was retired due to Garmin CIRQA trademark proximity; Relune is the Phase 5 brand.
+## Docs
+| Doc | Topic |
+| --- | --- |
+| [INSTALL](docs/INSTALL.md) | Setup |
+| [DEPLOY](docs/DEPLOY.md) | Production |
+| [API](docs/API.md) | HTTP surface |
+| [MAINTENANCE](docs/MAINTENANCE.md) | Ops |
+| [FUTURE](docs/FUTURE.md) | Roadmap hooks |
+| [BRAND](docs/brand/BRAND.md) | Relune identity + legal checks |
+| [PHASE-6](docs/PHASE-6.md) | Production readiness |
 
-## Phases
-- Phase 1–4: foundation through admin/ops (`docs/PHASE-*.md`)
-- Phase 5: world-class UX, i18n, AI, Relune brand (`docs/PHASE-5.md`)
+## Stack
+Next.js 15 · React 19 · Prisma · NextAuth · Socket.io · Tailwind 4 · Framer Motion

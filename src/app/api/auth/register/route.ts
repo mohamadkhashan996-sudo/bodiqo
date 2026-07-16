@@ -6,7 +6,9 @@ import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
 import { body, fail } from "@/lib/api";
 import { createEmailToken } from "@/modules/auth/email-tokens";
-import { sendMail } from "@/lib/mail";
+import { sendMail, welcomeEmail } from "@/lib/mail";
+import { absoluteUrl } from "@/lib/url";
+
 const schema = z.object({
   name: z.string().trim().min(2).max(80),
   handle: z
@@ -18,6 +20,7 @@ const schema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(8).max(128),
 });
+
 export async function POST(request: Request) {
   try {
     const ip = request.headers.get("x-forwarded-for") ?? "anon";
@@ -42,22 +45,24 @@ export async function POST(request: Request) {
         passwordHash: await bcrypt.hash(data.password, 12),
         status: "PENDING",
       },
-      select: { id: true, email: true, handle: true },
+      select: { id: true, email: true, handle: true, name: true },
     });
     const token = await createEmailToken(user.id, email, "VERIFY_EMAIL", 24);
+    const verifyUrl = absoluteUrl(`/verify-email?token=${encodeURIComponent(token)}`);
+    const welcome = welcomeEmail(user.name || user.handle || "there", verifyUrl);
     const mail = await sendMail({
       to: email,
-      subject: "Verify your Cirqua email",
-      text: `Verification token: ${token}`,
-      html: `<p>Verification token: <strong>${token}</strong></p>`,
+      subject: welcome.subject,
+      text: welcome.text,
+      html: welcome.html,
     });
     logger.info("user_registered", { userId: user.id });
     return NextResponse.json(
       {
         ok: true,
-        user,
+        user: { id: user.id, email: user.email, handle: user.handle },
         ...(process.env.NODE_ENV !== "production"
-          ? { token, previewToken: mail.previewToken }
+          ? { token, previewToken: mail.previewToken, verifyUrl }
           : {}),
       },
       { status: 201 },

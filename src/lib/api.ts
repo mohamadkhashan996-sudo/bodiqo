@@ -6,6 +6,7 @@ import { AppError, toErrorResponse } from "@/lib/errors";
 import { can, isStaff, type Permission } from "@/lib/permissions";
 import { rateLimit } from "@/lib/rate-limit";
 import { writeSecurityEvent } from "@/modules/admin/services/audit";
+import { site } from "@/config/site";
 
 export async function requireUser() {
   const session = await auth();
@@ -63,6 +64,28 @@ export function clientIp(request: Request) {
   );
 }
 
+/** Reject cross-site POSTs in production when Origin is present and mismatched */
+export function assertSameOrigin(request: Request) {
+  if (process.env.NODE_ENV !== "production") return;
+  const origin = request.headers.get("origin");
+  if (!origin) return;
+  const allowed = new Set(
+    [site.url, process.env.AUTH_URL, process.env.NEXTAUTH_URL]
+      .filter(Boolean)
+      .map((u) => {
+        try {
+          return new URL(u as string).origin;
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean) as string[],
+  );
+  if (allowed.size && !allowed.has(origin)) {
+    throw new AppError("Invalid origin", 403, "ORIGIN_FORBIDDEN");
+  }
+}
+
 /** API abuse guard — call at the top of sensitive handlers */
 export async function guardApiAbuse(
   request: Request,
@@ -70,6 +93,7 @@ export async function guardApiAbuse(
   limit = 60,
   windowMs = 60_000,
 ) {
+  assertSameOrigin(request);
   const ip = clientIp(request);
   const result = rateLimit(`${bucket}:${ip}`, limit, windowMs);
   if (!result.ok) {

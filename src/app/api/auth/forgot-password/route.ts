@@ -1,10 +1,13 @@
 import { z } from "zod";
-import { body, fail, ok } from "@/lib/api";
+import { body, fail, guardApiAbuse, ok } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { createEmailToken } from "@/modules/auth/email-tokens";
-import { sendMail } from "@/lib/mail";
+import { resetPasswordEmail, sendMail } from "@/lib/mail";
+import { absoluteUrl } from "@/lib/url";
+
 export async function POST(r: Request) {
   try {
+    await guardApiAbuse(r, "auth:forgot", 5, 60_000);
     const { email } = await body(r, z.object({ email: z.string().email() }));
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
@@ -16,16 +19,20 @@ export async function POST(r: Request) {
       "RESET_PASSWORD",
       2,
     );
+    const resetUrl = absoluteUrl(
+      `/reset-password?token=${encodeURIComponent(token)}`,
+    );
+    const template = resetPasswordEmail(resetUrl);
     const mail = await sendMail({
       to: user.email,
-      subject: "Reset your password",
-      text: `Reset token: ${token}`,
-      html: `<p>Reset token: <strong>${token}</strong></p>`,
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
     });
     return ok({
       ok: true,
       ...(process.env.NODE_ENV !== "production"
-        ? { token, previewToken: mail.previewToken }
+        ? { token, previewToken: mail.previewToken, resetUrl }
         : {}),
     });
   } catch (e) {

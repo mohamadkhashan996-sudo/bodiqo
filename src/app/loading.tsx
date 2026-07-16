@@ -4,7 +4,7 @@ export default function Loading() {
       <div className="flex flex-col items-center gap-4">
         <div className="h-10 w-10 animate-pulse rounded-full border-2 border-[var(--signal)] border-t-transparent" />
         <p className="font-[family-name:var(--font-display)] text-sm tracking-[0.28em] uppercase text-[var(--muted)]">
-          Cirqua
+          Relune
         </p>
       </div>
     </div>

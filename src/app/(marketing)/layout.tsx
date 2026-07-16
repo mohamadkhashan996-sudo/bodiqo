@@ -21,14 +21,14 @@ export default function MarketingLayout({
             href="/sign-up"
             className="rounded-full bg-[var(--ink)] px-5 py-2.5 text-[11px] font-semibold tracking-[0.18em] text-[var(--cloud)] uppercase"
           >
-            Join Cirqua
+            Join Relune
           </Link>
         </nav>
       </header>
       {children}
       <footer className="mx-auto max-w-6xl border-t border-[var(--mist)] px-5 py-10 text-sm text-[var(--muted)] md:px-8">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <p className="tracking-[0.22em] uppercase">Cirqua</p>
+          <p className="tracking-[0.22em] uppercase">Relune</p>
           <p>Presence, beautifully shared.</p>
         </div>
       </footer>

@@ -43,7 +43,7 @@ export default function SignUpPage() {
   return (
     <div>
       <h1 className="font-[family-name:var(--font-display)] text-4xl">
-        Join Cirqua
+        Join Relune
       </h1>
       <p className="mt-3 text-sm text-[var(--muted)]">
         Create your space. Handles are unique and can change later.

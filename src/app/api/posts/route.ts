@@ -1,6 +1,6 @@
 import { MediaKind, PostType, PostVisibility } from "@prisma/client";
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { createPost, getFeed, getPostsByHandle } from "@/modules/feed/services/posts";
 
 const schema = z.object({
@@ -44,6 +44,7 @@ export async function GET(r: Request) {
 
 export async function POST(r: Request) {
   try {
+    await guardApiAbuse(r, "posts:write", 30);
     const u = await requireUser();
     return ok({ post: await createPost(u.id, await body(r, schema)) }, 201);
   } catch (e) {

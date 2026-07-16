@@ -1,9 +1,10 @@
 import { ReportTarget } from "@prisma/client";
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { reportEntity } from "@/modules/users/services/social";
 export async function POST(r: Request) {
   try {
+    await guardApiAbuse(r, "social:report", 20);
     const u = await requireUser();
     const d = await body(
       r,
