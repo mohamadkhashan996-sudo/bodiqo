@@ -1,8 +1,10 @@
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { body, fail, ok } from "@/lib/api";
 import { consumeEmailToken } from "@/modules/auth/email-tokens";
 import { prisma } from "@/lib/prisma";
+import { hashPassword } from "@/modules/auth/password";
+import { bumpSessionVersion, sendSecurityAlert } from "@/modules/auth/security";
+
 export async function POST(r: Request) {
   try {
     const { token, password } = await body(
@@ -15,12 +17,22 @@ export async function POST(r: Request) {
     const record = await consumeEmailToken(token, "RESET_PASSWORD");
     await prisma.user.update({
       where: { id: record.userId },
-      data: { passwordHash: await bcrypt.hash(password, 12) },
+      data: {
+        passwordHash: await hashPassword(password),
+        passwordChangedAt: new Date(),
+        failedLoginCount: 0,
+        lockedUntil: null,
+      },
     });
     await prisma.deviceSession.updateMany({
       where: { userId: record.userId },
       data: { revokedAt: new Date() },
     });
+    await bumpSessionVersion(record.userId);
+    await sendSecurityAlert(
+      record.userId,
+      "Your Relune password was reset. If you didn’t request this, contact support immediately.",
+    );
     return ok({ ok: true });
   } catch (e) {
     return fail(e);

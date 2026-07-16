@@ -1,31 +1,43 @@
 import { verify } from "otplib";
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-export async function POST(r: Request) {
+import { AppError } from "@/lib/errors";
+import { generateBackupCodes } from "@/modules/auth/two-factor";
+import { sendSecurityAlert } from "@/modules/auth/security";
+
+export async function POST(request: Request) {
   try {
+    await guardApiAbuse(request, "2fa:enable", 15);
     const user = await requireUser();
     const { code } = await body(
-      r,
+      request,
       z.object({ code: z.string().min(6).max(12) }),
     );
     const current = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { twoFactorSecret: true },
+      select: { twoFactorPending: true, twoFactorSecret: true, twoFactorEnabled: true },
     });
-    if (
-      !current?.twoFactorSecret ||
-      !(await verify({
-        token: code,
-        secret: current.twoFactorSecret,
-      })).valid
-    )
-      return ok({ error: "Invalid code" }, 400);
+    const secret = current?.twoFactorPending || (!current?.twoFactorEnabled ? current?.twoFactorSecret : null);
+    if (!secret) throw new AppError("Start 2FA setup first", 400);
+
+    const valid = await verify({ token: code, secret });
+    if (!valid.valid) throw new AppError("Invalid authenticator code", 400);
+
     await prisma.user.update({
       where: { id: user.id },
-      data: { twoFactorEnabled: true },
+      data: {
+        twoFactorSecret: secret,
+        twoFactorPending: null,
+        twoFactorEnabled: true,
+      },
     });
-    return ok({ ok: true });
+    const recoveryCodes = await generateBackupCodes(user.id);
+    await sendSecurityAlert(
+      user.id,
+      "Two-factor authentication was enabled on your Relune account. Save your recovery codes in a safe place.",
+    );
+    return ok({ ok: true, recoveryCodes });
   } catch (e) {
     return fail(e);
   }

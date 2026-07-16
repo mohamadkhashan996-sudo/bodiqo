@@ -23,5 +23,6 @@ declare module "next-auth/jwt" {
     handle?: string | null;
     onboardingDone?: boolean;
     image?: string | null;
+    sessionVersion?: number;
   }
 }

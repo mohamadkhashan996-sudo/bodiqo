@@ -25,6 +25,12 @@ Base URL: `AUTH_URL` (local `http://localhost:3000`)
 | GET | `/api/auth/login-history` | Login history |
 | GET/DELETE | `/api/auth/trusted-devices` | Trusted devices |
 | POST | `/api/upload` | Authenticated media upload (multipart `file`) |
+| POST | `/api/auth/phone/send` | Send phone OTP |
+| POST | `/api/auth/phone/login` | Verify phone OTP → session/2FA challenge |
+| * | `/api/auth/phone` | Bind / verify / remove phone |
+| * | `/api/auth/2fa/*` | Setup, enable, disable, recovery codes |
+| POST | `/api/auth/password` | Change / set password |
+| GET | `/api/auth/challenge` | Peek 2FA challenge |
 
 ## Social / feed
 | Method | Path |

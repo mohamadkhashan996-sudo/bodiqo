@@ -24,6 +24,7 @@ import {
   PROVIDER_SHORT,
   type OAuthProviderId,
 } from "@/modules/auth/providers";
+import { SecuritySettings } from "@/components/auth/security-settings";
 
 const links = [
   { href: "/settings/privacy", icon: Lock, key: "privacy" },
@@ -48,8 +49,6 @@ export default function SettingsPage() {
     Record<OAuthProviderId, boolean>
   >({ google: false, apple: false, facebook: false, twitter: false });
   const [accountsMsg, setAccountsMsg] = useState<string | null>(null);
-  const [secret, setSecret] = useState("");
-  const [code, setCode] = useState("");
   const [highContrast, setHighContrast] = useState(false);
   const [largeText, setLargeText] = useState(false);
 
@@ -80,11 +79,6 @@ export default function SettingsPage() {
     document.documentElement.dataset.contrast = highContrast ? "high" : "";
     document.documentElement.dataset.text = largeText ? "large" : "";
   }, [highContrast, largeText]);
-
-  async function setup() {
-    const d = await fetch("/api/auth/2fa/setup", { method: "POST" }).then((r) => r.json());
-    setSecret(d.secret ?? "");
-  }
 
   return (
     <PageTransition className="mx-auto max-w-3xl">
@@ -158,36 +152,7 @@ export default function SettingsPage() {
         </Card>
 
         <Card id="security">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "security")}</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">Two-factor authentication for an extra layer of calm.</p>
-          <Button className="mt-4" type="button" onClick={() => void setup()}>
-            Set up 2FA
-          </Button>
-          {secret ? (
-            <div className="mt-4">
-              <code className="block rounded-xl bg-[var(--mist)] p-3 text-sm">Secret: {secret}</code>
-              <div className="mt-3 flex gap-2">
-                <input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="6-digit code"
-                  className="rounded-xl border border-[var(--mist)] bg-white px-3 dark:bg-[var(--night-elevated)]"
-                />
-                <Button
-                  type="button"
-                  onClick={() =>
-                    void fetch("/api/auth/2fa/enable", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ code }),
-                    })
-                  }
-                >
-                  Enable
-                </Button>
-              </div>
-            </div>
-          ) : null}
+          <SecuritySettings />
         </Card>
 
         <Card id="sessions">
@@ -237,22 +202,38 @@ export default function SettingsPage() {
               {item.provider ?? "credentials"} · {new Date(item.createdAt).toLocaleString()}
             </p>
           ))}
-          <Button
-            className="mt-6"
-            variant="outline"
-            type="button"
-            onClick={async () => {
-              await fetch("/api/auth/sessions", {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ all: true }),
-              });
-              setSessions([]);
-              await signOut({ callbackUrl: "/sign-in" });
-            }}
-          >
-            Log out from all devices
-          </Button>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={async () => {
+                await fetch("/api/auth/trusted-devices", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ label: "This device" }),
+                });
+                const d = await fetch("/api/auth/trusted-devices").then((r) => r.json());
+                setDevices(d.devices ?? []);
+              }}
+            >
+              Trust this device
+            </Button>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={async () => {
+                await fetch("/api/auth/sessions", {
+                  method: "DELETE",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ all: true }),
+                });
+                setSessions([]);
+                await signOut({ callbackUrl: "/sign-in" });
+              }}
+            >
+              Log out from all devices
+            </Button>
+          </div>
         </Card>
 
         <Card id="blocked">

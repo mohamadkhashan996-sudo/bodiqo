@@ -2,6 +2,7 @@ import { z } from "zod";
 import { body, fail, ok, requireUser } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
+import { bumpSessionVersion } from "@/modules/auth/security";
 
 export async function GET() {
   try {
@@ -32,6 +33,7 @@ export async function DELETE(r: Request) {
         where: { userId: u.id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      await bumpSessionVersion(u.id);
       return ok({ ok: true, all: true });
     }
     if (!data.id) throw new AppError("Session id required", 400);

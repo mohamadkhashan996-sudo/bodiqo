@@ -5,7 +5,7 @@ import Facebook from "next-auth/providers/facebook";
 import Google from "next-auth/providers/google";
 import Twitter from "next-auth/providers/twitter";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import bcrypt from "bcryptjs";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
@@ -13,6 +13,10 @@ import { trackLogin, upsertDeviceSession } from "@/modules/auth/session-track";
 import { createPendingOAuthLink } from "@/modules/auth/account-link";
 import { isProviderEnabled } from "@/modules/auth/provider-settings";
 import { providerEnvReady, type OAuthProviderId } from "@/modules/auth/providers";
+import { verifyPassword } from "@/modules/auth/password";
+import { verifyTotpOrBackup } from "@/modules/auth/two-factor";
+import { createAuthChallenge, consumeAuthChallenge } from "@/modules/auth/challenges";
+import { alertNewLogin } from "@/modules/auth/security";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -20,6 +24,27 @@ const credentialsSchema = z.object({
   totpCode: z.string().trim().optional(),
   remember: z.string().optional(),
 });
+
+const challengeSchema = z.object({
+  token: z.string().min(10),
+  totpCode: z.string().trim().optional(),
+  remember: z.string().optional(),
+});
+
+async function requestMeta() {
+  try {
+    const h = await headers();
+    return {
+      ip:
+        h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        h.get("x-real-ip") ||
+        null,
+      ua: h.get("user-agent"),
+    };
+  } catch {
+    return { ip: null, ua: null };
+  }
+}
 
 function buildOAuthProviders() {
   const list = [];
@@ -72,6 +97,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     ...buildOAuthProviders(),
     Credentials({
+      id: "credentials",
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
@@ -81,10 +107,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(raw) {
         if (!(await isProviderEnabled("credentials"))) return null;
-
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
 
+        const meta = await requestMeta();
         const key = `auth:${parsed.data.email.toLowerCase()}`;
         const limited = await rateLimit(key, 8, 60_000);
         if (!limited.ok) return null;
@@ -92,73 +118,96 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({
           where: { email: parsed.data.email.toLowerCase() },
         });
-        if (!user?.passwordHash || user.status === "DELETED" || user.status === "BANNED") {
-          if (user) {
-            await trackLogin({
-              userId: user.id,
-              success: false,
-              provider: "credentials",
-            });
-          }
-          return null;
-        }
-        if (user.status === "SUSPENDED") {
+        if (!user?.passwordHash) return null;
+
+        if (
+          user.status === "DELETED" ||
+          user.status === "BANNED" ||
+          user.status === "SUSPENDED"
+        ) {
           await trackLogin({
             userId: user.id,
             success: false,
             provider: "credentials",
+            ip: meta.ip,
+            ua: meta.ua,
           });
           return null;
         }
+
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          await trackLogin({
+            userId: user.id,
+            success: false,
+            provider: "credentials",
+            ip: meta.ip,
+            ua: meta.ua,
+          });
+          return null;
+        }
+
         if (!user.emailVerified) {
           await trackLogin({
             userId: user.id,
             success: false,
             provider: "credentials",
+            ip: meta.ip,
+            ua: meta.ua,
           });
           return null;
         }
 
-        const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
+        const ok = await verifyPassword(parsed.data.password, user.passwordHash);
         if (!ok) {
+          const fails = user.failedLoginCount + 1;
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginCount: fails,
+              ...(fails >= 10
+                ? { lockedUntil: new Date(Date.now() + 15 * 60_000) }
+                : {}),
+            },
+          });
           await trackLogin({
             userId: user.id,
             success: false,
             provider: "credentials",
+            ip: meta.ip,
+            ua: meta.ua,
           });
           return null;
         }
+
         if (user.twoFactorEnabled) {
-          if (!parsed.data.totpCode) {
+          try {
+            await verifyTotpOrBackup(
+              user.id,
+              user.twoFactorSecret,
+              parsed.data.totpCode || "",
+            );
+          } catch {
             await trackLogin({
               userId: user.id,
               success: false,
               provider: "credentials",
-            });
-            return null;
-          }
-          const { verify } = await import("otplib");
-          if (
-            !user.twoFactorSecret ||
-            !(
-              await verify({
-                token: parsed.data.totpCode,
-                secret: user.twoFactorSecret,
-              })
-            ).valid
-          ) {
-            await trackLogin({
-              userId: user.id,
-              success: false,
-              provider: "credentials",
+              ip: meta.ip,
+              ua: meta.ua,
             });
             return null;
           }
         }
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { failedLoginCount: 0, lockedUntil: null },
+        });
         await trackLogin({
           userId: user.id,
           success: true,
           provider: "credentials",
+          ip: meta.ip,
+          ua: meta.ua,
         });
 
         return {
@@ -169,8 +218,87 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           handle: user.handle,
           onboardingDone: user.onboardingDone,
+          sessionVersion: user.sessionVersion,
           remember: parsed.data.remember === "true",
         };
+      },
+    }),
+    Credentials({
+      id: "challenge",
+      name: "challenge",
+      credentials: {
+        token: { label: "Token", type: "text" },
+        totpCode: { label: "Code", type: "text" },
+        remember: { label: "Remember", type: "text" },
+      },
+      async authorize(raw) {
+        const parsed = challengeSchema.safeParse(raw);
+        if (!parsed.success) return null;
+        const meta = await requestMeta();
+        try {
+          // Peek purpose via hash lookup first
+          const { hashOpaque } = await import("@/modules/auth/password");
+          const pending = await prisma.authChallenge.findUnique({
+            where: { tokenHash: hashOpaque(parsed.data.token) },
+            include: {
+              user: true,
+            },
+          });
+          if (
+            !pending ||
+            pending.usedAt ||
+            pending.expiresAt < new Date() ||
+            !["SESSION_READY", "OAUTH_2FA", "PHONE_2FA"].includes(pending.purpose)
+          ) {
+            return null;
+          }
+
+          const user = pending.user;
+          if (
+            user.status === "DELETED" ||
+            user.status === "BANNED" ||
+            user.status === "SUSPENDED"
+          ) {
+            return null;
+          }
+
+          if (pending.purpose === "OAUTH_2FA" || pending.purpose === "PHONE_2FA") {
+            if (!user.twoFactorEnabled) return null;
+            await verifyTotpOrBackup(
+              user.id,
+              user.twoFactorSecret,
+              parsed.data.totpCode || "",
+            );
+          }
+
+          await consumeAuthChallenge(parsed.data.token, pending.purpose);
+          await trackLogin({
+            userId: user.id,
+            success: true,
+            provider:
+              pending.purpose === "PHONE_2FA" || pending.purpose === "SESSION_READY"
+                ? ((pending.meta as { provider?: string } | null)?.provider ??
+                  "phone")
+                : ((pending.meta as { provider?: string } | null)?.provider ??
+                  "oauth"),
+            ip: meta.ip,
+            ua: meta.ua,
+          });
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+            role: user.role,
+            handle: user.handle,
+            onboardingDone: user.onboardingDone,
+            sessionVersion: user.sessionVersion,
+            remember: parsed.data.remember !== "false",
+          };
+        } catch {
+          return null;
+        }
       },
     }),
   ],
@@ -178,8 +306,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       if (!account) return true;
 
-      if (account.provider === "credentials") {
-        return (await isProviderEnabled("credentials")) ? true : "/sign-in?error=ProviderDisabled";
+      if (account.provider === "credentials" || account.provider === "challenge") {
+        return true;
       }
 
       const provider = account.provider as OAuthProviderId;
@@ -195,10 +323,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         include: { accounts: true },
       });
 
-      if (!existing) {
-        // New OAuth user — adapter creates user; mark verified after create via event
-        return true;
-      }
+      if (!existing) return true;
 
       if (existing.status === "BANNED" || existing.status === "DELETED") {
         return "/sign-in?error=AccountUnavailable";
@@ -209,7 +334,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           a.provider === account.provider &&
           a.providerAccountId === account.providerAccountId,
       );
-      if (already) return true;
+
+      if (already) {
+        if (existing.twoFactorEnabled) {
+          const token = await createAuthChallenge(existing.id, "OAUTH_2FA", {
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+          });
+          return `/sign-in/2fa?token=${token}`;
+        }
+        return true;
+      }
 
       const sameProviderOtherId = existing.accounts.some(
         (a) => a.provider === account.provider,
@@ -218,7 +353,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return "/sign-in?error=AccountConflict";
       }
 
-      // Same email, new provider — offer secure linking when password account exists
       if (existing.passwordHash) {
         const token = await createPendingOAuthLink({
           email,
@@ -237,10 +371,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return `/link-account?token=${token}`;
       }
 
-      // OAuth-only existing user — safe auto-link (same email, no password risk)
+      // OAuth-only account: auto-link new provider, then require 2FA if enabled
+      if (existing.twoFactorEnabled) {
+        const token = await createAuthChallenge(existing.id, "OAUTH_2FA", {
+          provider: account.provider,
+          providerAccountId: account.providerAccountId,
+        });
+        return `/sign-in/2fa?token=${token}`;
+      }
+
       return true;
     },
-    jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.role = (user as { role?: string }).role;
         token.handle = (user as { handle?: string | null }).handle ?? null;
@@ -248,14 +390,49 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           (user as { onboardingDone?: boolean }).onboardingDone ?? false;
         token.image = user.image;
         token.sub = user.id;
+        token.sessionVersion =
+          (user as { sessionVersion?: number }).sessionVersion ?? 0;
         const remember = (user as { remember?: boolean }).remember;
         if (remember === false) {
           token.exp = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
         }
       }
+
+      if (token.sub) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: {
+            sessionVersion: true,
+            status: true,
+            role: true,
+            handle: true,
+            onboardingDone: true,
+            image: true,
+          },
+        });
+        if (
+          !dbUser ||
+          dbUser.status === "BANNED" ||
+          dbUser.status === "DELETED" ||
+          (typeof token.sessionVersion === "number" &&
+            dbUser.sessionVersion !== token.sessionVersion)
+        ) {
+          return null;
+        }
+        token.role = dbUser.role;
+        token.handle = dbUser.handle;
+        token.onboardingDone = dbUser.onboardingDone;
+        token.image = dbUser.image;
+        if (trigger === "update") {
+          token.sessionVersion = dbUser.sessionVersion;
+        }
+      }
       return token;
     },
     session({ session, token }) {
+      if (!token?.sub) {
+        return { ...session, user: undefined as never };
+      }
       if (session.user) {
         session.user.id = token.sub || "";
         session.user.role = (token.role as string) || "USER";
@@ -270,26 +447,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   events: {
     async signIn({ user, account }) {
       if (!user.id) return;
+      const meta = await requestMeta();
       if (user.email) {
         await prisma.user.updateMany({
           where: { id: user.id, emailVerified: null },
           data: { emailVerified: new Date(), status: "ACTIVE" },
         });
       }
-      const sessionKey = `${account?.provider ?? "credentials"}:${account?.providerAccountId ?? user.id}`;
+      const sessionKey = `${account?.provider ?? "credentials"}:${account?.providerAccountId ?? user.id}:${meta.ip ?? "local"}`;
       await Promise.all([
         upsertDeviceSession({
           userId: user.id,
           sessionKey,
           label: account?.provider ?? "credentials",
+          ip: meta.ip,
+          ua: meta.ua,
         }),
-        account?.provider === "credentials"
+        account?.provider === "credentials" || account?.provider === "challenge"
           ? Promise.resolve()
           : trackLogin({
               userId: user.id,
               success: true,
               provider: account?.provider,
+              ip: meta.ip,
+              ua: meta.ua,
             }),
+        alertNewLogin({
+          userId: user.id,
+          ip: meta.ip,
+          ua: meta.ua,
+          provider: account?.provider,
+        }),
       ]);
     },
   },

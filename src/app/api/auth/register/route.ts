@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
@@ -9,6 +8,7 @@ import { createEmailToken } from "@/modules/auth/email-tokens";
 import { sendMail, welcomeEmail } from "@/lib/mail";
 import { absoluteUrl } from "@/lib/url";
 import { getSetting } from "@/modules/admin/services/settings";
+import { hashPassword } from "@/modules/auth/password";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
         name: data.name,
         handle: data.handle,
         email,
-        passwordHash: await bcrypt.hash(data.password, 12),
+        passwordHash: await hashPassword(data.password),
         status: "PENDING",
       },
       select: { id: true, email: true, handle: true, name: true },
