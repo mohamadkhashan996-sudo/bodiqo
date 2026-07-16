@@ -3,15 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "cdn.shopify.com",
-      },
-    ],
-    localPatterns: [
-      {
-        pathname: "/uploads/**",
-      },
+      { protocol: "https", hostname: "res.cloudinary.com" },
+      { protocol: "https", hostname: "utfs.io" },
+      { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
 };

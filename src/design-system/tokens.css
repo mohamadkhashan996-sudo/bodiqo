@@ -1,0 +1,23 @@
+:root {
+  --ink: #0b0c0f;
+  --cloud: #f4f2ee;
+  --mist: #e7e2d8;
+  --signal: #1f9b8e;
+  --signal-deep: #14786e;
+  --ember: #d98a4e;
+  --night: #12141a;
+  --night-elevated: #1a1d26;
+  --muted: #6f6a62;
+  --shadow: rgba(11, 12, 15, 0.12);
+  --radius: 1.25rem;
+  --font-display: var(--font-syne);
+  --font-body: var(--font-dm-sans);
+}
+
+html[data-theme="dark"] {
+  --ink: #f4f2ee;
+  --cloud: #12141a;
+  --mist: #2a2e38;
+  --muted: #a39e94;
+  --shadow: rgba(0, 0, 0, 0.45);
+}

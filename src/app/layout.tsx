@@ -1,45 +1,43 @@
-import type { Metadata } from "next";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { DM_Sans, Syne } from "next/font/google";
 import { Providers } from "@/components/providers";
-import { StoreChrome } from "@/components/store-chrome";
-import { ThemeScript } from "@/components/theme-script";
+import { SplashScreen } from "@/components/motion/splash";
 import "./globals.css";
 
-const display = Cormorant_Garamond({
-  variable: "--font-display",
+const syne = Syne({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  variable: "--font-syne",
+  display: "swap",
 });
 
-const sans = Manrope({
-  variable: "--font-sans",
+const dmSans = DM_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "BODIQO | Premium Marketplace",
-    template: "%s | BODIQO",
+    default: "Cirqua",
+    template: "%s · Cirqua",
   },
-  description:
-    "BODIQO is a premium international marketplace. Shop electronics, home, fashion, beauty, sports, and more.",
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-  ),
+  description: "Presence, beautifully shared. A premium social platform.",
+  applicationName: "Cirqua",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: {
-    title: "BODIQO | Premium Marketplace",
-    description:
-      "Shop electronics, home, fashion, beauty, sports, and everyday essentials.",
+    title: "Cirqua",
+    description: "Presence, beautifully shared.",
     type: "website",
-    siteName: "BODIQO",
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "BODIQO | Premium Marketplace",
-    description:
-      "Shop electronics, home, fashion, beauty, sports, and everyday essentials.",
-  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#F4F2EE",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -48,13 +46,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <ThemeScript />
-      </head>
-      <body className={`${display.variable} ${sans.variable} antialiased`}>
+    <html lang="en" data-theme="light" className={`${syne.variable} ${dmSans.variable}`}>
+      <body>
         <Providers>
-          <StoreChrome>{children}</StoreChrome>
+          <SplashScreen />
+          {children}
         </Providers>
       </body>
     </html>

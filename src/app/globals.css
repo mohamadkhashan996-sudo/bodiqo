@@ -1,43 +1,17 @@
 @import "tailwindcss";
-
-:root,
-html[data-theme="dark"] {
-  color-scheme: dark;
-  --background: #070707;
-  --foreground: #f3efe6;
-  --muted: #9a958a;
-  --accent: #4a8cff;
-  --accent-hover: #6aa0ff;
-  --surface: #121212;
-  --surface-2: #1a1a1a;
-  --border: rgba(243, 239, 230, 0.1);
-  --header-bg: rgba(7, 7, 7, 0.85);
-  --shadow: rgba(0, 0, 0, 0.35);
-  --on-accent: #0b0b0b;
-}
-
-html[data-theme="light"] {
-  color-scheme: light;
-  --background: #f6f4ef;
-  --foreground: #141414;
-  --muted: #6b6560;
-  --accent: #2f6fe0;
-  --accent-hover: #4a8cff;
-  --surface: #ffffff;
-  --surface-2: #efece6;
-  --border: rgba(20, 20, 20, 0.1);
-  --header-bg: rgba(246, 244, 239, 0.9);
-  --shadow: rgba(20, 20, 20, 0.08);
-  --on-accent: #ffffff;
-}
+@import "../design-system/tokens.css";
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-ink: var(--ink);
+  --color-cloud: var(--cloud);
+  --color-mist: var(--mist);
+  --color-signal: var(--signal);
+  --color-signal-deep: var(--signal-deep);
+  --color-ember: var(--ember);
+  --color-night: var(--night);
+  --color-night-elevated: var(--night-elevated);
   --color-muted: var(--muted);
-  --color-accent: var(--accent);
-  --color-surface: var(--surface);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-body);
   --font-display: var(--font-display);
 }
 
@@ -49,87 +23,28 @@ html {
   scroll-behavior: smooth;
 }
 
-html,
 body {
-  transition:
-    background-color 0.35s ease,
-    color 0.35s ease;
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  margin: 0;
   min-height: 100vh;
+  background: var(--cloud);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 50%, transparent);
-  color: var(--on-accent);
+  background: color-mix(in srgb, var(--signal) 45%, transparent);
+  color: var(--ink);
 }
 
 a {
+  color: inherit;
   text-decoration: none;
 }
 
+button,
 input,
-textarea,
-select,
-button {
+textarea {
   font: inherit;
-}
-
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-up {
-  animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/* Soften hard-coded dark surfaces in light mode for existing pages */
-html[data-theme="light"] .bg-\[\#070707\],
-html[data-theme="light"] .bg-\[\#0a0a0a\],
-html[data-theme="light"] .bg-\[\#080808\],
-html[data-theme="light"] .bg-\[\#0e0e0e\] {
-  background-color: var(--background) !important;
-}
-
-html[data-theme="light"] .bg-\[\#121212\],
-html[data-theme="light"] .bg-\[\#1a1a1a\] {
-  background-color: var(--surface) !important;
-}
-
-html[data-theme="light"] .text-\[\#f3efe6\],
-html[data-theme="light"] .text-\[\#f7f3ea\] {
-  color: var(--foreground) !important;
-}
-
-html[data-theme="light"] .text-\[\#f3efe6\]\/55,
-html[data-theme="light"] .text-\[\#f3efe6\]\/60,
-html[data-theme="light"] .text-\[\#f3efe6\]\/65,
-html[data-theme="light"] .text-\[\#f3efe6\]\/70,
-html[data-theme="light"] .text-\[\#f3efe6\]\/80 {
-  color: color-mix(in srgb, var(--foreground) 70%, transparent) !important;
-}
-
-html[data-theme="light"] .border-white\/10,
-html[data-theme="light"] .border-white\/\[0\.07\],
-html[data-theme="light"] .border-white\/\[0\.08\],
-html[data-theme="light"] .border-white\/\[0\.06\] {
-  border-color: var(--border) !important;
 }
