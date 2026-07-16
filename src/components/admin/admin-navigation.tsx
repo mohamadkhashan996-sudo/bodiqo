@@ -73,7 +73,7 @@ export function AdminNavigation() {
         href="/home"
         className="mt-auto hidden pt-8 text-xs text-white/45 hover:text-white lg:block"
       >
-        ← Back to Cirqua
+        ← Back to Relune
       </Link>
     </aside>
   );

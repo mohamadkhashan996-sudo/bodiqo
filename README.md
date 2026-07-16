@@ -1,54 +1,31 @@
-# Cirqua
+# Relune
 
-**Presence, beautifully shared.**
+Presence, beautifully shared.
 
-Cirqua is a premium social platform — modular, production-shaped, and independent from the BODIQO storefront.
+Relune is a premium social platform — modular, production-shaped, and independent from the BODIQO storefront.
 
-> Store backup (immutable): Git branch `bodiqo-store-backup`
+## Stack
+Next.js 15 · React 19 · Prisma · NextAuth · Socket.io · Tailwind 4 · Framer Motion
 
-## Phase status
-
-### Phase 1 — Foundation
-Brand, design system, modular architecture, runnable shell.
-
-### Phase 2 — Auth · Users · Feed · Social
-Authentication, onboarding, profiles, feed, explore, search, notifications, stories, shorts.
-
-### Phase 3 — Realtime · Messaging · Calls · Communities · Privacy
-Custom Socket.io server, DMs/groups, WebRTC voice/video signaling, communities, and privacy controls.
-
-Docs: `docs/PHASE-1.md`, `docs/PHASE-2.md`, `docs/PHASE-3.md`, `docs/brand/BRAND.md`, `docs/ARCHITECTURE.md`.
-
-## Local development
-
+## Develop
 ```bash
-git checkout social-platform
 npm install
-cp .env.example .env
 npx prisma db push
 npm run db:seed:phase2
 npm run db:seed:phase3
+npm run db:seed:phase4
 npm run dev
 ```
-
-`npm run dev` runs the custom Next.js + Socket.io server (`server.ts`).
-
-- Site: http://localhost:3000  
-- Health: http://localhost:3000/api/health  
-- Realtime: Socket.io on the same origin  
 
 Demo logins (password `cirqua1234`):
 - `maya@cirqua.local`
 - `leo@cirqua.local`
 - `sana@cirqua.local`
+- `admin@cirqua.local` (SUPER_ADMIN)
 
-### OAuth
-Providers activate when credentials are set in `.env` (see `.env.example`).
+## Brand
+See `docs/brand/BRAND.md`. Cirqua was retired due to Garmin CIRQA trademark proximity; Relune is the Phase 5 brand.
 
-### Postgres + Redis (optional)
-
-```bash
-docker compose up -d
-```
-
-Then switch `DATABASE_URL` / Prisma provider to PostgreSQL for production shape.
+## Phases
+- Phase 1–4: foundation through admin/ops (`docs/PHASE-*.md`)
+- Phase 5: world-class UX, i18n, AI, Relune brand (`docs/PHASE-5.md`)

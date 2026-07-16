@@ -258,7 +258,7 @@ export async function softDeleteUser(actorId: string, actorRole: Role, userId: s
     where: { id: userId },
     data: {
       status: "DELETED",
-      email: `deleted+${userId}@cirqua.invalid`,
+      email: `deleted+${userId}@relune.invalid`,
       handle: null,
     },
     select: userSelect,

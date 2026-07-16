@@ -10,9 +10,9 @@ async function main() {
     where: { email: "admin@cirqua.local" },
     create: {
       email: "admin@cirqua.local",
-      handle: "cirquaops",
-      name: "Cirqua Ops",
-      displayName: "Cirqua Ops",
+      handle: "reluneops",
+      name: "Relune Ops",
+      displayName: "Relune Ops",
       passwordHash,
       emailVerified: new Date(),
       status: "ACTIVE",
@@ -27,6 +27,9 @@ async function main() {
       status: "ACTIVE",
       onboardingDone: true,
       isVerified: true,
+      handle: "reluneops",
+      name: "Relune Ops",
+      displayName: "Relune Ops",
     },
   });
 
@@ -37,8 +40,8 @@ async function main() {
 
   await prisma.systemSetting.upsert({
     where: { key: "websiteName" },
-    create: { key: "websiteName", value: "Cirqua", updatedBy: admin.id },
-    update: { value: "Cirqua", updatedBy: admin.id },
+    create: { key: "websiteName", value: "Relune", updatedBy: admin.id },
+    update: { value: "Relune", updatedBy: admin.id },
   });
 
   await prisma.customRole.upsert({

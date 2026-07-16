@@ -84,7 +84,7 @@ export function AdminPageHeader({
   return (
     <header className="mb-8">
       <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--muted)]">
-        Cirqua Admin
+        Relune Admin
       </p>
       <h1 className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight md:text-4xl">
         {title}

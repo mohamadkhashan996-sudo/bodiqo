@@ -18,7 +18,7 @@ export default function LandingPage() {
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
               className="font-[family-name:var(--font-display)] text-6xl tracking-[0.28em] uppercase sm:text-7xl md:text-8xl"
             >
-              Cirqua
+              Relune
             </motion.p>
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
@@ -90,7 +90,7 @@ export default function LandingPage() {
 
       <section className="mx-auto max-w-6xl px-5 py-20 md:px-8 md:py-28">
         <p className="text-[11px] tracking-[0.28em] text-[var(--signal)] uppercase">
-          Why Cirqua
+          Why Relune
         </p>
         <h2 className="mt-4 max-w-2xl font-[family-name:var(--font-display)] text-4xl md:text-5xl">
           Built as a global product from the first commit

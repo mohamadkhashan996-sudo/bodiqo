@@ -1,4 +1,5 @@
 :root {
+  /* Brand color */
   --ink: #0b0c0f;
   --cloud: #f4f2ee;
   --mist: #e7e2d8;
@@ -8,10 +9,62 @@
   --night: #12141a;
   --night-elevated: #1a1d26;
   --muted: #6f6a62;
+  --success: #2f8f6b;
+  --warning: #c58a2d;
+  --danger: #c44b4b;
   --shadow: rgba(11, 12, 15, 0.12);
-  --radius: 1.25rem;
+  --shadow-lg: 0 24px 60px rgba(11, 12, 15, 0.14);
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.35);
+  --focus-ring: color-mix(in srgb, var(--signal) 55%, transparent);
+
+  /* Spacing scale (4px base) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Radius */
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --radius-full: 9999px;
+  --radius: var(--radius-lg);
+
+  /* Type */
   --font-display: var(--font-syne);
   --font-body: var(--font-dm-sans);
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.35rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-hero: clamp(2.5rem, 5vw, 4.5rem);
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-normal: 1.6;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 150ms;
+  --duration: 280ms;
+  --duration-slow: 480ms;
+
+  /* Elevation */
+  --z-nav: 30;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-splash: 80;
 }
 
 html[data-theme="dark"] {
@@ -19,5 +72,27 @@ html[data-theme="dark"] {
   --cloud: #12141a;
   --mist: #2a2e38;
   --muted: #a39e94;
+  --night: #0b0c0f;
+  --night-elevated: #1a1d26;
   --shadow: rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.5);
+  --glass: rgba(26, 29, 38, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.08);
+}
+
+html[data-contrast="high"] {
+  --mist: color-mix(in srgb, var(--ink) 28%, var(--cloud));
+  --muted: color-mix(in srgb, var(--ink) 72%, var(--cloud));
+}
+
+html[data-text="large"] {
+  font-size: 112.5%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration: 0ms;
+    --duration-slow: 0ms;
+  }
 }

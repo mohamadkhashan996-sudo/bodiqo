@@ -1,7 +1,8 @@
 import { MediaKind, PostType, PostVisibility } from "@prisma/client";
 import { z } from "zod";
 import { body, fail, ok, requireUser } from "@/lib/api";
-import { createPost, getFeed } from "@/modules/feed/services/posts";
+import { createPost, getFeed, getPostsByHandle } from "@/modules/feed/services/posts";
+
 const schema = z.object({
   body: z.string().max(10000).optional(),
   type: z.nativeEnum(PostType).optional(),
@@ -20,10 +21,15 @@ const schema = z.object({
     .max(10)
     .optional(),
 });
+
 export async function GET(r: Request) {
   try {
     const u = await requireUser();
     const q = new URL(r.url).searchParams;
+    const author = q.get("author");
+    if (author) {
+      return ok(await getPostsByHandle(author, Number(q.get("limit") ?? 30)));
+    }
     return ok(
       await getFeed({
         userId: u.id,
@@ -35,6 +41,7 @@ export async function GET(r: Request) {
     return fail(e);
   }
 }
+
 export async function POST(r: Request) {
   try {
     const u = await requireUser();

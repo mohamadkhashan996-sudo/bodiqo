@@ -12,7 +12,7 @@ export function CirquaMark({
   return (
     <Image
       src="/brand/mark.png"
-      alt="Cirqua"
+      alt="Relune"
       width={size}
       height={size}
       className={cn("object-contain", className)}
@@ -21,25 +21,21 @@ export function CirquaMark({
   );
 }
 
-export function CirquaWordmark({ className }: { className?: string }) {
-  return (
-    <Image
-      src="/brand/wordmark.png"
-      alt="Cirqua"
-      width={220}
-      height={56}
-      className={cn("h-8 w-auto object-contain object-left md:h-10", className)}
-      priority
-    />
-  );
-}
+/** @deprecated use ReluneMark */
+export const ReluneMark = CirquaMark;
 
-export function BrandLockup({ href = "/" }: { href?: string }) {
+export function BrandLockup({
+  href = "/",
+  className,
+}: {
+  href?: string;
+  className?: string;
+}) {
   return (
-    <Link href={href} className="inline-flex items-center gap-3">
+    <Link href={href} className={cn("inline-flex items-center gap-3", className)}>
       <CirquaMark size={34} />
-      <span className="font-[family-name:var(--font-display)] text-xl tracking-[0.28em] uppercase">
-        Cirqua
+      <span className="font-[family-name:var(--font-display)] text-xl uppercase tracking-[0.28em]">
+        Relune
       </span>
     </Link>
   );

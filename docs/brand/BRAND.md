@@ -1,79 +1,80 @@
-# Cirqua — Brand Guidelines
+# Relune — Brand Guidelines (Phase 5)
 
 ## Brand selection
 
+### Why Cirqua was retired
+Automated research in July 2026 found **Garmin CIRQA** trademark filings across the US, Canada, EU, and UK for wearable sensors — phonetically and visually too close to Cirqua for a global consumer brand. Cirqua Inc. (Japan ad-tech) is an additional collision.
+
 ### Candidates compared
 
-| Name | Pronunciation | Feel | Notes |
+| Name | Pronunciation | Feel | Decision |
 | --- | --- | --- | --- |
-| Cirqua | SIR-kwah | Community, orbit, premium | Short; circle/circuit metaphor without cloning social giants |
-| Aurevia | aw-REH-vee-uh | Luxury gold | Elegant but longer / harder globally |
-| Veyra | VAY-rah | Modern, sharp | Clean; higher collision risk with beauty/tech startups |
-| Serein | suh-RAIN | Calm luxury | Beautiful meaning; spelling friction in some markets |
-| Novarra | no-VAR-ah | New beginnings | Slightly longer; echoes other “Nova-” brands |
-| Helora | heh-LOR-ah | Warm light | Soft; less distinctive phonetically |
+| **Relune** | reh-LOON | Lunar return, presence renewed | **Selected** |
+| Cirqua | SIR-kwah | Orbital, premium | Retired — Garmin CIRQA conflict |
+| Ovela | oh-VEL-ah | Soft luxury | Rejected — existing App Store social apps |
+| Velune | veh-LOON | Velvet moon | Rejected — Velune Ventures USPTO filing |
+| Nyra | NIR-ah | Sharp modern | Rejected — finance wallet + NYRA racing |
+| Aurea / Aureo | AW-ree-uh | Gold luxury | Rejected — AI social App Store app |
+| Sovara | so-VAR-ah | Sovereign calm | Rejected — near Sovra fintech |
 
-### Selected brand: **Cirqua**
+### Selected brand: **Relune**
 
-**Why Cirqua won**
-- Short (6 letters), easy to say, memorable.
-- Evokes connection and orbit without copying Meta/Instagram/TikTok naming patterns.
-- Luxury-modern phonetics suitable for a global social platform.
-- Flexible for product lines (Cirqua Circles, Cirqua Live, Cirqua Studio).
+**Why Relune won**
+- Short (6 letters), easy to pronounce globally
+- Evokes *re-* (return) + *lune* (moon / light) — presence that comes back
+- Luxury-modern without cloning Meta / TikTok / Discord naming
+- No dominant global social network found under this exact mark in automated checks
 
-### Uniqueness & trademark
-
-Automated searches of major platform names did **not** show Cirqua as a dominant global social network brand. That is **not** a guarantee of worldwide trademark availability.
-
-**Before commercial launch, manually verify:**
-1. USPTO / EUIPO / WIPO trademark databases for identical/confusingly similar marks in Classes 9, 35, 38, 41, 42.
-2. Domain availability beyond `.com` (`.app`, `.social`, regional TLDs).
-3. App Store / Play Store name conflicts.
-4. Social handle availability (@cirqua) across major networks.
-5. Legal counsel review for target launch markets.
+### Manual checks still required before commercial launch
+1. USPTO / EUIPO / WIPO / UKIPO for Classes 9, 35, 38, 41, 42
+2. Domains: `relune.com`, `.app`, `.social`, and priority regional TLDs
+3. App Store / Play Store exact-name conflicts
+4. Handle availability (@relune) on major networks
+5. Counsel review in launch markets
 
 ---
 
 ## Brand essence
 
-**Promise:** Connection with presence — intimate, cinematic, calm confidence.  
+**Promise:** Presence, renewed — intimate, cinematic, calm confidence.  
+**Tagline:** Presence, beautifully shared.  
 **Personality:** Luxurious · Modern · Global · Quietly bold · Human.  
-**Voice:** Clear, warm, never hyped. Prefer short sentences. Avoid slang clutter.
+**Voice:** Clear, warm, never hyped. Short sentences. No slang clutter.
 
 ---
 
 ## Visual system
 
 ### Logo
-- **Mark:** Open arc / orbital glyph (`/brand/mark.png`)
-- **Wordmark:** `CIRQUA` (`/brand/wordmark.png`)
-- Clear space: ≥ height of the mark’s outer arc
-- Do not stretch, outline, add glow, or place on busy photography without a soft scrim
+- **Mark:** Open lunar orbit glyph (`/brand/mark.png`)
+- **Wordmark:** `RELUNE` tracking (`/brand/wordmark.svg`)
+- **App icon / favicon:** Mark on warm paper (`/brand/app-icon.png`, `/favicon.png`)
+- Clear space ≥ height of the outer arc
+- Never stretch, outline, add glow, or drop on busy photos without a soft scrim
 
 ### Color palette
 
 | Token | Hex | Role |
 | --- | --- | --- |
-| `--ink` | `#0B0C0F` | Primary text, mark |
-| `--cloud` | `#F4F2EE` | Light surfaces |
-| `--mist` | `#E7E2D8` | Borders / subtle fills |
-| `--signal` | `#1F9B8E` | Primary action (teal — not purple) |
-| `--signal-deep` | `#14786E` | Hover / pressed |
-| `--ember` | `#D98A4E` | Secondary accent / highlights |
+| `--ink` | `#0B0C0F` | Primary text |
+| `--cloud` | `#F4F2EE` | Light canvas |
+| `--mist` | `#E7E2D8` | Borders |
+| `--signal` | `#1F9B8E` | Primary action |
+| `--signal-deep` | `#14786E` | Pressed |
+| `--ember` | `#D98A4E` | Secondary accent |
 | `--night` | `#12141A` | Dark canvas |
-| `--night-elevated` | `#1A1D26` | Dark cards / panels |
+| `--glass` | translucent white/ink | Frosted panels |
 
 ### Typography
-- **Display:** Syne (expressive, premium)
-- **Body:** DM Sans (readable, modern)
+- **Display:** Syne
+- **Body:** DM Sans
 - Avoid Inter / Roboto / Arial as brand defaults
 
 ### Motion
-- Soft easings (`cubic-bezier(0.22, 1, 0.36, 1)`)
-- Prefer opacity + translate over bounce
-- Splash: mark breathes once, then wordmark fades in
+- Easing: `cubic-bezier(0.22, 1, 0.36, 1)`
+- Prefer opacity + translate; respect `prefers-reduced-motion`
+- Splash: mark breathes, wordmark fades in
 
 ### Imagery
-- Real people & places with cinematic grade
-- Prefer natural light and architectural scale
-- Avoid stock “startup handshake” clichés
+- Real people & places, cinematic grade, natural light
+- Avoid stock handshake clichés

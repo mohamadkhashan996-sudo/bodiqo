@@ -42,7 +42,7 @@ export async function createBackup(
   try {
     await ensureDir(BACKUP_ROOT);
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `cirqua-${scope.toLowerCase()}-${stamp}.json`;
+    const filename = `relune-${scope.toLowerCase()}-${stamp}.json`;
     const filePath = path.join(BACKUP_ROOT, filename);
 
     let payload: unknown;

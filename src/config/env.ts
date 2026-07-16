@@ -19,8 +19,4 @@ export function getEnv() {
   return parsed.data;
 }
 
-export const site = {
-  name: "Cirqua",
-  tagline: "Presence, beautifully shared.",
-  url: process.env.AUTH_URL || "http://localhost:3000",
-} as const;
+export { site } from "./site";

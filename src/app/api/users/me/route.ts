@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { ThemePreference } from "@prisma/client";
 import { body, fail, ok, requireUser } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+
 const schema = z.object({
   name: z.string().max(80).optional(),
   displayName: z.string().max(80).optional(),
@@ -12,7 +14,9 @@ const schema = z.object({
   coverImage: z.string().url().optional(),
   isPrivate: z.boolean().optional(),
   locale: z.string().max(12).optional(),
+  theme: z.nativeEnum(ThemePreference).optional(),
 });
+
 export async function GET() {
   try {
     const u = await requireUser();
@@ -26,6 +30,7 @@ export async function GET() {
     return fail(e);
   }
 }
+
 export async function PATCH(r: Request) {
   try {
     const u = await requireUser();

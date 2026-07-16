@@ -1,18 +1,15 @@
-import type { Server as HttpServer } from "node:http";
 import type { Server as SocketServer } from "socket.io";
 
 declare global {
-  var __cirquaIo: SocketServer | undefined;
+  // eslint-disable-next-line no-var
+  var __reluneIo: SocketServer | undefined;
 }
 
 export function setIo(io: SocketServer) {
-  globalThis.__cirquaIo = io;
+  globalThis.__reluneIo = io;
   return io;
 }
 
 export function getIo() {
-  return globalThis.__cirquaIo;
+  return globalThis.__reluneIo;
 }
-
-export type SocketServerInstance = SocketServer;
-export type SocketHttpServer = HttpServer;

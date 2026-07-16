@@ -69,14 +69,14 @@ export function CallOverlay() {
     socket?.on("call:signal", signal);
     socket?.on("call:end", end);
     socket?.on("call:decline", end);
-    window.addEventListener("cirqua:call-start", start);
-    return () => { socket?.off("call:incoming", invite); socket?.off("call:signal", signal); socket?.off("call:end", end); socket?.off("call:decline", end); window.removeEventListener("cirqua:call-start", start); };
+    window.addEventListener("relune:call-start", start);
+    return () => { socket?.off("call:incoming", invite); socket?.off("call:signal", signal); socket?.off("call:end", end); socket?.off("call:decline", end); window.removeEventListener("relune:call-start", start); };
   }, [end, preparePeer, socket]);
   useEffect(() => { callRef.current = call; }, [call]);
   useEffect(() => () => stopMedia(), [stopMedia]);
   if (incoming) return <div className="fixed inset-x-4 bottom-5 z-50 mx-auto max-w-sm rounded-[2rem] border border-white/60 bg-[var(--ink)] p-5 text-[var(--cloud)] shadow-2xl backdrop-blur-xl">
     <p className="text-xs uppercase tracking-[.2em] text-[var(--ember)]">Incoming {incoming.type.toLowerCase()} call</p>
-    <p className="mt-2 font-[family-name:var(--font-display)] text-2xl">{incoming.caller.name ?? incoming.caller.handle ?? "Cirqua member"}</p>
+    <p className="mt-2 font-[family-name:var(--font-display)] text-2xl">{incoming.caller.name ?? incoming.caller.handle ?? "Relune member"}</p>
     <div className="mt-5 flex gap-3"><button onClick={accept} className="rounded-full bg-[var(--signal)] px-5 py-3 text-sm font-bold">Accept</button><button onClick={() => { socket?.emit("call:decline", { callId: incoming.id }); setIncoming(null); }} className="rounded-full bg-white/10 px-5 py-3 text-sm">Decline</button></div>
   </div>;
   if (!call) return null;

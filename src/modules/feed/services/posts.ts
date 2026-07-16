@@ -42,6 +42,23 @@ export async function getFeed({ userId, cursor, limit = 20 }: { userId: string; 
   return { posts: posts.slice(0, take).map((p) => serializePost(p, userId)), nextCursor: posts.length > take ? posts[take].id : null };
 }
 export async function getExplore(cursor?: string, limit = 20) { return getFeed({ userId: "", cursor, limit }); }
+
+export async function getPostsByHandle(handle: string, limit = 30) {
+  const author = await prisma.user.findUnique({ where: { handle } });
+  if (!author) throw new AppError("User not found", 404);
+  const posts = await prisma.post.findMany({
+    where: {
+      authorId: author.id,
+      status: "PUBLISHED",
+      deletedAt: null,
+    },
+    include,
+    orderBy: { publishedAt: "desc" },
+    take: Math.min(limit, 50),
+  });
+  return { posts: posts.map((p) => serializePost(p)), authorId: author.id };
+}
+
 export function serializePost<T extends { hashtags?: { hashtag: unknown }[] }>(
   post: T,
   viewerId?: string,

@@ -6,16 +6,16 @@ import { site } from "@/config/env";
 export const DEFAULT_SETTINGS: Record<string, unknown> = {
   websiteName: site.name,
   tagline: site.tagline,
-  logoUrl: "/brand/cirqua-mark.svg",
+  logoUrl: "/brand/mark.png",
   theme: "cloud",
   languages: ["en", "ar"],
   email: {
-    from: "noreply@cirqua.app",
+    from: "noreply@relune.app",
     enabled: false,
   },
   pushNotifications: { enabled: true },
   maintenanceMode: false,
-  maintenanceMessage: "Cirqua is briefly offline for care. Back soon.",
+  maintenanceMessage: "Relune is briefly offline for care. Back soon.",
   security: {
     requireEmailVerification: true,
     maxLoginAttempts: 8,

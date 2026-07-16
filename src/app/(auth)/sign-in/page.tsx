@@ -55,7 +55,7 @@ export default function SignInPage() {
         Welcome back
       </h1>
       <p className="mt-3 text-sm text-[var(--muted)]">
-        Sign in to continue your Cirqua space.
+        Sign in to continue your Relune space.
       </p>
       <form onSubmit={onSubmit} className="mt-10 space-y-5">
         <Field label="Email" name="email" type="email" required />
