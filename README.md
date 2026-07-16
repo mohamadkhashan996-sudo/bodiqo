@@ -2,26 +2,19 @@
 
 **Presence, beautifully shared.**
 
-Cirqua is a premium social platform foundation — modular, production-shaped, and independent from any e-commerce storefront.
+Cirqua is a premium social platform — modular, production-shaped, and independent from the BODIQO storefront.
 
-> The previous BODIQO store lives untouched on Git branch `bodiqo-store-backup`.
+> Store backup (immutable): Git branch `bodiqo-store-backup`
 
-## Phase 1 status
+## Phase status
 
-Foundation complete:
-- Brand system + assets
-- Design tokens / splash / loading
-- Auth scaffolding (NextAuth credentials + register)
-- Modular architecture
-- Prisma data foundation
-- Marketing landing + app shell
+### Phase 1 — Foundation
+Brand, design system, modular architecture, runnable shell.
 
-See `docs/PHASE-1.md`, `docs/brand/BRAND.md`, and `docs/ARCHITECTURE.md`.
+### Phase 2 — Auth · Users · Feed · Social
+Complete authentication (email + OAuth hooks + 2FA), onboarding, profiles, follow/block/mute/report, home feed, posts/comments, explore, search, notifications, stories, and shorts.
 
-## Stack
-
-Next.js 15 · React 19 · TypeScript · Tailwind CSS 4 · Prisma · NextAuth · Framer Motion  
-Prepared for: PostgreSQL · Redis · Socket.io · WebRTC · Cloudinary · UploadThing
+Docs: `docs/PHASE-1.md`, `docs/PHASE-2.md`, `docs/brand/BRAND.md`, `docs/ARCHITECTURE.md`.
 
 ## Local development
 
@@ -30,19 +23,25 @@ git checkout social-platform
 npm install
 cp .env.example .env
 npx prisma db push
+npm run db:seed:phase2
 npm run dev
 ```
 
-- Site: http://localhost:3000
-- Health: http://localhost:3000/api/health
+- Site: http://localhost:3000  
+- Health: http://localhost:3000/api/health  
+
+Demo logins (password `cirqua1234`):
+- `maya@cirqua.local`
+- `leo@cirqua.local`
+- `sana@cirqua.local`
+
+### OAuth
+Providers activate when credentials are set in `.env` (see `.env.example`).
 
 ### Postgres + Redis (optional)
 
 ```bash
 docker compose up -d
-# then switch DATABASE_URL / provider to postgresql and redis URL
 ```
 
-## Brand note
-
-Cirqua was selected after comparing multiple candidates. Trademark and domain clearance still require **manual legal verification** before launch — see `docs/brand/BRAND.md`.
+Then switch `DATABASE_URL` / Prisma provider to PostgreSQL for production shape.

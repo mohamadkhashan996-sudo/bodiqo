@@ -1,0 +1,1 @@
+import { fail, ok } from "@/lib/api"; import { prisma } from "@/lib/prisma"; export async function GET(){try{return ok({interests:await prisma.interest.findMany({orderBy:{name:"asc"}})})}catch(e){return fail(e)}}
