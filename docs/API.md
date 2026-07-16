@@ -13,12 +13,17 @@ Base URL: `AUTH_URL` (local `http://localhost:3000`)
 | Method | Path | Notes |
 | --- | --- | --- |
 | POST | `/api/auth/register` | Creates user + welcome/verify email |
-| * | `/api/auth/[...nextauth]` | Auth.js |
+| * | `/api/auth/[...nextauth]` | Auth.js (Google, Apple, Facebook, X, credentials) |
+| GET | `/api/auth/providers-config` | Public provider availability |
+| GET/DELETE/POST | `/api/auth/accounts` | Connected accounts / unlink / confirm link |
+| GET | `/api/auth/link-account` | Pending OAuth link preview |
 | POST | `/api/auth/forgot-password` | Reset link email |
 | POST | `/api/auth/verify-email` | Consume token |
 | POST | `/api/auth/reset-password` | Consume token |
 | * | `/api/auth/2fa/*` | TOTP setup |
-| GET/DELETE | `/api/auth/sessions` | Device sessions |
+| GET/DELETE | `/api/auth/sessions` | Device sessions (`{ all: true }` revokes all) |
+| GET | `/api/auth/login-history` | Login history |
+| GET/DELETE | `/api/auth/trusted-devices` | Trusted devices |
 
 ## Social / feed
 | Method | Path |
@@ -49,6 +54,7 @@ Base URL: `AUTH_URL` (local `http://localhost:3000`)
 | --- | --- |
 | `/api/admin/overview` | Dashboard metrics |
 | `/api/admin/users` | User moderation |
+| `/api/admin/auth` | Provider flags + auth stats |
 | `/api/admin/content` | Content moderation |
 | `/api/admin/reports` | Report queue |
 | `/api/admin/verification` | Verification review |

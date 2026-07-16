@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import {
   Bell,
@@ -19,6 +19,11 @@ import { Card } from "@/components/ui/card";
 import { PageTransition } from "@/components/motion/primitives";
 import { useExperience } from "@/components/experience-provider";
 import { LOCALE_LABELS, LOCALES, type Locale } from "@/i18n/config";
+import {
+  OAUTH_PROVIDER_ORDER,
+  PROVIDER_SHORT,
+  type OAuthProviderId,
+} from "@/modules/auth/providers";
 
 const links = [
   { href: "/settings/privacy", icon: Lock, key: "privacy" },
@@ -37,15 +42,38 @@ export default function SettingsPage() {
   const [sessions, setSessions] = useState<Array<{ id: string; deviceLabel: string | null }>>([]);
   const [devices, setDevices] = useState<Array<{ id: string; label: string | null }>>([]);
   const [history, setHistory] = useState<Array<{ id: string; provider: string | null; createdAt: string }>>([]);
+  const [accounts, setAccounts] = useState<Array<{ id: string; provider: string; label: string }>>([]);
+  const [hasPassword, setHasPassword] = useState(false);
+  const [providerAvailability, setProviderAvailability] = useState<
+    Record<OAuthProviderId, boolean>
+  >({ google: false, apple: false, facebook: false, twitter: false });
+  const [accountsMsg, setAccountsMsg] = useState<string | null>(null);
   const [secret, setSecret] = useState("");
   const [code, setCode] = useState("");
   const [highContrast, setHighContrast] = useState(false);
   const [largeText, setLargeText] = useState(false);
 
+  async function loadAccounts() {
+    const d = await fetch("/api/auth/accounts").then((r) => r.json());
+    setAccounts(d.accounts ?? []);
+    setHasPassword(Boolean(d.hasPassword));
+  }
+
   useEffect(() => {
     fetch("/api/auth/sessions").then((r) => r.json()).then((d) => setSessions(d.sessions ?? [])).catch(() => {});
     fetch("/api/auth/trusted-devices").then((r) => r.json()).then((d) => setDevices(d.devices ?? [])).catch(() => {});
     fetch("/api/auth/login-history").then((r) => r.json()).then((d) => setHistory(d.history ?? [])).catch(() => {});
+    void loadAccounts().catch(() => {});
+    fetch("/api/auth/providers-config")
+      .then((r) => r.json())
+      .then((d) => {
+        const map = { google: false, apple: false, facebook: false, twitter: false };
+        for (const p of d.oauth ?? []) {
+          map[p.id as OAuthProviderId] = Boolean(p.available);
+        }
+        setProviderAvailability(map);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -204,11 +232,27 @@ export default function SettingsPage() {
             </div>
           ))}
           <h3 className="mt-6 text-sm font-semibold">Login history</h3>
-          {history.slice(0, 5).map((item) => (
+          {history.slice(0, 8).map((item) => (
             <p key={item.id} className="mt-2 text-sm text-[var(--muted)]">
               {item.provider ?? "credentials"} · {new Date(item.createdAt).toLocaleString()}
             </p>
           ))}
+          <Button
+            className="mt-6"
+            variant="outline"
+            type="button"
+            onClick={async () => {
+              await fetch("/api/auth/sessions", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ all: true }),
+              });
+              setSessions([]);
+              await signOut({ callbackUrl: "/sign-in" });
+            }}
+          >
+            Log out from all devices
+          </Button>
         </Card>
 
         <Card id="blocked">
@@ -221,7 +265,68 @@ export default function SettingsPage() {
         </Card>
         <Card id="accounts">
           <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "accounts")}</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">OAuth connections appear here when providers are configured.</p>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Connect Google, Apple, Facebook, or X. Same-email logins are linked — never duplicated.
+            {hasPassword ? " Email & password stays available." : ""}
+          </p>
+          {accountsMsg ? (
+            <p className="mt-3 text-sm text-[var(--signal-deep)]">{accountsMsg}</p>
+          ) : null}
+          <ul className="mt-5 space-y-3">
+            {OAUTH_PROVIDER_ORDER.map((id) => {
+              const connected = accounts.find((a) => a.provider === id);
+              const available = providerAvailability[id];
+              return (
+                <li
+                  key={id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--mist)] px-4 py-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{PROVIDER_SHORT[id]}</p>
+                    <p className="text-xs text-[var(--muted)]">
+                      {connected
+                        ? "Connected"
+                        : available
+                          ? "Not connected"
+                          : "Not configured on this server"}
+                    </p>
+                  </div>
+                  {connected ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={async () => {
+                        setAccountsMsg(null);
+                        const res = await fetch(
+                          `/api/auth/accounts?provider=${encodeURIComponent(id)}`,
+                          { method: "DELETE" },
+                        );
+                        const data = await res.json();
+                        if (!res.ok) {
+                          setAccountsMsg(data.error || "Could not disconnect.");
+                          return;
+                        }
+                        setAccountsMsg(`${PROVIDER_SHORT[id]} disconnected.`);
+                        await loadAccounts();
+                      }}
+                    >
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      disabled={!available}
+                      onClick={() =>
+                        void signIn(id, { callbackUrl: "/settings#accounts" })
+                      }
+                    >
+                      Connect
+                    </Button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </Card>
 
         <Button variant="outline" type="button" onClick={() => void signOut({ callbackUrl: "/" })}>

@@ -16,6 +16,7 @@ import {
   Users,
   FileStack,
   KeyRound,
+  Fingerprint,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLockup } from "@/components/brand/logo";
@@ -23,6 +24,7 @@ import { BrandLockup } from "@/components/brand/logo";
 const nav = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/auth", label: "Auth", icon: Fingerprint },
   { href: "/admin/content", label: "Content", icon: FileStack },
   { href: "/admin/reports", label: "Reports", icon: Flag },
   { href: "/admin/verification", label: "Verification", icon: BadgeCheck },

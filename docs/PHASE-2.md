@@ -10,7 +10,7 @@
 - Session / device session tracking, revoke sessions
 - Login history + trusted devices APIs
 - Secure session cookies via Auth.js
-- OAuth: Google, Apple, GitHub, Microsoft Entra (env-gated)
+- OAuth: Google, Apple, Facebook, X/Twitter, credentials (env-gated; admin toggles in Phase 7)
 
 ### Onboarding
 - Multi-step elegant wizard: photo, cover, username, bio, interests, language, theme
