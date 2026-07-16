@@ -11,6 +11,7 @@ import {
   type OAuthProviderId,
 } from "@/modules/auth/providers";
 import { PageTransition } from "@/components/motion/primitives";
+import { safeCallbackUrl } from "@/lib/guest/paths";
 
 type ProviderRow = {
   id: OAuthProviderId;
@@ -38,6 +39,7 @@ type Mode = "oauth" | "email" | "phone";
 function SignInForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const callbackUrl = safeCallbackUrl(params.get("callbackUrl") ?? params.get("next"));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [oauth, setOauth] = useState<ProviderRow[]>([]);
@@ -98,7 +100,7 @@ function SignInForm() {
       );
       return;
     }
-    await signIn(id, { callbackUrl: "/home" });
+    await signIn(id, { callbackUrl });
   }
 
   async function onEmailSubmit(e: FormEvent<HTMLFormElement>) {
@@ -129,7 +131,7 @@ function SignInForm() {
     } catch {
       /* ignore */
     }
-    router.push("/home");
+    router.push(callbackUrl);
     router.refresh();
   }
 
@@ -171,7 +173,7 @@ function SignInForm() {
       return;
     }
     if (data.requires2fa) {
-      router.push(`/sign-in/2fa?token=${encodeURIComponent(data.token)}`);
+      router.push(`/sign-in/2fa?token=${encodeURIComponent(data.token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
     const result = await signIn("challenge", {
@@ -184,7 +186,7 @@ function SignInForm() {
       setError("Could not complete phone sign-in.");
       return;
     }
-    router.push("/home");
+    router.push(callbackUrl);
     router.refresh();
   }
 

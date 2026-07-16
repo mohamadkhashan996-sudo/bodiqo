@@ -1,12 +1,13 @@
-import { fail, ok, requireUser } from "@/lib/api";
+import { fail, ok, optionalUser } from "@/lib/api";
 import { searchAll, trendingHashtags } from "@/modules/users/services/search";
+
 export async function GET(r: Request) {
   try {
-    const u = await requireUser();
+    const u = await optionalUser();
     const q = new URL(r.url).searchParams.get("q")?.trim() ?? "";
     if (!q) return ok({ error: "q is required" }, 400);
     return ok({
-      ...(await searchAll(q, u.id)),
+      ...(await searchAll(q, u?.id)),
       trending: await trendingHashtags(),
     });
   } catch (e) {

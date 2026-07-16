@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageTransition } from "@/components/motion/primitives";
+import { safeCallbackUrl } from "@/lib/guest/paths";
 
-export default function SignUpPage() {
+function SignUpForm() {
   const router = useRouter();
+  const params = useSearchParams();
+  const callbackUrl = safeCallbackUrl(params.get("callbackUrl") ?? params.get("next"));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +44,7 @@ export default function SignUpPage() {
         setLoading(false);
         return;
       }
-      router.push("/sign-in?registered=1");
+      router.push(`/sign-in?registered=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);
@@ -112,6 +115,14 @@ export default function SignUpPage() {
         .
       </p>
     </PageTransition>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+      <SignUpForm />
+    </Suspense>
   );
 }
 

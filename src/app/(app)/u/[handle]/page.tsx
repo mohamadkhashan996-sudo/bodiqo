@@ -12,24 +12,41 @@ import { PageTransition } from "@/components/motion/primitives";
 import { MediaLightbox } from "@/components/media/lightbox";
 import { PostCard } from "@/components/feed/post-card";
 import { useExperience } from "@/components/experience-provider";
+import { useGuest } from "@/components/auth/guest-provider";
+
+type ProfileVisibility = {
+  isPrivate?: boolean;
+  canViewContent?: boolean;
+  canViewFollowers?: boolean;
+  canViewFollowing?: boolean;
+  followStatus?: "none" | "following" | "requested";
+};
 
 export default function ProfilePage() {
   const { handle } = useParams<{ handle: string }>();
   const { t } = useExperience();
+  const { requireAuth } = useGuest();
   const [user, setUser] = useState<Record<string, unknown> | null>(null);
+  const [visibility, setVisibility] = useState<ProfileVisibility>({});
   const [posts, setPosts] = useState<Array<Record<string, unknown>>>([]);
+  const [locked, setLocked] = useState(false);
   const [tab, setTab] = useState("Posts");
-  const [following, setFollowing] = useState(false);
   const [lightbox, setLightbox] = useState<number | null>(null);
 
   useEffect(() => {
     fetch(`/api/users/${handle}`)
       .then((r) => r.json())
-      .then((d) => setUser(d.user))
+      .then((d) => {
+        setUser(d.user);
+        setVisibility((d.user?.visibility as ProfileVisibility) ?? {});
+      })
       .catch(() => setUser(null));
     fetch(`/api/posts?author=${handle}`)
       .then((r) => r.json())
-      .then((d) => setPosts(d.posts ?? d.items ?? []))
+      .then((d) => {
+        setPosts(d.posts ?? []);
+        setLocked(Boolean(d.locked));
+      })
       .catch(() => setPosts([]));
   }, [handle]);
 
@@ -49,10 +66,37 @@ export default function ProfilePage() {
   const videos = posts.filter((p) => p.type === "VIDEO" || p.type === "SHORT");
 
   async function social(action: string) {
-    const method = following && action === "follow" ? "DELETE" : "POST";
+    if (!requireAuth()) return;
+    const followStatus = visibility.followStatus ?? "none";
+    const method =
+      action === "follow" && followStatus === "following" ? "DELETE" : "POST";
     const res = await fetch(`/api/users/${handle}/${action}`, { method });
-    if (res.ok && action === "follow") setFollowing(!following);
+    if (res.ok && action === "follow") {
+      const next =
+        followStatus === "following"
+          ? "none"
+          : visibility.isPrivate
+            ? "requested"
+            : "following";
+      setVisibility((v) => ({ ...v, followStatus: next }));
+      if (next === "following") {
+        fetch(`/api/posts?author=${handle}`)
+          .then((r) => r.json())
+          .then((d) => {
+            setPosts(d.posts ?? []);
+            setLocked(Boolean(d.locked));
+          })
+          .catch(() => {});
+      }
+    }
   }
+
+  const followLabel =
+    visibility.followStatus === "following"
+      ? t("common", "following")
+      : visibility.followStatus === "requested"
+        ? "Requested"
+        : t("common", "follow");
 
   if (!user) {
     return (
@@ -90,22 +134,37 @@ export default function ProfilePage() {
             />
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => void social("follow")}>
-                {following ? t("common", "following") : t("common", "follow")}
+                {followLabel}
               </Button>
               <details className="relative">
                 <summary className="list-none rounded-full border border-[var(--mist)] bg-[var(--glass)] p-2.5">
                   <MoreHorizontal className="size-4" />
                 </summary>
                 <div className="absolute end-0 z-10 mt-2 w-40 rounded-2xl border border-[var(--mist)] bg-[var(--cloud)] p-2 text-sm shadow-xl">
-                  <button type="button" onClick={() => void social("mute")} className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!requireAuth()) return;
+                      void social("mute");
+                    }}
+                    className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
+                  >
                     Mute
                   </button>
-                  <button type="button" onClick={() => void social("block")} className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!requireAuth()) return;
+                      void social("block");
+                    }}
+                    className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
+                  >
                     Block
                   </button>
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      if (!requireAuth()) return;
                       void fetch("/api/social/report", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -114,8 +173,8 @@ export default function ProfilePage() {
                           targetId: user.id,
                           reason: "Other",
                         }),
-                      })
-                    }
+                      });
+                    }}
                     className="block w-full rounded-xl px-3 py-2 text-start text-[var(--danger)] hover:bg-[var(--mist)]"
                   >
                     {t("common", "report")}
@@ -134,9 +193,9 @@ export default function ProfilePage() {
 
           <div className="mt-6 grid grid-cols-3 gap-3 sm:flex sm:gap-8">
             {[
-              [user.followersCount, t("profile", "followers")],
-              [user.followingCount, t("profile", "following")],
-              [user.postsCount, t("profile", "posts")],
+              [visibility.canViewFollowers ? user.followersCount : "—", t("profile", "followers")],
+              [visibility.canViewFollowing ? user.followingCount : "—", t("profile", "following")],
+              [visibility.canViewContent ? user.postsCount : "—", t("profile", "posts")],
             ].map(([value, label]) => (
               <div key={String(label)} className="rounded-2xl bg-white/40 px-4 py-3 text-center dark:bg-white/5">
                 <p className="font-[family-name:var(--font-display)] text-xl font-semibold">{String(value ?? 0)}</p>
@@ -152,7 +211,13 @@ export default function ProfilePage() {
               onChange={setTab}
             />
             <div className="mt-6">
-              {tab === "Posts" ? (
+              {locked ? (
+                <EmptyState
+                  title="This account is private"
+                  description="Follow this account to see their photos, videos, and reels."
+                />
+              ) : null}
+              {!locked && tab === "Posts" ? (
                 posts.length ? (
                   <div className="grid gap-4">
                     {posts.map((post) => (
@@ -164,7 +229,7 @@ export default function ProfilePage() {
                 )
               ) : null}
 
-              {tab === "Media" ? (
+              {!locked && tab === "Media" ? (
                 media.length ? (
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                     {media.map((m, i) => (
@@ -184,7 +249,7 @@ export default function ProfilePage() {
                 )
               ) : null}
 
-              {tab === "Videos" ? (
+              {!locked && tab === "Videos" ? (
                 videos.length ? (
                   <div className="grid gap-4">
                     {videos.map((post) => (

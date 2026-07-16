@@ -91,6 +91,10 @@ export const en: Dictionary = {
     muted: "Muted users",
     sessions: "Sessions",
     accounts: "Connected accounts",
+    accessibility: "Accessibility",
+    downloads: "Downloads",
+    data: "Data usage & storage",
+    account: "Account",
   },
   profile: {
     posts: "Posts",

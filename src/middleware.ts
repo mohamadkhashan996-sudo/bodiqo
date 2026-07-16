@@ -1,24 +1,8 @@
+import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
+import { isMemberOnlyPath, safeCallbackUrl } from "@/lib/guest/paths";
 
-/**
- * Edge security headers + lightweight route signals.
- * AuthZ for /admin is enforced in the admin layout + API requireStaff().
- */
-export function middleware(request: NextRequest) {
-  if (process.env.MAINTENANCE_MODE === "true") {
-    const path = request.nextUrl.pathname;
-    const allowed =
-      path.startsWith("/api/health") ||
-      path.startsWith("/api/auth") ||
-      path.startsWith("/sign-in") ||
-      path.startsWith("/maintenance") ||
-      path.startsWith("/_next");
-    if (!allowed) {
-      return NextResponse.redirect(new URL("/maintenance", request.url));
-    }
-  }
-
-  const response = NextResponse.next();
+function applySecurityHeaders(response: NextResponse, request: NextRequest) {
   const path = request.nextUrl.pathname;
   const realtime =
     path.startsWith("/calls") ||
@@ -56,13 +40,51 @@ export function middleware(request: NextRequest) {
       "max-age=63072000; includeSubDomains; preload",
     );
   }
-
   response.headers.set(
     "x-request-id",
     request.headers.get("x-request-id") || crypto.randomUUID(),
   );
-
   return response;
+}
+
+async function hasSession(request: NextRequest) {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!secret) return false;
+  for (const cookieName of [
+    "__Secure-authjs.session-token",
+    "authjs.session-token",
+  ]) {
+    const token = await getToken({ req: request, secret, cookieName });
+    if (token?.sub) return true;
+  }
+  return false;
+}
+
+export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+
+  if (process.env.MAINTENANCE_MODE === "true") {
+    const allowed =
+      path.startsWith("/api/health") ||
+      path.startsWith("/api/auth") ||
+      path.startsWith("/sign-in") ||
+      path.startsWith("/maintenance") ||
+      path.startsWith("/_next");
+    if (!allowed) {
+      return NextResponse.redirect(new URL("/maintenance", request.url));
+    }
+  }
+
+  if (isMemberOnlyPath(path) && !(await hasSession(request))) {
+    const signIn = new URL("/sign-in", request.url);
+    signIn.searchParams.set(
+      "callbackUrl",
+      safeCallbackUrl(path + request.nextUrl.search),
+    );
+    return NextResponse.redirect(signIn);
+  }
+
+  return applySecurityHeaders(NextResponse.next(), request);
 }
 
 export const config = {

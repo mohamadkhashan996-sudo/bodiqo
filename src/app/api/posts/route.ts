@@ -1,7 +1,12 @@
+import { fail, ok, optionalUser } from "@/lib/api";
+import {
+  createPost,
+  getFeed,
+  getPostsByHandle,
+} from "@/modules/feed/services/posts";
 import { MediaKind, PostType, PostVisibility } from "@prisma/client";
 import { z } from "zod";
-import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
-import { createPost, getFeed, getPostsByHandle } from "@/modules/feed/services/posts";
+import { body, guardApiAbuse, requireUser } from "@/lib/api";
 
 const schema = z.object({
   body: z.string().max(10000).optional(),
@@ -24,15 +29,15 @@ const schema = z.object({
 
 export async function GET(r: Request) {
   try {
-    const u = await requireUser();
+    const u = await optionalUser();
     const q = new URL(r.url).searchParams;
     const author = q.get("author");
     if (author) {
-      return ok(await getPostsByHandle(author, Number(q.get("limit") ?? 30)));
+      return ok(await getPostsByHandle(author, Number(q.get("limit") ?? 30), u?.id));
     }
     return ok(
       await getFeed({
-        userId: u.id,
+        userId: u?.id,
         cursor: q.get("cursor") ?? undefined,
         limit: Number(q.get("limit") ?? 20),
       }),

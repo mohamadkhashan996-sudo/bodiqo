@@ -1,33 +1,26 @@
+import { fail, ok, optionalUser } from "@/lib/api";
+import { getPostById } from "@/modules/feed/services/posts";
 import { PostVisibility } from "@prisma/client";
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
+import { body, requireUser } from "@/lib/api";
 import {
   deletePost,
-  serializePost,
   updatePost,
 } from "@/modules/feed/services/posts";
+
 export async function GET(
   _r: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const u = await optionalUser();
     const { id } = await params;
-    const post = await prisma.post.findFirst({
-      where: { id, deletedAt: null },
-      include: {
-        author: { select: { id: true, handle: true, name: true, image: true } },
-        media: true,
-        hashtags: { include: { hashtag: true } },
-      },
-    });
-    return post
-      ? ok({ post: serializePost(post) })
-      : ok({ error: "Post not found" }, 404);
+    return ok({ post: await getPostById(id, u?.id) });
   } catch (e) {
     return fail(e);
   }
 }
+
 export async function PATCH(
   r: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -53,6 +46,7 @@ export async function PATCH(
     return fail(e);
   }
 }
+
 export async function DELETE(
   _r: Request,
   { params }: { params: Promise<{ id: string }> },

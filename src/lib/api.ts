@@ -15,6 +15,11 @@ export async function requireUser() {
   return session.user;
 }
 
+export async function optionalUser() {
+  const session = await auth();
+  return session?.user?.id ? session.user : null;
+}
+
 export async function requireStaff(permission: Permission = "admin:access") {
   const user = await requireUser();
   if (!isStaff(user.role) || !can(user.role, permission)) {

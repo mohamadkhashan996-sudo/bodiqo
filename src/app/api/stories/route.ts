@@ -1,14 +1,15 @@
 import { MediaKind } from "@prisma/client";
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, optionalUser, requireUser } from "@/lib/api";
 import {
   createStory,
-  listActiveStories,
+  listPublicStories,
 } from "@/modules/media/services/stories";
+
 export async function GET() {
   try {
-    const u = await requireUser();
-    return ok({ stories: await listActiveStories(u.id) });
+    const u = await optionalUser();
+    return ok({ stories: await listPublicStories(u?.id) });
   } catch (e) {
     return fail(e);
   }

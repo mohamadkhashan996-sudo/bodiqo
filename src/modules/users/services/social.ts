@@ -9,10 +9,25 @@ async function assertDistinct(actorId: string, targetId: string) {
 
 export async function followUser(followerId: string, followingId: string) {
   await assertDistinct(followerId, followingId);
-  const target = await prisma.user.findUnique({ where: { id: followingId }, select: { id: true, status: true } });
+  const target = await prisma.user.findUnique({
+    where: { id: followingId },
+    select: { id: true, status: true, isPrivate: true },
+  });
   if (!target || target.status !== "ACTIVE") throw new AppError("User not found", 404);
-  const blocked = await prisma.block.findFirst({ where: { OR: [{ blockerId: followerId, blockedId: followingId }, { blockerId: followingId, blockedId: followerId }] } });
+  const blocked = await prisma.block.findFirst({
+    where: {
+      OR: [
+        { blockerId: followerId, blockedId: followingId },
+        { blockerId: followingId, blockedId: followerId },
+      ],
+    },
+  });
   if (blocked) throw new AppError("This user is unavailable", 403);
+
+  if (target.isPrivate) {
+    return sendFriendRequest(followerId, followingId);
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.follow.findUnique({ where: { followerId_followingId: { followerId, followingId } } });
     if (existing) return existing;
@@ -109,5 +124,37 @@ export async function respondFriendRequest(userId: string, requestId: string, st
   if (request.toUserId !== userId && request.fromUserId !== userId) throw new AppError("Forbidden", 403);
   if (status === "CANCELLED" && request.fromUserId !== userId) throw new AppError("Forbidden", 403);
   if (status !== "CANCELLED" && request.toUserId !== userId) throw new AppError("Forbidden", 403);
+
+  if (status === "ACCEPTED") {
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.friendRequest.update({
+        where: { id: requestId },
+        data: { status },
+      });
+      const existing = await tx.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: request.fromUserId,
+            followingId: request.toUserId,
+          },
+        },
+      });
+      if (!existing) {
+        await tx.follow.create({
+          data: { followerId: request.fromUserId, followingId: request.toUserId },
+        });
+        await tx.user.update({
+          where: { id: request.fromUserId },
+          data: { followingCount: { increment: 1 } },
+        });
+        await tx.user.update({
+          where: { id: request.toUserId },
+          data: { followersCount: { increment: 1 } },
+        });
+      }
+      return updated;
+    });
+  }
+
   return prisma.friendRequest.update({ where: { id: requestId }, data: { status } });
 }

@@ -5,11 +5,13 @@ import { FormEvent, Suspense, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PageTransition } from "@/components/motion/primitives";
+import { safeCallbackUrl } from "@/lib/guest/paths";
 
 function TwoFactorForm() {
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token") || "";
+  const callbackUrl = safeCallbackUrl(params.get("callbackUrl") ?? params.get("next"));
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -46,7 +48,7 @@ function TwoFactorForm() {
       setError("Invalid authenticator or recovery code.");
       return;
     }
-    router.push("/home");
+    router.push(callbackUrl);
     router.refresh();
   }
 

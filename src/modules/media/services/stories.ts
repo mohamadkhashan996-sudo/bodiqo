@@ -12,6 +12,36 @@ export async function createStory(authorId: string, data: { mediaUrl: string; me
 export async function listActiveStories(userId?: string) {
   return prisma.story.findMany({ where: { expiresAt: { gt: new Date() } }, include: { author: { select: { id: true, handle: true, name: true, image: true } }, ...(userId ? { views: { where: { viewerId: userId }, select: { id: true } } } : {}) }, orderBy: { createdAt: "desc" }, take: 100 });
 }
+
+export async function listPublicStories(viewerId?: string) {
+  const stories = await listActiveStories(viewerId);
+  const authorIds = [...new Set(stories.map((s) => s.authorId))];
+  const authors = await prisma.user.findMany({
+    where: { id: { in: authorIds } },
+    select: { id: true, isPrivate: true },
+  });
+  const authorMap = new Map(authors.map((a) => [a.id, a]));
+
+  const filtered = [];
+  for (const story of stories) {
+    const author = authorMap.get(story.authorId);
+    if (!author) continue;
+    if (author.isPrivate && viewerId !== story.authorId) {
+      if (!viewerId) continue;
+      const following = await prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: viewerId,
+            followingId: story.authorId,
+          },
+        },
+      });
+      if (!following) continue;
+    }
+    filtered.push(story);
+  }
+  return filtered;
+}
 export async function viewStory(viewerId: string, storyId: string) {
   return prisma.$transaction(async (tx) => {
     const story = await tx.story.findFirst({ where: { id: storyId, expiresAt: { gt: new Date() } } });

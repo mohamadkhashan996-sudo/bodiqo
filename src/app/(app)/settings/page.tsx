@@ -31,10 +31,14 @@ const links = [
   { href: "/settings#security", icon: Shield, key: "security" },
   { href: "/settings#appearance", icon: Palette, key: "appearance" },
   { href: "/settings#language", icon: Globe2, key: "language" },
+  { href: "/settings#accessibility", icon: UserRound, key: "accessibility" },
   { href: "/settings#notifications", icon: Bell, key: "notifications" },
+  { href: "/settings#downloads", icon: Link2, key: "downloads" },
+  { href: "/settings#data", icon: Globe2, key: "data" },
   { href: "/settings#sessions", icon: UserRound, key: "sessions" },
   { href: "/settings#blocked", icon: Ban, key: "blocked" },
   { href: "/settings#muted", icon: VolumeX, key: "muted" },
+  { href: "/settings#account", icon: UserRound, key: "account" },
   { href: "/settings#accounts", icon: Link2, key: "accounts" },
 ];
 
@@ -149,6 +153,60 @@ export default function SettingsPage() {
           <p className="mt-2 text-sm text-[var(--muted)]">
             Push and email preferences sync with your account. In-app alerts stay on by default.
           </p>
+        </Card>
+
+        <Card id="accessibility">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "accessibility")}</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Reduce motion, improve contrast, and adjust text size for comfortable reading.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-4 text-sm">
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={highContrast} onChange={(e) => setHighContrast(e.target.checked)} />
+              High contrast
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input type="checkbox" checked={largeText} onChange={(e) => setLargeText(e.target.checked)} />
+              Large text
+            </label>
+          </div>
+        </Card>
+
+        <Card id="downloads">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "downloads")}</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Control whether media can be saved from your public posts and stories.
+          </p>
+        </Card>
+
+        <Card id="data">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "data")}</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Request a copy of your data or clear cached media to free storage.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="outline" type="button">
+              Request data export
+            </Button>
+            <Button variant="outline" type="button">
+              Clear cache
+            </Button>
+          </div>
+        </Card>
+
+        <Card id="account">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "account")}</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">
+            Deactivate temporarily or permanently delete your account and content.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="outline" type="button">
+              Deactivate account
+            </Button>
+            <Button variant="outline" type="button" className="text-[var(--danger)]">
+              Delete account
+            </Button>
+          </div>
         </Card>
 
         <Card id="security">

@@ -14,12 +14,21 @@ import {
   UsersRound,
   Phone,
   Shield,
+  LogIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLockup } from "@/components/brand/logo";
 import { useExperience } from "@/components/experience-provider";
+import { useGuest } from "@/components/auth/guest-provider";
 
-const items = [
+const guestItems = [
+  { href: "/home", key: "home", icon: House },
+  { href: "/explore", key: "explore", icon: Compass },
+  { href: "/shorts", key: "shorts", icon: Clapperboard },
+  { href: "/search", key: "search", icon: Search },
+] as const;
+
+const memberItems = [
   { href: "/home", key: "home", icon: House },
   { href: "/explore", key: "explore", icon: Compass },
   { href: "/messages", key: "messages", icon: MessageCircle },
@@ -34,12 +43,16 @@ const items = [
 export function AppNavigation({
   handle,
   role,
+  isGuest = false,
 }: {
   handle?: string | null;
   role?: string | null;
+  isGuest?: boolean;
 }) {
   const pathname = usePathname();
   const { t } = useExperience();
+  const { openAuthGate } = useGuest();
+  const items = isGuest ? guestItems : memberItems;
   const staff =
     role === "SUPPORT" ||
     role === "MODERATOR" ||
@@ -98,9 +111,28 @@ export function AppNavigation({
           </Link>
         ) : null}
       </nav>
-      <p className="hidden text-xs leading-5 text-[var(--muted)] lg:block">
-        {t("brand", "tagline")}
-      </p>
+      {isGuest ? (
+        <div className="hidden flex-col gap-2 lg:flex">
+          <Link
+            href="/sign-in"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--ink)] px-4 py-2.5 text-sm font-semibold text-[var(--cloud)]"
+          >
+            <LogIn className="size-4" />
+            Sign In
+          </Link>
+          <button
+            type="button"
+            onClick={() => openAuthGate()}
+            className="text-xs text-[var(--muted)] transition hover:text-[var(--ink)]"
+          >
+            Create account
+          </button>
+        </div>
+      ) : (
+        <p className="hidden text-xs leading-5 text-[var(--muted)] lg:block">
+          {t("brand", "tagline")}
+        </p>
+      )}
     </aside>
   );
 }
