@@ -1,3 +1,4 @@
+# Copy to `.github/workflows/ci.yml` after granting GitHub `workflow` scope.
 name: CI
 
 on:

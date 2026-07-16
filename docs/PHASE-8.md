@@ -27,7 +27,7 @@ Closes the remaining launch blockers after Phase 7 auth.
 ## Docker & CI
 - `docker-compose.yml` runs Postgres, Redis, and the app
 - `Dockerfile` runs `prisma migrate deploy` on boot
-- GitHub Actions CI: typecheck, lint, build, migrate, smoke
+- CI template: copy `docs/ci-workflow.example.yml` → `.github/workflows/ci.yml`
 
 ## Launch checklist
 1. `docker compose up -d` or managed Postgres + Redis
