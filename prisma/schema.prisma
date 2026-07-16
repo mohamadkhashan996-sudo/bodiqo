@@ -66,6 +66,10 @@ enum NotificationType {
   VERIFICATION
   COMMUNITY_INVITE
   STORY_REPLY
+  MESSAGE
+  CALL
+  MISSED_CALL
+  GROUP_INVITE
 }
 
 enum ReportTarget {
@@ -73,6 +77,8 @@ enum ReportTarget {
   POST
   COMMENT
   STORY
+  MESSAGE
+  COMMUNITY
 }
 
 enum FriendRequestStatus {
@@ -80,6 +86,81 @@ enum FriendRequestStatus {
   ACCEPTED
   DECLINED
   CANCELLED
+}
+
+enum PresenceStatus {
+  ONLINE
+  OFFLINE
+  AWAY
+  DND
+  INVISIBLE
+  IN_CALL
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  DOCUMENT
+  GIF
+  LOCATION
+  CONTACT
+  LINK
+  SYSTEM
+}
+
+enum MessageDelivery {
+  SENT
+  DELIVERED
+  SEEN
+}
+
+enum CallType {
+  AUDIO
+  VIDEO
+}
+
+enum CallStatus {
+  RINGING
+  ACTIVE
+  ENDED
+  MISSED
+  DECLINED
+  FAILED
+}
+
+enum CommunityVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum CommunityRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum CommunityJoinStatus {
+  JOINED
+  PENDING
+  INVITED
+  BANNED
+}
+
+enum PrivacyAudience {
+  EVERYONE
+  FOLLOWERS
+  FOLLOWING
+  MUTUAL
+  NOBODY
 }
 
 model User {
@@ -112,6 +193,8 @@ model User {
   postsCount       Int             @default(0)
   videosCount      Int             @default(0)
   storiesCount     Int             @default(0)
+  presence         PresenceStatus  @default(OFFLINE)
+  lastSeenAt       DateTime?
   accounts         Account[]
   sessions         Session[]
   deviceSessions   DeviceSession[]
@@ -128,6 +211,8 @@ model User {
   blocksReceived   Block[]         @relation("Blocked")
   mutesIssued      Mute[]          @relation("Muter")
   mutesReceived    Mute[]          @relation("Muted")
+  restrictsIssued  Restrict[]      @relation("Restrictor")
+  restrictsReceived Restrict[]     @relation("Restricted")
   reportsIssued    Report[]        @relation("Reporter")
   friendRequestsSent     FriendRequest[] @relation("FriendFrom")
   friendRequestsReceived FriendRequest[] @relation("FriendTo")
@@ -139,6 +224,15 @@ model User {
   interests        UserInterest[]
   pollVotes        PollVote[]
   searchHistory    SearchHistory[]
+  privacy          PrivacySettings?
+  conversationMembers ConversationMember[]
+  messagesSent     Message[]       @relation("MessageSender")
+  messageReactions MessageReaction[]
+  messageHides     MessageHide[]
+  callsInitiated   Call[]          @relation("CallCaller")
+  callParticipants CallParticipant[]
+  communityMembers CommunityMember[]
+  communitiesOwned Community[]     @relation("CommunityOwner")
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -146,6 +240,7 @@ model User {
   @@index([handle])
   @@index([isVerified])
   @@index([followersCount])
+  @@index([presence, lastSeenAt])
 }
 
 model Account {
@@ -565,4 +660,231 @@ model AuditLog {
 
   @@index([action, createdAt])
   @@index([actorId])
+}
+
+model Restrict {
+  id           String   @id @default(cuid())
+  restrictorId String
+  restrictedId String
+  restrictor   User     @relation("Restrictor", fields: [restrictorId], references: [id], onDelete: Cascade)
+  restricted   User     @relation("Restricted", fields: [restrictedId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@unique([restrictorId, restrictedId])
+}
+
+model PrivacySettings {
+  id               String          @id @default(cuid())
+  userId           String          @unique
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  whoCanFollow     PrivacyAudience @default(EVERYONE)
+  whoCanMessage    PrivacyAudience @default(EVERYONE)
+  whoCanCall       PrivacyAudience @default(FOLLOWERS)
+  whoCanComment    PrivacyAudience @default(EVERYONE)
+  whoCanMention    PrivacyAudience @default(EVERYONE)
+  whoCanTag        PrivacyAudience @default(FOLLOWERS)
+  whoCanSeeStories PrivacyAudience @default(FOLLOWERS)
+  whoCanSeeActivity PrivacyAudience @default(FOLLOWERS)
+  whoCanSeeOnline  PrivacyAudience @default(FOLLOWERS)
+  showReadReceipts Boolean         @default(true)
+  showTyping       Boolean         @default(true)
+  updatedAt        DateTime        @updatedAt
+}
+
+model Conversation {
+  id            String               @id @default(cuid())
+  type          ConversationType     @default(DIRECT)
+  title         String?
+  image         String?
+  coverImage    String?
+  description   String?
+  communityId   String?
+  community     Community?           @relation(fields: [communityId], references: [id])
+  lastMessageAt DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  members       ConversationMember[]
+  messages      Message[]
+  calls         Call[]
+
+  @@index([type, lastMessageAt])
+  @@index([communityId])
+}
+
+model ConversationMember {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  role           String       @default("MEMBER")
+  isPinned       Boolean      @default(false)
+  isMuted        Boolean      @default(false)
+  isArchived     Boolean      @default(false)
+  isFavorite     Boolean      @default(false)
+  unreadCount    Int          @default(0)
+  draftText      String?
+  lastReadAt     DateTime?
+  joinedAt       DateTime     @default(now())
+  leftAt         DateTime?
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, isArchived, lastReadAt])
+  @@index([userId, isPinned])
+}
+
+model Message {
+  id             String            @id @default(cuid())
+  conversationId String
+  senderId       String
+  type           MessageType       @default(TEXT)
+  body           String            @default("")
+  mediaUrl       String?
+  mediaMeta      Json?
+  linkPreview    Json?
+  replyToId      String?
+  forwardedFromId String?
+  isPinned       Boolean           @default(false)
+  isEdited       Boolean           @default(false)
+  delivery       MessageDelivery   @default(SENT)
+  deletedForAll  Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  editedAt       DateTime?
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User              @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo        Message?          @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies        Message[]         @relation("MessageReplies")
+  reactions      MessageReaction[]
+  hides          MessageHide[]
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([replyToId])
+}
+
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+}
+
+model MessageHide {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId])
+}
+
+model Call {
+  id             String            @id @default(cuid())
+  conversationId String?
+  conversation   Conversation?     @relation(fields: [conversationId], references: [id])
+  callerId       String
+  caller         User              @relation("CallCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  type           CallType          @default(AUDIO)
+  status         CallStatus        @default(RINGING)
+  startedAt      DateTime?
+  endedAt        DateTime?
+  createdAt      DateTime          @default(now())
+  participants   CallParticipant[]
+
+  @@index([callerId, createdAt])
+  @@index([status, createdAt])
+}
+
+model CallParticipant {
+  id       String    @id @default(cuid())
+  callId   String
+  userId   String
+  call     Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime?
+  leftAt   DateTime?
+  muted    Boolean   @default(false)
+  cameraOff Boolean  @default(false)
+
+  @@unique([callId, userId])
+  @@index([userId])
+}
+
+model Community {
+  id            String               @id @default(cuid())
+  slug          String               @unique
+  name          String
+  description   String?
+  rules         String?
+  image         String?
+  coverImage    String?
+  visibility    CommunityVisibility  @default(PUBLIC)
+  category      String?
+  tags          String?
+  ownerId       String
+  owner         User                 @relation("CommunityOwner", fields: [ownerId], references: [id])
+  membersCount  Int                  @default(1)
+  postsCount    Int                  @default(0)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  members       CommunityMember[]
+  posts         CommunityPost[]
+  events        CommunityEvent[]
+  conversations Conversation[]
+
+  @@index([visibility, membersCount])
+  @@index([category])
+  @@index([ownerId])
+}
+
+model CommunityMember {
+  id          String              @id @default(cuid())
+  communityId String
+  userId      String
+  role        CommunityRole       @default(MEMBER)
+  status      CommunityJoinStatus @default(JOINED)
+  community   Community           @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt    DateTime            @default(now())
+
+  @@unique([communityId, userId])
+  @@index([userId, status])
+}
+
+model CommunityPost {
+  id          String    @id @default(cuid())
+  communityId String
+  authorId    String
+  body        String
+  isPinned    Boolean   @default(false)
+  isAnnouncement Boolean @default(false)
+  mediaUrl    String?
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([communityId, createdAt])
+  @@index([communityId, isPinned])
+}
+
+model CommunityEvent {
+  id          String    @id @default(cuid())
+  communityId String
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  location    String?
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+
+  @@index([communityId, startsAt])
 }

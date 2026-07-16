@@ -12,9 +12,12 @@ Cirqua is a premium social platform — modular, production-shaped, and independ
 Brand, design system, modular architecture, runnable shell.
 
 ### Phase 2 — Auth · Users · Feed · Social
-Complete authentication (email + OAuth hooks + 2FA), onboarding, profiles, follow/block/mute/report, home feed, posts/comments, explore, search, notifications, stories, and shorts.
+Authentication, onboarding, profiles, feed, explore, search, notifications, stories, shorts.
 
-Docs: `docs/PHASE-1.md`, `docs/PHASE-2.md`, `docs/brand/BRAND.md`, `docs/ARCHITECTURE.md`.
+### Phase 3 — Realtime · Messaging · Calls · Communities · Privacy
+Custom Socket.io server, DMs/groups, WebRTC voice/video signaling, communities, and privacy controls.
+
+Docs: `docs/PHASE-1.md`, `docs/PHASE-2.md`, `docs/PHASE-3.md`, `docs/brand/BRAND.md`, `docs/ARCHITECTURE.md`.
 
 ## Local development
 
@@ -24,11 +27,15 @@ npm install
 cp .env.example .env
 npx prisma db push
 npm run db:seed:phase2
+npm run db:seed:phase3
 npm run dev
 ```
 
+`npm run dev` runs the custom Next.js + Socket.io server (`server.ts`).
+
 - Site: http://localhost:3000  
 - Health: http://localhost:3000/api/health  
+- Realtime: Socket.io on the same origin  
 
 Demo logins (password `cirqua1234`):
 - `maya@cirqua.local`

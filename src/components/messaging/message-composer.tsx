@@ -1,0 +1,19 @@
+"use client";
+
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { ImagePlus, Mic, Pause, Play, Send, Square } from "lucide-react";
+
+export function MessageComposer({ onSend, onTyping, reply, onCancelReply }: { onSend: (body: string, mediaUrl?: string, audio?: Blob) => Promise<void>; onTyping: (typing: boolean) => void; reply?: string; onCancelReply: () => void }) {
+  const [body, setBody] = useState(""); const [mediaUrl, setMediaUrl] = useState(""); const [recording, setRecording] = useState(false); const [paused, setPaused] = useState(false);
+  const recorder = useRef<MediaRecorder | null>(null); const chunks = useRef<Blob[]>([]);
+  useEffect(() => () => recorder.current?.stream.getTracks().forEach((track) => track.stop()), []);
+  async function record() { try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); const next = new MediaRecorder(stream); chunks.current = []; next.ondataavailable = (event) => chunks.current.push(event.data); next.onstop = () => { const audio = new Blob(chunks.current, { type: next.mimeType }); if (audio.size) void onSend("", undefined, audio); stream.getTracks().forEach((track) => track.stop()); }; next.start(); recorder.current = next; setRecording(true); } catch { /* Permission was not granted. */ } }
+  function stop() { recorder.current?.stop(); setRecording(false); setPaused(false); }
+  async function submit(event: FormEvent) { event.preventDefault(); if (!body.trim() && !mediaUrl.trim()) return; await onSend(body, mediaUrl || undefined); setBody(""); setMediaUrl(""); onTyping(false); }
+  return <form onSubmit={submit} className="border-t border-[var(--mist)] bg-white/45 p-3 backdrop-blur"><div className="mx-auto max-w-4xl">
+    {reply && <div className="mb-2 flex items-center justify-between rounded-xl bg-[var(--mist)] px-3 py-2 text-xs text-[var(--muted)]">Replying to: {reply}<button type="button" onClick={onCancelReply}>Cancel</button></div>}
+    {mediaUrl && <input value={mediaUrl} onChange={(event) => setMediaUrl(event.target.value)} placeholder="Image URL" className="mb-2 w-full rounded-xl border border-[var(--mist)] bg-white px-3 py-2 text-sm outline-none" />}
+    <div className="flex items-end gap-2"><button type="button" onClick={() => setMediaUrl((value) => value ? "" : "https://")} className="rounded-xl p-2 text-[var(--muted)]"><ImagePlus className="size-5" /></button><div className="flex-1 rounded-2xl bg-white px-3 py-2 shadow-sm"><textarea value={body} onChange={(event) => { setBody(event.target.value); onTyping(Boolean(event.target.value)); }} placeholder="Share a thought…" rows={1} className="max-h-28 w-full resize-none bg-transparent text-sm outline-none" /><div className="mt-1 flex gap-2 text-xs"><button type="button" onClick={() => setBody((value) => `${value} ✨`)}>✨</button><button type="button" onClick={() => setBody((value) => `${value} 💭`)}>💭</button><button type="button" onClick={() => setBody((value) => `${value} 🤍`)}>🤍</button></div></div>
+      {recording ? <div className="flex items-center gap-1 rounded-2xl bg-[var(--signal)] px-2 py-2 text-white">{Array.from({ length: 5 }).map((_, index) => <span key={index} className="w-0.5 animate-pulse bg-white" style={{ height: `${8 + index % 3 * 5}px` }} />)}<button type="button" onClick={() => { if (paused) { recorder.current?.resume(); } else recorder.current?.pause(); setPaused(!paused); }} className="p-1">{paused ? <Play className="size-4" /> : <Pause className="size-4" />}</button><button type="button" onClick={stop} className="p-1"><Square className="size-4" /></button></div> : <button type="button" onClick={record} className="rounded-xl p-2 text-[var(--muted)]"><Mic className="size-5" /></button>}<button type="submit" className="rounded-2xl bg-[var(--ink)] p-3 text-white"><Send className="size-4" /></button></div>
+  </div></form>;
+}
