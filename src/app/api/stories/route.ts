@@ -1,6 +1,7 @@
 import { MediaKind } from "@prisma/client";
 import { z } from "zod";
 import { body, fail, ok, optionalUser, requireUser } from "@/lib/api";
+import { mediaUrlSchema } from "@/lib/media-url";
 import {
   createStory,
   listPublicStories,
@@ -14,13 +15,14 @@ export async function GET() {
     return fail(e);
   }
 }
+
 export async function POST(r: Request) {
   try {
     const u = await requireUser();
     const d = await body(
       r,
       z.object({
-        mediaUrl: z.string().url(),
+        mediaUrl: mediaUrlSchema,
         mediaKind: z.nativeEnum(MediaKind).optional(),
         textOverlay: z.string().max(500).optional(),
       }),

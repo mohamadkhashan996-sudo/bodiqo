@@ -10,7 +10,25 @@ export async function createStory(authorId: string, data: { mediaUrl: string; me
   });
 }
 export async function listActiveStories(userId?: string) {
-  return prisma.story.findMany({ where: { expiresAt: { gt: new Date() } }, include: { author: { select: { id: true, handle: true, name: true, image: true } }, ...(userId ? { views: { where: { viewerId: userId }, select: { id: true } } } : {}) }, orderBy: { createdAt: "desc" }, take: 100 });
+  return prisma.story.findMany({
+    where: { expiresAt: { gt: new Date() } },
+    include: {
+      author: {
+        select: {
+          id: true,
+          handle: true,
+          name: true,
+          displayName: true,
+          image: true,
+        },
+      },
+      ...(userId
+        ? { views: { where: { viewerId: userId }, select: { id: true } } }
+        : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+  });
 }
 
 export async function listPublicStories(viewerId?: string) {

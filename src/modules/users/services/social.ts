@@ -1,11 +1,26 @@
-import { FriendRequestStatus, ReportTarget } from "@prisma/client";
+import { FriendRequestStatus, ReportCategory, ReportTarget } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/modules/notifications/services/notify";
 import { canFollow } from "@/modules/messaging/services/privacy-gate";
 
 async function assertDistinct(actorId: string, targetId: string) {
-  if (actorId === targetId) throw new AppError("You cannot perform this action on yourself", 400);
+  if (actorId === targetId) {
+    throw new AppError("You cannot perform this action on yourself", 400);
+  }
+}
+
+async function assertNotBlocked(a: string, b: string) {
+  const blocked = await prisma.block.findFirst({
+    where: {
+      OR: [
+        { blockerId: a, blockedId: b },
+        { blockerId: b, blockedId: a },
+      ],
+    },
+    select: { id: true },
+  });
+  if (blocked) throw new AppError("This user is unavailable", 403);
 }
 
 export async function followUser(followerId: string, followingId: string) {
@@ -14,34 +29,44 @@ export async function followUser(followerId: string, followingId: string) {
     where: { id: followingId },
     select: { id: true, status: true, isPrivate: true },
   });
-  if (!target || target.status !== "ACTIVE") throw new AppError("User not found", 404);
+  if (!target || target.status !== "ACTIVE") {
+    throw new AppError("User not found", 404);
+  }
   if (!(await canFollow(followerId, followingId))) {
     throw new AppError("This user is unavailable", 403);
   }
-  const blocked = await prisma.block.findFirst({
+  await assertNotBlocked(followerId, followingId);
+
+  const already = await prisma.follow.findUnique({
     where: {
-      OR: [
-        { blockerId: followerId, blockedId: followingId },
-        { blockerId: followingId, blockedId: followerId },
-      ],
+      followerId_followingId: { followerId, followingId },
     },
+    select: { id: true },
   });
-  if (blocked) throw new AppError("This user is unavailable", 403);
+  if (already) return { status: "following" as const };
 
   if (target.isPrivate) {
-    return sendFriendRequest(followerId, followingId);
+    await sendFriendRequest(followerId, followingId);
+    return { status: "requested" as const };
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const existing = await tx.follow.findUnique({ where: { followerId_followingId: { followerId, followingId } } });
-    if (existing) return existing;
-    const follow = await tx.follow.create({ data: { followerId, followingId } });
-    await tx.user.update({ where: { id: followerId }, data: { followingCount: { increment: 1 } } });
-    await tx.user.update({ where: { id: followingId }, data: { followersCount: { increment: 1 } } });
-    return follow;
+  await prisma.$transaction(async (tx) => {
+    await tx.follow.create({ data: { followerId, followingId } });
+    await tx.user.update({
+      where: { id: followerId },
+      data: { followingCount: { increment: 1 } },
+    });
+    await tx.user.update({
+      where: { id: followingId },
+      data: { followersCount: { increment: 1 } },
+    });
   });
-  await createNotification({ userId: followingId, actorId: followerId, type: "FOLLOW" });
-  return result;
+  await createNotification({
+    userId: followingId,
+    actorId: followerId,
+    type: "FOLLOW",
+  });
+  return { status: "following" as const };
 }
 
 export async function unfollowUser(followerId: string, followingId: string) {
@@ -53,46 +78,100 @@ export async function unfollowUser(followerId: string, followingId: string) {
     },
   });
   const deleted = await prisma.$transaction(async (tx) => {
-    const existing = await tx.follow.findUnique({ where: { followerId_followingId: { followerId, followingId } } });
+    const existing = await tx.follow.findUnique({
+      where: {
+        followerId_followingId: { followerId, followingId },
+      },
+    });
     if (!existing) return false;
     await tx.follow.delete({ where: { id: existing.id } });
-    await tx.user.update({ where: { id: followerId }, data: { followingCount: { decrement: 1 } } });
-    await tx.user.update({ where: { id: followingId }, data: { followersCount: { decrement: 1 } } });
+    await tx.user.update({
+      where: { id: followerId },
+      data: { followingCount: { decrement: 1 } },
+    });
+    await tx.user.update({
+      where: { id: followingId },
+      data: { followersCount: { decrement: 1 } },
+    });
     return true;
   });
-  return { deleted };
+  return { deleted, status: "none" as const };
 }
 
 export async function blockUser(blockerId: string, blockedId: string) {
   await assertDistinct(blockerId, blockedId);
   return prisma.$transaction(async (tx) => {
-    const block = await tx.block.upsert({ where: { blockerId_blockedId: { blockerId, blockedId } }, create: { blockerId, blockedId }, update: {} });
-    const follows = await tx.follow.findMany({ where: { OR: [{ followerId: blockerId, followingId: blockedId }, { followerId: blockedId, followingId: blockerId }] } });
+    const block = await tx.block.upsert({
+      where: { blockerId_blockedId: { blockerId, blockedId } },
+      create: { blockerId, blockedId },
+      update: {},
+    });
+
+    const follows = await tx.follow.findMany({
+      where: {
+        OR: [
+          { followerId: blockerId, followingId: blockedId },
+          { followerId: blockedId, followingId: blockerId },
+        ],
+      },
+    });
     for (const follow of follows) {
       await tx.follow.delete({ where: { id: follow.id } });
-      await tx.user.update({ where: { id: follow.followerId }, data: { followingCount: { decrement: 1 } } });
-      await tx.user.update({ where: { id: follow.followingId }, data: { followersCount: { decrement: 1 } } });
+      await tx.user.update({
+        where: { id: follow.followerId },
+        data: { followingCount: { decrement: 1 } },
+      });
+      await tx.user.update({
+        where: { id: follow.followingId },
+        data: { followersCount: { decrement: 1 } },
+      });
     }
+
+    await tx.friendRequest.deleteMany({
+      where: {
+        OR: [
+          { fromUserId: blockerId, toUserId: blockedId },
+          { fromUserId: blockedId, toUserId: blockerId },
+        ],
+      },
+    });
+    await tx.mute.deleteMany({
+      where: {
+        OR: [
+          { muterId: blockerId, mutedId: blockedId },
+          { muterId: blockedId, mutedId: blockerId },
+        ],
+      },
+    });
+
     return block;
   });
 }
+
 export async function unblockUser(blockerId: string, blockedId: string) {
   return prisma.block.deleteMany({ where: { blockerId, blockedId } });
 }
+
 export async function muteUser(muterId: string, mutedId: string) {
   await assertDistinct(muterId, mutedId);
-  return prisma.mute.upsert({ where: { muterId_mutedId: { muterId, mutedId } }, create: { muterId, mutedId }, update: {} });
+  return prisma.mute.upsert({
+    where: { muterId_mutedId: { muterId, mutedId } },
+    create: { muterId, mutedId },
+    update: {},
+  });
 }
+
 export async function unmuteUser(muterId: string, mutedId: string) {
   return prisma.mute.deleteMany({ where: { muterId, mutedId } });
 }
+
 export async function reportEntity(
   reporterId: string,
   targetType: ReportTarget,
   targetId: string,
   reason: string,
   details?: string,
-  category?: import("@prisma/client").ReportCategory,
+  category?: ReportCategory,
 ) {
   const inferred =
     category ??
@@ -107,6 +186,7 @@ export async function reportEntity(
             : /fake/i.test(reason)
               ? "FAKE_ACCOUNT"
               : "OTHER");
+
   return prisma.report.create({
     data: {
       reporterId,
@@ -121,24 +201,72 @@ export async function reportEntity(
 
 export async function sendFriendRequest(fromUserId: string, toUserId: string) {
   await assertDistinct(fromUserId, toUserId);
+  await assertNotBlocked(fromUserId, toUserId);
+  const target = await prisma.user.findUnique({
+    where: { id: toUserId },
+    select: { id: true, status: true },
+  });
+  if (!target || target.status !== "ACTIVE") {
+    throw new AppError("User not found", 404);
+  }
+  if (!(await canFollow(fromUserId, toUserId))) {
+    throw new AppError("This user is unavailable", 403);
+  }
+
+  const alreadyFollowing = await prisma.follow.findUnique({
+    where: {
+      followerId_followingId: { followerId: fromUserId, followingId: toUserId },
+    },
+    select: { id: true },
+  });
+  if (alreadyFollowing) return alreadyFollowing;
+
+  const existingRequest = await prisma.friendRequest.findUnique({
+    where: { fromUserId_toUserId: { fromUserId, toUserId } },
+    select: { id: true, status: true },
+  });
+
   const request = await prisma.friendRequest.upsert({
     where: { fromUserId_toUserId: { fromUserId, toUserId } },
     create: { fromUserId, toUserId },
     update: { status: "PENDING" },
   });
-  await createNotification({ userId: toUserId, actorId: fromUserId, type: "FRIEND_REQUEST" });
+
+  if (!existingRequest || existingRequest.status !== "PENDING") {
+    await createNotification({
+      userId: toUserId,
+      actorId: fromUserId,
+      type: "FRIEND_REQUEST",
+    });
+  }
   return request;
 }
-export async function respondFriendRequest(userId: string, requestId: string, status: Extract<FriendRequestStatus, "ACCEPTED" | "DECLINED" | "CANCELLED">) {
-  const request = await prisma.friendRequest.findUnique({ where: { id: requestId } });
+
+export async function respondFriendRequest(
+  userId: string,
+  requestId: string,
+  status: Extract<FriendRequestStatus, "ACCEPTED" | "DECLINED" | "CANCELLED">,
+) {
+  const request = await prisma.friendRequest.findUnique({
+    where: { id: requestId },
+  });
   if (!request) throw new AppError("Friend request not found", 404);
-  if (request.toUserId !== userId && request.fromUserId !== userId) throw new AppError("Forbidden", 403);
-  if (status === "CANCELLED" && request.fromUserId !== userId) throw new AppError("Forbidden", 403);
-  if (status !== "CANCELLED" && request.toUserId !== userId) throw new AppError("Forbidden", 403);
+  if (request.toUserId !== userId && request.fromUserId !== userId) {
+    throw new AppError("Forbidden", 403);
+  }
+  if (status === "CANCELLED" && request.fromUserId !== userId) {
+    throw new AppError("Forbidden", 403);
+  }
+  if (status !== "CANCELLED" && request.toUserId !== userId) {
+    throw new AppError("Forbidden", 403);
+  }
+  if (request.status !== "PENDING") {
+    throw new AppError("This request is no longer pending", 400);
+  }
 
   if (status === "ACCEPTED") {
-    return prisma.$transaction(async (tx) => {
-      const updated = await tx.friendRequest.update({
+    const updated = await prisma.$transaction(async (tx) => {
+      const next = await tx.friendRequest.update({
         where: { id: requestId },
         data: { status },
       });
@@ -152,7 +280,10 @@ export async function respondFriendRequest(userId: string, requestId: string, st
       });
       if (!existing) {
         await tx.follow.create({
-          data: { followerId: request.fromUserId, followingId: request.toUserId },
+          data: {
+            followerId: request.fromUserId,
+            followingId: request.toUserId,
+          },
         });
         await tx.user.update({
           where: { id: request.fromUserId },
@@ -163,9 +294,18 @@ export async function respondFriendRequest(userId: string, requestId: string, st
           data: { followersCount: { increment: 1 } },
         });
       }
-      return updated;
+      return next;
     });
+    await createNotification({
+      userId: request.fromUserId,
+      actorId: request.toUserId,
+      type: "FOLLOW",
+    });
+    return updated;
   }
 
-  return prisma.friendRequest.update({ where: { id: requestId }, data: { status } });
+  return prisma.friendRequest.update({
+    where: { id: requestId },
+    data: { status },
+  });
 }

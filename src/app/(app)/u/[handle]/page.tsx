@@ -16,6 +16,7 @@ import { PostCard } from "@/components/feed/post-card";
 import { useExperience } from "@/components/experience-provider";
 import { useGuest } from "@/components/auth/guest-provider";
 import { VerificationBadge } from "@/components/brand/official-badge";
+import { ReportDialog } from "@/components/social/report-dialog";
 
 type ProfileVisibility = {
   isPrivate?: boolean;
@@ -38,6 +39,7 @@ export default function ProfilePage() {
   const [locked, setLocked] = useState(false);
   const [tab, setTab] = useState("Posts");
   const [lightbox, setLightbox] = useState<number | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     setNotFound(false);
@@ -82,19 +84,31 @@ export default function ProfilePage() {
   const videos = posts.filter((p) => p.type === "VIDEO" || p.type === "SHORT");
 
   async function social(action: string) {
-    if (!requireAuth()) return;
+    if (!requireAuth()) return false;
     const followStatus = visibility.followStatus ?? "none";
-    const method =
-      action === "follow" && followStatus === "following" ? "DELETE" : "POST";
-    const res = await fetch(`/api/users/${handle}/${action}`, { method });
-    if (res.ok && action === "follow") {
+    if (action === "follow") {
+      const method =
+        followStatus === "following" || followStatus === "requested"
+          ? "DELETE"
+          : "POST";
+      const res = await fetch(`/api/users/${handle}/follow`, { method });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return false;
       const next =
-        followStatus === "following"
+        method === "DELETE"
           ? "none"
-          : visibility.isPrivate
+          : data.follow?.status === "requested"
             ? "requested"
             : "following";
       setVisibility((v) => ({ ...v, followStatus: next }));
+      setUser((prev) => {
+        if (!prev || typeof prev.followersCount !== "number") return prev;
+        let delta = 0;
+        if (followStatus === "following" && next === "none") delta = -1;
+        if (followStatus !== "following" && next === "following") delta = 1;
+        if (!delta) return prev;
+        return { ...prev, followersCount: Math.max(0, prev.followersCount + delta) };
+      });
       if (next === "following" || next === "none") {
         fetch(`/api/posts?author=${handle}`)
           .then((r) => r.json())
@@ -104,7 +118,18 @@ export default function ProfilePage() {
           })
           .catch(() => {});
       }
+      return true;
     }
+
+    const res = await fetch(`/api/users/${handle}/${action}`, {
+      method: "POST",
+    });
+    if (res.ok && action === "block") {
+      setVisibility((v) => ({ ...v, followStatus: "none" }));
+      setPosts([]);
+      setLocked(true);
+    }
+    return res.ok;
   }
 
   const followLabel =
@@ -242,27 +267,28 @@ export default function ProfilePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!requireAuth()) return;
-                          void social("block");
-                        }}
-                        className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
-                      >
-                        Block
-                      </button>
+                    onClick={() => {
+                      if (!requireAuth()) return;
+                      if (
+                        !window.confirm(
+                          `Block @${handle}? They won’t be able to follow or message you.`,
+                        )
+                      ) {
+                        return;
+                      }
+                      void social("block").then((ok) => {
+                        if (ok) router.push("/home");
+                      });
+                    }}
+                    className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
+                  >
+                    Block
+                  </button>
                       <button
                         type="button"
                         onClick={() => {
                           if (!requireAuth()) return;
-                          void fetch("/api/social/report", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              targetType: "USER",
-                              targetId: user.id,
-                              reason: "Other",
-                            }),
-                          });
+                          setReportOpen(true);
                         }}
                         className="block w-full rounded-xl px-3 py-2 text-start text-[var(--danger)] hover:bg-[var(--mist)]"
                       >
@@ -484,6 +510,14 @@ export default function ProfilePage() {
           onIndexChange={setLightbox}
         />
       ) : null}
+
+      <ReportDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="USER"
+        targetId={String(user.id)}
+        title={`Report @${String(user.handle)}`}
+      />
     </PageTransition>
   );
 }

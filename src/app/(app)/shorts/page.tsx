@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Heart, MessageCircle, Play, Share2, Sparkles, X } from "lucide-react";
+import { Heart, MessageCircle, Play, Bookmark, Share2, Sparkles, X } from "lucide-react";
 import { useGuest } from "@/components/auth/guest-provider";
 import { PageTransition } from "@/components/motion/primitives";
 import { Avatar } from "@/components/ui/avatar";
@@ -16,6 +16,7 @@ type ShortPost = {
   likeCount?: number;
   commentCount?: number;
   liked?: boolean;
+  bookmarked?: boolean;
   media?: Array<{ url: string }>;
   author?: {
     handle?: string;
@@ -116,6 +117,18 @@ export default function ShortsPage() {
             }
           : p,
       ),
+    );
+  }
+
+  async function toggleBookmark(post: ShortPost) {
+    if (!requireAuth()) return;
+    const saved = Boolean(post.bookmarked);
+    const res = await fetch(`/api/posts/${post.id}/bookmark`, {
+      method: saved ? "DELETE" : "POST",
+    });
+    if (!res.ok) return;
+    setPosts((old) =>
+      old.map((p) => (p.id === post.id ? { ...p, bookmarked: !saved } : p)),
     );
   }
 
@@ -236,6 +249,21 @@ export default function ShortsPage() {
                     <span className="text-center text-xs font-semibold text-white/80">
                       {post.commentCount ?? 0}
                     </span>
+                    <button
+                      type="button"
+                      onClick={() => void toggleBookmark(post)}
+                      className={`flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md transition ${
+                        post.bookmarked
+                          ? "bg-[var(--signal)] text-white"
+                          : "bg-white/12 text-white hover:bg-white/18"
+                      }`}
+                      aria-label="Save"
+                    >
+                      <Bookmark
+                        className="size-5"
+                        fill={post.bookmarked ? "currentColor" : "none"}
+                      />
+                    </button>
                     <button
                       type="button"
                       onClick={() => void share(post)}

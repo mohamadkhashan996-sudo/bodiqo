@@ -1,5 +1,6 @@
 import { fail, ok, optionalUser } from "@/lib/api";
-import { getExplore, getSuggestedUsers } from "@/modules/feed/services/posts";
+import { getExplore } from "@/modules/feed/services/posts";
+import { getSuggestedUsers } from "@/modules/users/services/suggestions";
 
 export async function GET(r: Request) {
   try {
@@ -7,7 +8,9 @@ export async function GET(r: Request) {
     const q = new URL(r.url).searchParams;
     const mode = q.get("mode");
     if (mode === "users") {
-      return ok({ users: await getSuggestedUsers(Number(q.get("limit") ?? 5)) });
+      return ok({
+        users: await getSuggestedUsers(Number(q.get("limit") ?? 8), u?.id),
+      });
     }
     return ok(
       await getExplore(

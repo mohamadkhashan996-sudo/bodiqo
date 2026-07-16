@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/card";
 import { PageTransition } from "@/components/motion/primitives";
 import { VerificationBadge } from "@/components/brand/official-badge";
-import { useGuest } from "@/components/auth/guest-provider";
+import {
+  FollowButton,
+  type FollowRelation,
+} from "@/components/social/follow-button";
 
 type Person = {
   id: string;
@@ -19,11 +21,11 @@ type Person = {
   isVerified?: boolean;
   isOfficial?: boolean;
   bio?: string | null;
+  relation?: FollowRelation;
 };
 
 export default function FollowListPage({ mode }: { mode: "followers" | "following" }) {
   const { handle } = useParams<{ handle: string }>();
-  const { requireAuth } = useGuest();
   const [users, setUsers] = useState<Person[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,7 +52,10 @@ export default function FollowListPage({ mode }: { mode: "followers" | "followin
   }
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handle, mode]);
 
   useEffect(() => {
@@ -60,11 +65,6 @@ export default function FollowListPage({ mode }: { mode: "followers" | "followin
     if (sentinel.current) observer.observe(sentinel.current);
     return () => observer.disconnect();
   }, [cursor, handle, mode]);
-
-  async function toggleFollow(person: Person) {
-    if (!requireAuth() || !person.handle) return;
-    await fetch(`/api/users/${person.handle}/follow`, { method: "POST" });
-  }
 
   return (
     <PageTransition className="page-shell page-stack max-w-2xl">
@@ -109,11 +109,17 @@ export default function FollowListPage({ mode }: { mode: "followers" | "followin
                     />
                   </span>
                   <small className="block text-[var(--muted)]">@{person.handle}</small>
+                  {person.bio ? (
+                    <p className="mt-1 line-clamp-1 text-xs text-[var(--muted)]">{person.bio}</p>
+                  ) : null}
                 </span>
               </Link>
-              <Button variant="outline" type="button" onClick={() => void toggleFollow(person)}>
-                Follow
-              </Button>
+              {person.handle && person.relation !== "self" ? (
+                <FollowButton
+                  handle={person.handle}
+                  initialRelation={person.relation ?? "none"}
+                />
+              ) : null}
             </div>
           ))}
           {loadingMore ? <Skeleton className="h-16" /> : null}

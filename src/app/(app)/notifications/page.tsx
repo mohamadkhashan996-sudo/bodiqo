@@ -36,10 +36,22 @@ type FriendRequest = {
   };
 };
 
+type OutgoingRequest = {
+  id: string;
+  toUser: {
+    id: string;
+    handle: string | null;
+    name: string | null;
+    displayName: string | null;
+    image: string | null;
+  };
+};
+
 export default function NotificationsPage() {
   const { t } = useExperience();
   const [items, setItems] = useState<Note[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [outgoing, setOutgoing] = useState<OutgoingRequest[]>([]);
   const [filter, setFilter] = useState<"all" | "unread" | "social" | "mentions">("all");
 
   function load() {
@@ -48,7 +60,10 @@ export default function NotificationsPage() {
       .then((d) => setItems(d.notifications ?? []));
     void fetch("/api/social/friend-request")
       .then((r) => r.json())
-      .then((d) => setRequests(d.incoming ?? []))
+      .then((d) => {
+        setRequests(d.incoming ?? []);
+        setOutgoing(d.outgoing ?? []);
+      })
       .catch(() => {});
   }
 
@@ -73,13 +88,17 @@ export default function NotificationsPage() {
     setItems((old) => old.map((x) => ({ ...x, readAt: new Date().toISOString() })));
   }
 
-  async function respond(requestId: string, status: "ACCEPTED" | "DECLINED") {
+  async function respond(requestId: string, status: "ACCEPTED" | "DECLINED" | "CANCELLED") {
     await fetch("/api/social/friend-request", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requestId, status }),
     });
-    setRequests((old) => old.filter((r) => r.id !== requestId));
+    if (status === "CANCELLED") {
+      setOutgoing((old) => old.filter((r) => r.id !== requestId));
+    } else {
+      setRequests((old) => old.filter((r) => r.id !== requestId));
+    }
   }
 
   function hrefFor(item: Note) {
@@ -142,6 +161,37 @@ export default function NotificationsPage() {
                 onClick={() => void respond(request.id, "DECLINED")}
               >
                 Decline
+              </Button>
+            </div>
+          ))}
+        </Card>
+      ) : null}
+
+      {outgoing.length ? (
+        <Card className="mt-4 space-y-3 p-4">
+          <p className="text-sm font-semibold">Outgoing requests</p>
+          {outgoing.map((request) => (
+            <div key={request.id} className="flex items-center gap-3">
+              <Avatar
+                src={request.toUser.image}
+                name={request.toUser.displayName ?? request.toUser.name}
+              />
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/u/${request.toUser.handle}`}
+                  className="text-sm font-semibold hover:text-[var(--signal)]"
+                >
+                  {request.toUser.displayName ?? request.toUser.name}
+                </Link>
+                <p className="text-xs text-[var(--muted)]">@{request.toUser.handle}</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-9 px-3 text-xs"
+                onClick={() => void respond(request.id, "CANCELLED")}
+              >
+                Cancel
               </Button>
             </div>
           ))}

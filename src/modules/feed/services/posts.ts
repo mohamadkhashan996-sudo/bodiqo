@@ -48,7 +48,18 @@ export async function createPost(
   let type = data.type ?? "TEXT";
   if (!data.type && data.media?.length) {
     const hasVideo = data.media.some((item) => item.kind === "VIDEO");
+    const hasImage = data.media.some(
+      (item) => item.kind === "IMAGE" || item.kind === "GIF",
+    );
     if (hasVideo) type = "VIDEO";
+    else if (hasImage) type = "IMAGE";
+  }
+  if (
+    data.type === "TEXT" &&
+    data.media?.length &&
+    data.media.every((m) => m.kind === "IMAGE" || m.kind === "GIF")
+  ) {
+    type = "IMAGE";
   }
 
   const tags = [
@@ -194,13 +205,41 @@ export async function getFeed({
   const take = Math.min(Math.max(limit, 1), 50);
   const hidden = userId ? await hiddenAuthorIds(userId) : [];
 
+  let followingIds: string[] = [];
+  if (userId) {
+    const following = await prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+    followingIds = following.map((f) => f.followingId);
+  }
+
   const posts = await prisma.post.findMany({
     where: {
       status: "PUBLISHED",
       deletedAt: null,
-      visibility: "PUBLIC",
       authorId: hidden.length ? { notIn: hidden } : undefined,
-      author: { status: "ACTIVE", isPrivate: false },
+      ...(userId
+        ? {
+            OR: [
+              {
+                visibility: "PUBLIC",
+                author: { status: "ACTIVE", isPrivate: false },
+              },
+              { authorId: userId },
+              followingIds.length
+                ? {
+                    authorId: { in: followingIds },
+                    visibility: { in: ["PUBLIC", "FOLLOWERS"] },
+                    author: { status: "ACTIVE" },
+                  }
+                : undefined,
+            ].filter(Boolean) as never,
+          }
+        : {
+            visibility: "PUBLIC",
+            author: { status: "ACTIVE", isPrivate: false },
+          }),
     },
     include,
     orderBy: { publishedAt: "desc" },
@@ -221,21 +260,11 @@ export async function getExplore(cursor?: string, limit = 20, viewerId?: string)
   return getFeed({ userId: viewerId, cursor, limit });
 }
 
-export async function getSuggestedUsers(limit = 5) {
-  return prisma.user.findMany({
-    where: { status: "ACTIVE", isPrivate: false },
-    select: {
-      id: true,
-      handle: true,
-      name: true,
-      displayName: true,
-      image: true,
-      isVerified: true,
-      isOfficial: true,
-    },
-    orderBy: { followersCount: "desc" },
-    take: Math.min(limit, 20),
-  });
+export async function getSuggestedUsers(limit = 5, viewerId?: string) {
+  const { getSuggestedUsers: suggest } = await import(
+    "@/modules/users/services/suggestions"
+  );
+  return suggest(limit, viewerId);
 }
 
 export async function getPostsByHandle(

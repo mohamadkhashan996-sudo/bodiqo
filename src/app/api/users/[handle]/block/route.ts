@@ -1,14 +1,17 @@
 import { fail, ok, requireUser } from "@/lib/api";
+import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { blockUser, unblockUser } from "@/modules/users/services/social";
+
 async function target(h: string) {
   const u = await prisma.user.findUnique({
     where: { handle: h.toLowerCase() },
     select: { id: true },
   });
-  if (!u) throw new Error("User not found");
+  if (!u) throw new AppError("User not found", 404);
   return u.id;
 }
+
 export async function POST(
   _r: Request,
   { params }: { params: Promise<{ handle: string }> },
@@ -21,6 +24,7 @@ export async function POST(
     return fail(e);
   }
 }
+
 export async function DELETE(
   _r: Request,
   { params }: { params: Promise<{ handle: string }> },

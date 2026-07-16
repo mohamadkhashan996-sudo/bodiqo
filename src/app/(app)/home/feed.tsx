@@ -9,6 +9,7 @@ import { StoriesRail } from "@/components/feed/stories-rail";
 import { PageTransition } from "@/components/motion/primitives";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState, Skeleton } from "@/components/ui/card";
+import { FollowButton } from "@/components/social/follow-button";
 
 export function HomeFeed() {
   const { data: session } = useSession();
@@ -33,7 +34,7 @@ export function HomeFeed() {
 
   useEffect(() => {
     load();
-    fetch("/api/explore?mode=users&limit=5")
+    fetch("/api/social/suggested?limit=5")
       .then((r) => r.json())
       .then((d) => setSuggested(d.users ?? []))
       .catch(() => {});
@@ -118,13 +119,18 @@ export function HomeFeed() {
           </p>
           <div className="mt-4 space-y-4">
             {suggested.map((user) => (
-              <Link href={`/u/${user.handle}`} key={user.id} className="flex items-center gap-3">
-                <Avatar src={user.image} name={user.displayName ?? user.name} className="size-9" />
-                <span className="min-w-0">
-                  <b className="block truncate text-sm">{user.displayName ?? user.name}</b>
-                  <small className="text-[var(--muted)]">@{user.handle}</small>
-                </span>
-              </Link>
+              <div key={user.id} className="flex items-center gap-3">
+                <Link href={`/u/${user.handle}`} className="flex min-w-0 flex-1 items-center gap-3">
+                  <Avatar src={user.image} name={user.displayName ?? user.name} className="size-9" />
+                  <span className="min-w-0">
+                    <b className="block truncate text-sm">{user.displayName ?? user.name}</b>
+                    <small className="text-[var(--muted)]">@{user.handle}</small>
+                  </span>
+                </Link>
+                {user.handle ? (
+                  <FollowButton handle={user.handle} className="min-h-8 px-2.5 text-[10px]" />
+                ) : null}
+              </div>
             ))}
           </div>
           <Link href="/explore" className="mt-5 block text-xs font-semibold text-[var(--signal)]">

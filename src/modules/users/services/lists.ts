@@ -14,6 +14,36 @@ const userSelect = {
   bio: true,
 } as const;
 
+type RelationStatus = "none" | "following" | "requested";
+
+async function relationMap(viewerId: string | undefined, userIds: string[]) {
+  const map = new Map<string, RelationStatus>();
+  for (const id of userIds) map.set(id, "none");
+  if (!viewerId || !userIds.length) return map;
+
+  const [following, pending] = await Promise.all([
+    prisma.follow.findMany({
+      where: { followerId: viewerId, followingId: { in: userIds } },
+      select: { followingId: true },
+    }),
+    prisma.friendRequest.findMany({
+      where: {
+        fromUserId: viewerId,
+        toUserId: { in: userIds },
+        status: "PENDING",
+      },
+      select: { toUserId: true },
+    }),
+  ]);
+  for (const row of following) map.set(row.followingId, "following");
+  for (const row of pending) {
+    if (map.get(row.toUserId) !== "following") {
+      map.set(row.toUserId, "requested");
+    }
+  }
+  return map;
+}
+
 export async function listFollowers(
   handle: string,
   viewerId?: string,
@@ -37,8 +67,17 @@ export async function listFollowers(
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
   const nextCursor = rows.length > take ? rows.pop()!.id : null;
+  const users = rows.map((row) => row.follower);
+  const relations = await relationMap(
+    viewerId,
+    users.map((u) => u.id),
+  );
+
   return {
-    users: rows.map((row) => row.follower),
+    users: users.map((u) => ({
+      ...u,
+      relation: viewerId === u.id ? ("self" as const) : relations.get(u.id) ?? "none",
+    })),
     nextCursor,
   };
 }
@@ -66,8 +105,17 @@ export async function listFollowing(
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
   const nextCursor = rows.length > take ? rows.pop()!.id : null;
+  const users = rows.map((row) => row.following);
+  const relations = await relationMap(
+    viewerId,
+    users.map((u) => u.id),
+  );
+
   return {
-    users: rows.map((row) => row.following),
+    users: users.map((u) => ({
+      ...u,
+      relation: viewerId === u.id ? ("self" as const) : relations.get(u.id) ?? "none",
+    })),
     nextCursor,
   };
 }
@@ -98,7 +146,9 @@ export async function listBlocked(userId: string) {
     include: { blocked: { select: userSelect } },
     orderBy: { createdAt: "desc" },
   });
-  return { users: rows.map((row) => ({ ...row.blocked, blockedAt: row.createdAt })) };
+  return {
+    users: rows.map((row) => ({ ...row.blocked, blockedAt: row.createdAt })),
+  };
 }
 
 export async function listMuted(userId: string) {
@@ -107,5 +157,7 @@ export async function listMuted(userId: string) {
     include: { muted: { select: userSelect } },
     orderBy: { createdAt: "desc" },
   });
-  return { users: rows.map((row) => ({ ...row.muted, mutedAt: row.createdAt })) };
+  return {
+    users: rows.map((row) => ({ ...row.muted, mutedAt: row.createdAt })),
+  };
 }
