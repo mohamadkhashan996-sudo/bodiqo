@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
-import { getProfileVisibility } from "@/modules/users/services/visibility";
+import {
+  blockedIdsFor,
+  getProfileVisibility,
+} from "@/modules/users/services/visibility";
 
 const userSelect = {
   id: true,
@@ -44,6 +47,15 @@ async function relationMap(viewerId: string | undefined, userIds: string[]) {
   return map;
 }
 
+async function filterBlockedUsers<T extends { id: string }>(
+  users: T[],
+  viewerId?: string,
+) {
+  if (!viewerId || !users.length) return users;
+  const blocked = new Set(await blockedIdsFor(viewerId));
+  return users.filter((user) => !blocked.has(user.id));
+}
+
 export async function listFollowers(
   handle: string,
   viewerId?: string,
@@ -59,15 +71,22 @@ export async function listFollowers(
   if (!visibility.canViewFollowers) throw new AppError("Followers are private", 403);
 
   const take = Math.min(Math.max(limit, 1), 50);
+  const blocked = viewerId ? await blockedIdsFor(viewerId) : [];
   const rows = await prisma.follow.findMany({
-    where: { followingId: user.id },
+    where: {
+      followingId: user.id,
+      ...(blocked.length ? { followerId: { notIn: blocked } } : {}),
+    },
     include: { follower: { select: userSelect } },
     orderBy: { createdAt: "desc" },
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
   const nextCursor = rows.length > take ? rows.pop()!.id : null;
-  const users = rows.map((row) => row.follower);
+  const users = await filterBlockedUsers(
+    rows.map((row) => row.follower),
+    viewerId,
+  );
   const relations = await relationMap(
     viewerId,
     users.map((u) => u.id),
@@ -97,15 +116,22 @@ export async function listFollowing(
   if (!visibility.canViewFollowing) throw new AppError("Following is private", 403);
 
   const take = Math.min(Math.max(limit, 1), 50);
+  const blocked = viewerId ? await blockedIdsFor(viewerId) : [];
   const rows = await prisma.follow.findMany({
-    where: { followerId: user.id },
+    where: {
+      followerId: user.id,
+      ...(blocked.length ? { followingId: { notIn: blocked } } : {}),
+    },
     include: { following: { select: userSelect } },
     orderBy: { createdAt: "desc" },
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
   const nextCursor = rows.length > take ? rows.pop()!.id : null;
-  const users = rows.map((row) => row.following);
+  const users = await filterBlockedUsers(
+    rows.map((row) => row.following),
+    viewerId,
+  );
   const relations = await relationMap(
     viewerId,
     users.map((u) => u.id),
@@ -135,9 +161,11 @@ export async function listFriends(
   if (!visibility.canViewFollowers) throw new AppError("Friends are private", 403);
 
   const take = Math.min(Math.max(limit, 1), 50);
+  const blocked = viewerId ? await blockedIdsFor(viewerId) : [];
   const rows = await prisma.follow.findMany({
     where: {
       followerId: user.id,
+      ...(blocked.length ? { followingId: { notIn: blocked } } : {}),
       following: {
         following: {
           some: { followingId: user.id },
@@ -150,7 +178,10 @@ export async function listFriends(
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
   const nextCursor = rows.length > take ? rows.pop()!.id : null;
-  const users = rows.map((row) => row.following);
+  const users = await filterBlockedUsers(
+    rows.map((row) => row.following),
+    viewerId,
+  );
   const relations = await relationMap(
     viewerId,
     users.map((u) => u.id),

@@ -25,6 +25,8 @@ type ProfileVisibility = {
   canViewFollowers?: boolean;
   canViewFollowing?: boolean;
   followStatus?: "none" | "following" | "requested";
+  isMuted?: boolean;
+  isBlockedByMe?: boolean;
 };
 
 export default function ProfilePageClient() {
@@ -122,14 +124,64 @@ export default function ProfilePageClient() {
       return true;
     }
 
+    if (action === "mute") {
+      const muted = Boolean(visibility.isMuted);
+      const res = await fetch(`/api/users/${handle}/mute`, {
+        method: muted ? "DELETE" : "POST",
+      });
+      if (!res.ok) return false;
+      setVisibility((v) => ({ ...v, isMuted: !muted }));
+      return true;
+    }
+
+    if (action === "block") {
+      const blocked = Boolean(visibility.isBlockedByMe);
+      if (
+        !blocked &&
+        !window.confirm(
+          `Block @${handle}? They won’t be able to follow or message you.`,
+        )
+      ) {
+        return false;
+      }
+      const res = await fetch(`/api/users/${handle}/block`, {
+        method: blocked ? "DELETE" : "POST",
+      });
+      if (!res.ok) return false;
+      if (blocked) {
+        setVisibility((v) => ({
+          ...v,
+          isBlockedByMe: false,
+          followStatus: "none",
+        }));
+        router.refresh();
+        fetch(`/api/users/${handle}`)
+          .then(async (r) => {
+            const d = await r.json();
+            if (r.ok && d.user) {
+              setUser(d.user);
+              setVisibility((d.user?.visibility as ProfileVisibility) ?? {});
+            }
+          })
+          .catch(() => {});
+        fetch(`/api/posts?author=${handle}`)
+          .then((r) => r.json())
+          .then((d) => {
+            setPosts(d.posts ?? []);
+            setLocked(Boolean(d.locked));
+          })
+          .catch(() => {});
+      } else {
+        setNotFound(true);
+        setUser(null);
+        setPosts([]);
+      }
+      return true;
+    }
+
     const res = await fetch(`/api/users/${handle}/${action}`, {
       method: "POST",
     });
-    if (res.ok && action === "block") {
-      setVisibility((v) => ({ ...v, followStatus: "none" }));
-      setPosts([]);
-      setLocked(true);
-    }
     return res.ok;
   }
 
@@ -268,27 +320,18 @@ export default function ProfilePageClient() {
                         }}
                         className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
                       >
-                        Mute
+                        {visibility.isMuted ? "Unmute" : "Mute"}
                       </button>
                       <button
                         type="button"
-                    onClick={() => {
-                      if (!requireAuth()) return;
-                      if (
-                        !window.confirm(
-                          `Block @${handle}? They won’t be able to follow or message you.`,
-                        )
-                      ) {
-                        return;
-                      }
-                      void social("block").then((ok) => {
-                        if (ok) router.push("/home");
-                      });
-                    }}
-                    className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
-                  >
-                    Block
-                  </button>
+                        onClick={() => {
+                          if (!requireAuth()) return;
+                          void social("block");
+                        }}
+                        className="block w-full rounded-xl px-3 py-2 text-start hover:bg-[var(--mist)]"
+                      >
+                        {visibility.isBlockedByMe ? "Unblock" : "Block"}
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -354,6 +397,15 @@ export default function ProfilePageClient() {
                 </a>
               ) : null}
             </div>
+          ) : null}
+
+          {!isOwner &&
+          typeof user.mutualFriendsCount === "number" &&
+          user.mutualFriendsCount > 0 ? (
+            <p className="mt-3 text-sm text-[var(--muted)]">
+              {user.mutualFriendsCount} mutual friend
+              {user.mutualFriendsCount === 1 ? "" : "s"}
+            </p>
           ) : null}
 
           {user.isOfficial ? (

@@ -270,30 +270,39 @@ export async function respondFriendRequest(
         where: { id: requestId },
         data: { status },
       });
-      const existing = await tx.follow.findUnique({
-        where: {
-          followerId_followingId: {
-            followerId: request.fromUserId,
-            followingId: request.toUserId,
-          },
-        },
-      });
-      if (!existing) {
-        await tx.follow.create({
-          data: {
-            followerId: request.fromUserId,
-            followingId: request.toUserId,
+
+      // Create mutual follows so accept becomes a friendship.
+      for (const [followerId, followingId] of [
+        [request.fromUserId, request.toUserId],
+        [request.toUserId, request.fromUserId],
+      ] as const) {
+        const existing = await tx.follow.findUnique({
+          where: {
+            followerId_followingId: { followerId, followingId },
           },
         });
+        if (existing) continue;
+        await tx.follow.create({ data: { followerId, followingId } });
         await tx.user.update({
-          where: { id: request.fromUserId },
+          where: { id: followerId },
           data: { followingCount: { increment: 1 } },
         });
         await tx.user.update({
-          where: { id: request.toUserId },
+          where: { id: followingId },
           data: { followersCount: { increment: 1 } },
         });
       }
+
+      // Clear any reverse pending request between the same pair.
+      await tx.friendRequest.updateMany({
+        where: {
+          fromUserId: request.toUserId,
+          toUserId: request.fromUserId,
+          status: "PENDING",
+        },
+        data: { status: "ACCEPTED" },
+      });
+
       return next;
     });
     await createNotification({

@@ -6,6 +6,9 @@ export type ProfileVisibility = {
   canViewFollowers: boolean;
   canViewFollowing: boolean;
   followStatus: "none" | "following" | "requested";
+  isMuted: boolean;
+  isBlockedByMe: boolean;
+  isBlockedByThem: boolean;
 };
 
 type AuthorLike = { id: string; isPrivate?: boolean };
@@ -35,19 +38,72 @@ export async function hasPendingFollowRequest(
   return Boolean(row);
 }
 
+export async function getBlockState(viewerId: string | undefined, authorId: string) {
+  if (!viewerId || viewerId === authorId) {
+    return { isBlockedByMe: false, isBlockedByThem: false };
+  }
+  const rows = await prisma.block.findMany({
+    where: {
+      OR: [
+        { blockerId: viewerId, blockedId: authorId },
+        { blockerId: authorId, blockedId: viewerId },
+      ],
+    },
+    select: { blockerId: true },
+  });
+  return {
+    isBlockedByMe: rows.some((row) => row.blockerId === viewerId),
+    isBlockedByThem: rows.some((row) => row.blockerId === authorId),
+  };
+}
+
+export async function isMutedBy(viewerId: string | undefined, authorId: string) {
+  if (!viewerId || viewerId === authorId) return false;
+  const row = await prisma.mute.findUnique({
+    where: { muterId_mutedId: { muterId: viewerId, mutedId: authorId } },
+    select: { id: true },
+  });
+  return Boolean(row);
+}
+
+/** Bidirectional block IDs to exclude from lists/suggestions for a viewer. */
+export async function blockedIdsFor(viewerId: string) {
+  const rows = await prisma.block.findMany({
+    where: {
+      OR: [{ blockerId: viewerId }, { blockedId: viewerId }],
+    },
+    select: { blockerId: true, blockedId: true },
+  });
+  return [
+    ...new Set(
+      rows.flatMap((row) =>
+        row.blockerId === viewerId ? [row.blockedId] : [row.blockerId],
+      ),
+    ),
+  ];
+}
+
 export async function getProfileVisibility(
   author: AuthorLike,
   viewerId?: string,
 ): Promise<ProfileVisibility> {
   const self = viewerId === author.id;
-  const following = await isFollowing(viewerId, author.id);
-  const requested = await hasPendingFollowRequest(viewerId, author.id);
+  const [following, requested, mute, block] = await Promise.all([
+    isFollowing(viewerId, author.id),
+    hasPendingFollowRequest(viewerId, author.id),
+    isMutedBy(viewerId, author.id),
+    getBlockState(viewerId, author.id),
+  ]);
+  const blocked = block.isBlockedByMe || block.isBlockedByThem;
   return {
     isPrivate: Boolean(author.isPrivate),
-    canViewContent: self || following || !author.isPrivate,
-    canViewFollowers: self || following || !author.isPrivate,
-    canViewFollowing: self || following || !author.isPrivate,
+    canViewContent: self || (!blocked && (following || !author.isPrivate)),
+    canViewFollowers: self || (!blocked && (following || !author.isPrivate)),
+    canViewFollowing: self || (!blocked && (following || !author.isPrivate)),
     followStatus: following ? "following" : requested ? "requested" : "none",
+    isMuted: mute,
+    isBlockedByMe: block.isBlockedByMe,
+    isBlockedByThem: block.isBlockedByThem,
   };
 }
 

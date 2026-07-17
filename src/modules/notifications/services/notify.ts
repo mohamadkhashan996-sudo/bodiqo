@@ -77,6 +77,30 @@ function pushTitle(type: NotificationType, actorName?: string | null) {
 export async function createNotification(input: NotificationInput) {
   if (input.userId === input.actorId) return null;
 
+  if (input.actorId) {
+    const muted = await prisma.mute.findUnique({
+      where: {
+        muterId_mutedId: {
+          muterId: input.userId,
+          mutedId: input.actorId,
+        },
+      },
+      select: { id: true },
+    });
+    if (muted) return null;
+
+    const blocked = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: input.userId, blockedId: input.actorId },
+          { blockerId: input.actorId, blockedId: input.userId },
+        ],
+      },
+      select: { id: true },
+    });
+    if (blocked) return null;
+  }
+
   const body = input.body?.trim() || DEFAULT_BODY[input.type] || undefined;
   const created = await prisma.notification.create({
     data: { ...input, body },

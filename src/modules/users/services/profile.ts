@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { getProfileVisibility } from "@/modules/users/services/visibility";
+import {
+  blockedIdsFor,
+  getProfileVisibility,
+} from "@/modules/users/services/visibility";
 
 export async function countMutualFriends(userId: string) {
   return prisma.follow.count({
@@ -12,6 +15,33 @@ export async function countMutualFriends(userId: string) {
       },
     },
   });
+}
+
+/** Friends of both users (mutual-follow intersection). */
+export async function countMutualFriendsWithViewer(
+  userId: string,
+  viewerId: string,
+) {
+  if (userId === viewerId) return countMutualFriends(userId);
+
+  const [mine, theirs] = await Promise.all([
+    prisma.follow.findMany({
+      where: {
+        followerId: viewerId,
+        following: { following: { some: { followingId: viewerId } } },
+      },
+      select: { followingId: true },
+    }),
+    prisma.follow.findMany({
+      where: {
+        followerId: userId,
+        following: { following: { some: { followingId: userId } } },
+      },
+      select: { followingId: true },
+    }),
+  ]);
+  const theirSet = new Set(theirs.map((row) => row.followingId));
+  return mine.filter((row) => theirSet.has(row.followingId)).length;
 }
 
 export async function getPublicProfile(handle: string, viewerId?: string) {
@@ -42,10 +72,19 @@ export async function getPublicProfile(handle: string, viewerId?: string) {
   });
   if (!user) return null;
 
+  if (viewerId && viewerId !== user.id) {
+    const blocked = await blockedIdsFor(viewerId);
+    if (blocked.includes(user.id)) return null;
+  }
+
   const visibility = await getProfileVisibility(user, viewerId);
   const friendsCount = visibility.canViewFollowers
     ? await countMutualFriends(user.id)
     : null;
+  const mutualFriendsCount =
+    viewerId && viewerId !== user.id && visibility.canViewFollowers
+      ? await countMutualFriendsWithViewer(user.id, viewerId)
+      : null;
 
   return {
     ...user,
@@ -53,6 +92,7 @@ export async function getPublicProfile(handle: string, viewerId?: string) {
     followersCount: visibility.canViewFollowers ? user.followersCount : null,
     followingCount: visibility.canViewFollowing ? user.followingCount : null,
     friendsCount,
+    mutualFriendsCount,
     postsCount: visibility.canViewContent ? user.postsCount : null,
     visibility,
   };

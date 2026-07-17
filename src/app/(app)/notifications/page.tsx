@@ -172,7 +172,7 @@ export default function NotificationsPage() {
 
       {requests.length ? (
         <Card className="mt-6 space-y-3 p-4">
-          <p className="text-sm font-semibold">Follow requests</p>
+          <p className="text-sm font-semibold">Friend requests</p>
           {requests.map((request) => (
             <div key={request.id} className="flex items-center gap-3">
               <Avatar
