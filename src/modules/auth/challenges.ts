@@ -1,8 +1,14 @@
 import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { hashOpaque } from "@/modules/auth/password";
+import { hashOpaque, hashOpaqueLegacy } from "@/modules/auth/password";
 import { AppError } from "@/lib/errors";
+
+const challengeUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+} as const;
 
 export async function createAuthChallenge(
   userId: string,
@@ -23,10 +29,16 @@ export async function createAuthChallenge(
   return token;
 }
 
-export async function consumeAuthChallenge(token: string, purpose: string) {
-  const row = await prisma.authChallenge.findUnique({
-    where: { tokenHash: hashOpaque(token) },
+async function findChallenge(token: string) {
+  const hashes = [hashOpaque(token), hashOpaqueLegacy(token)];
+  return prisma.authChallenge.findFirst({
+    where: { tokenHash: { in: hashes } },
+    include: { user: { select: challengeUserSelect } },
   });
+}
+
+export async function consumeAuthChallenge(token: string, purpose: string) {
+  const row = await findChallenge(token);
   if (!row || row.usedAt || row.expiresAt < new Date() || row.purpose !== purpose) {
     throw new AppError("This challenge is invalid or expired", 400);
   }
@@ -38,12 +50,7 @@ export async function consumeAuthChallenge(token: string, purpose: string) {
 }
 
 export async function peekAuthChallenge(token: string, purpose: string) {
-  const row = await prisma.authChallenge.findUnique({
-    where: { tokenHash: hashOpaque(token) },
-    include: {
-      user: { select: { id: true, email: true, twoFactorEnabled: true } },
-    },
-  });
+  const row = await findChallenge(token);
   if (!row || row.usedAt || row.expiresAt < new Date() || row.purpose !== purpose) {
     return null;
   }

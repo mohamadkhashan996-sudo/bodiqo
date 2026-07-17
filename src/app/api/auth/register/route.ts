@@ -3,13 +3,14 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
-import { body, fail } from "@/lib/api";
+import { body, fail, guardApiAbuse } from "@/lib/api";
 import { createEmailToken } from "@/modules/auth/email-tokens";
 import { sendMail, welcomeEmail } from "@/lib/mail";
 import { absoluteUrl } from "@/lib/url";
 import { getSetting } from "@/modules/admin/services/settings";
 import { hashPassword } from "@/modules/auth/password";
 import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
+import { assertHoneypotEmpty } from "@/lib/anti-spam";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -21,18 +22,28 @@ const schema = z.object({
     .pipe(z.string().regex(/^[a-z0-9_.]{3,24}$/)),
   email: z.string().trim().email(),
   password: z.string().min(8).max(128),
+  website: z.string().max(200).optional(),
 });
 
 export async function POST(request: Request) {
   try {
+    await guardApiAbuse(request, "auth:register", 12, 60_000);
     const ip = request.headers.get("x-forwarded-for") ?? "anon";
     if (!(await rateLimit(`register:${ip}`, 8, 60000)).ok)
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
-    const registration = (await getSetting<{ open?: boolean }>("registration")) ?? {};
+    const registration =
+      (await getSetting<{ open?: boolean; requireCaptcha?: boolean }>(
+        "registration",
+      )) ?? {};
     if (registration.open === false) {
-      return NextResponse.json({ error: "Registration is closed" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Registration is closed" },
+        { status: 403 },
+      );
     }
     const data = await body(request, schema);
+    assertHoneypotEmpty(data.website);
+    // Captcha providers can be wired later; honeypot + rate limits remain active.
     assertHandleAvailable(data.handle);
     const email = data.email.toLowerCase();
     const exists = await prisma.user.findFirst({
@@ -55,8 +66,13 @@ export async function POST(request: Request) {
       select: { id: true, email: true, handle: true, name: true },
     });
     const token = await createEmailToken(user.id, email, "VERIFY_EMAIL", 24);
-    const verifyUrl = absoluteUrl(`/verify-email?token=${encodeURIComponent(token)}`);
-    const welcome = welcomeEmail(user.name || user.handle || "there", verifyUrl);
+    const verifyUrl = absoluteUrl(
+      `/verify-email?token=${encodeURIComponent(token)}`,
+    );
+    const welcome = welcomeEmail(
+      user.name || user.handle || "there",
+      verifyUrl,
+    );
     const mail = await sendMail({
       to: email,
       subject: welcome.subject,

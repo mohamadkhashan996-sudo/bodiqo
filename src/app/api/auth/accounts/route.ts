@@ -77,7 +77,7 @@ export async function DELETE(request: Request) {
   }
 }
 
-/** Confirm pending OAuth link after password verification */
+/** Confirm pending OAuth link after password verification or authenticated session. */
 export async function POST(request: Request) {
   try {
     await guardApiAbuse(request, "auth:link", 15);
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       request,
       z.object({
         token: z.string().min(10),
-        password: z.string().min(8).max(128),
+        password: z.string().min(8).max(128).optional(),
       }),
     );
 
@@ -95,10 +95,22 @@ export async function POST(request: Request) {
     const user = await prisma.user.findUnique({
       where: { id: pending.row.userId },
     });
-    if (!user?.passwordHash) throw new AppError("Unable to verify account", 400);
+    if (!user) throw new AppError("Unable to verify account", 400);
 
-    const match = await bcrypt.compare(data.password, user.passwordHash);
-    if (!match) throw new AppError("Incorrect password", 401);
+    if (user.passwordHash) {
+      if (!data.password) throw new AppError("Password required", 400);
+      const match = await bcrypt.compare(data.password, user.passwordHash);
+      if (!match) throw new AppError("Incorrect password", 401);
+    } else {
+      // OAuth-only: require an already-authenticated session for this user.
+      const sessionUser = await requireUser();
+      if (sessionUser.id !== user.id) {
+        throw new AppError(
+          "Sign in with your existing Relune login, then confirm this link.",
+          401,
+        );
+      }
+    }
 
     const linked = await confirmPendingOAuthLink(data.token, user.id);
     await writeAudit({
@@ -111,6 +123,7 @@ export async function POST(request: Request) {
       ok: true,
       provider: linked.provider,
       email: user.email,
+      hasPassword: Boolean(user.passwordHash),
     });
   } catch (e) {
     return fail(e);

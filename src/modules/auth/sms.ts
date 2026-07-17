@@ -45,6 +45,10 @@ export async function sendSms(to: string, body: string) {
     throw new Error("SMS delivery is not configured");
   }
 
-  logger.info("sms_preview", { to, body, provider: "log" });
+  logger.info("sms_preview", {
+    to,
+    body: body.replace(/\b\d{4,8}\b/g, "[redacted]"),
+    provider: "log",
+  });
   return { ok: true as const, preview: true as const };
 }

@@ -141,3 +141,23 @@ export async function fetchPeerPublicKey(userId: string) {
   const data = await res.json();
   return (data.publicKey as string | null) ?? null;
 }
+
+/** Short shared safety number from both identity public keys (call verification). */
+export async function callSafetyNumber(peerPublicJwk: string) {
+  const own = await idbGet("public");
+  if (!own) return null;
+  const ownJwk = JSON.stringify(await crypto.subtle.exportKey("jwk", own));
+  const [a, b] = [ownJwk, peerPublicJwk].sort();
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`${a}|${b}`),
+  );
+  const bytes = new Uint8Array(digest);
+  const groups: string[] = [];
+  for (let i = 0; i < 6; i++) {
+    const n = (bytes[i * 2]! << 8) | bytes[i * 2 + 1]!;
+    groups.push(String(n % 10000).padStart(4, "0"));
+  }
+  return groups.join(" ");
+}
+

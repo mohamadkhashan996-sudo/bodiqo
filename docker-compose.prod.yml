@@ -1,0 +1,45 @@
+# Production-oriented overlay. Usage:
+#   export POSTGRES_PASSWORD=… REDIS_PASSWORD=… AUTH_SECRET=… AUTH_URL=https://… RESEND_API_KEY=…
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Binds app only. Postgres/Redis stay on the internal Compose network.
+
+services:
+  postgres:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+
+  redis:
+    ports: !reset []
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:?Set REDIS_PASSWORD}",
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-a",
+          "${REDIS_PASSWORD}",
+          "ping",
+        ]
+
+  app:
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://relune:${POSTGRES_PASSWORD}@postgres:5432/relune?schema=public
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      NODE_ENV: production
+      AUTH_URL: ${AUTH_URL:?Set AUTH_URL to https://your.domain}
+      NEXTAUTH_URL: ${AUTH_URL}
+      MAIL_PROVIDER: resend
+      RESEND_API_KEY: ${RESEND_API_KEY:?Set RESEND_API_KEY}
+      AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET}
+    ports:
+      - "${PORT:-3000}:3000"

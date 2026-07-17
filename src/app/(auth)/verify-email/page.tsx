@@ -66,7 +66,7 @@ function VerifyInner() {
       <h1 className="font-[family-name:var(--font-display)] text-4xl">
         One last detail
       </h1>
-      <p className="mt-6 rounded-2xl border border-[var(--mist)] bg-[var(--glass)] p-5 text-sm">
+      <p className="mt-6 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 text-sm">
         {message}
       </p>
       {ok ? (

@@ -15,3 +15,6 @@ coverage
 bodiqo-store-backup
 .cursor
 agent-transcripts
+ios
+android
+.github

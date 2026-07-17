@@ -1,9 +1,11 @@
 import { generateSecret, generateURI } from "otplib";
+import QRCode from "qrcode";
 import { z } from "zod";
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
 import { verifyPassword } from "@/modules/auth/password";
+import { storeTotpSecret } from "@/modules/auth/two-factor";
 
 /** Begin 2FA setup without disabling an already-enabled authenticator. */
 export async function POST(request: Request) {
@@ -43,16 +45,24 @@ export async function POST(request: Request) {
     const secret = generateSecret();
     await prisma.user.update({
       where: { id: user.id },
-      data: { twoFactorPending: secret },
+      data: { twoFactorPending: storeTotpSecret(secret) },
+    });
+
+    const otpauthUrl = generateURI({
+      issuer: "Relune",
+      label: me.email || user.id,
+      secret,
+    });
+    const qrDataUrl = await QRCode.toDataURL(otpauthUrl, {
+      margin: 1,
+      width: 200,
+      color: { dark: "#12141a", light: "#ffffff" },
     });
 
     return ok({
       secret,
-      otpauthUrl: generateURI({
-        issuer: "Relune",
-        label: me.email || user.id,
-        secret,
-      }),
+      otpauthUrl,
+      qrDataUrl,
       replacing: me.twoFactorEnabled,
     });
   } catch (e) {

@@ -142,10 +142,10 @@ export default function PrivacySettingsPage() {
           <button
             type="button"
             onClick={() => void updateAccountPrivacy(false)}
-            className={`rounded-[1.25rem] border px-4 py-4 text-left transition ${
+            className={`rounded-[1.25rem] border-2 px-4 py-4 text-left transition shadow-[var(--shadow-sm)] ${
               !isPrivate
-                ? "border-[var(--signal)] bg-[var(--signal)]/10"
-                : "border-[var(--mist)] bg-[var(--surface)]"
+                ? "border-[var(--signal-deep)] bg-[var(--signal)]/15"
+                : "border-[var(--mist-strong)] bg-[var(--surface)]"
             }`}
           >
             <p className="font-medium">Public</p>
@@ -156,10 +156,10 @@ export default function PrivacySettingsPage() {
           <button
             type="button"
             onClick={() => void updateAccountPrivacy(true)}
-            className={`rounded-[1.25rem] border px-4 py-4 text-left transition ${
+            className={`rounded-[1.25rem] border-2 px-4 py-4 text-left transition shadow-[var(--shadow-sm)] ${
               isPrivate
-                ? "border-[var(--signal)] bg-[var(--signal)]/10"
-                : "border-[var(--mist)] bg-[var(--surface)]"
+                ? "border-[var(--signal-deep)] bg-[var(--signal)]/15"
+                : "border-[var(--mist-strong)] bg-[var(--surface)]"
             }`}
           >
             <p className="font-medium">Private</p>
@@ -180,7 +180,7 @@ export default function PrivacySettingsPage() {
         {(Object.keys(labels) as (keyof Privacy)[]).map((key) => (
           <div
             key={key}
-            className="flex flex-col gap-3 border-b border-[var(--mist)] p-5 last:border-0 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-3 border-b-2 border-[var(--mist-strong)] p-5 last:border-0 sm:flex-row sm:items-center sm:justify-between"
           >
             <label className="text-sm font-medium" htmlFor={`privacy-${key}`}>
               {labels[key]}
@@ -193,13 +193,15 @@ export default function PrivacySettingsPage() {
                 onClick={() =>
                   void updatePrivacy({ [key]: !privacy[key] } as Partial<Privacy>)
                 }
-                className={`h-7 w-12 rounded-full p-1 transition ${
-                  privacy[key] ? "bg-[var(--signal)]" : "bg-[var(--mist)]"
+                className={`h-8 w-14 rounded-full border-2 p-1 transition ${
+                  privacy[key]
+                    ? "border-[var(--signal-deep)] bg-[var(--signal)]"
+                    : "border-[var(--mist-strong)] bg-[var(--mist)]"
                 }`}
               >
                 <span
-                  className={`block size-5 rounded-full bg-white transition ${
-                    privacy[key] ? "translate-x-5" : ""
+                  className={`block size-5 rounded-full bg-[var(--cloud-elevated)] shadow-[var(--shadow-sm)] transition ${
+                    privacy[key] ? "translate-x-6" : ""
                   }`}
                 />
               </button>
@@ -212,7 +214,7 @@ export default function PrivacySettingsPage() {
                     [key]: event.target.value as Audience,
                   } as Partial<Privacy>)
                 }
-                className="rounded-[var(--radius-md)] border border-[var(--mist)] bg-[var(--surface)] px-3 py-2 text-sm font-medium outline-none"
+                className="rounded-[var(--radius-md)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm font-medium outline-none"
               >
                 {audiences.map((audience) => (
                   <option key={audience} value={audience}>

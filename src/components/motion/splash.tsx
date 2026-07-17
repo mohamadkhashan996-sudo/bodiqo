@@ -1,71 +1,86 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
 export function SplashScreen() {
-  const [show, setShow] = useState(true);
   const reduce = useReducedMotion();
+  // Start hidden to avoid SSR/client hydration mismatch and accidental click traps
+  // after the splash was already dismissed in this session.
+  const [show, setShow] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const seen =
-      typeof window !== "undefined" &&
-      sessionStorage.getItem("relune_splash") === "1";
-    if (seen) {
-      setShow(false);
-      return;
-    }
-    const t = window.setTimeout(() => {
+    if (sessionStorage.getItem("relune_splash") === "1") return;
+    setShow(true);
+    const hideMs = reduce ? 300 : 1200;
+    const fadeMs = reduce ? 200 : 450;
+    const hide = window.setTimeout(() => {
       sessionStorage.setItem("relune_splash", "1");
+      setVisible(false);
+    }, hideMs);
+    const unmount = window.setTimeout(() => {
       setShow(false);
-    }, reduce ? 400 : 1700);
-    return () => window.clearTimeout(t);
+    }, hideMs + fadeMs);
+    return () => {
+      window.clearTimeout(hide);
+      window.clearTimeout(unmount);
+    };
   }, [reduce]);
 
+  if (!show) return null;
+
   return (
-    <AnimatePresence>
-      {show ? (
-        <motion.div
-          className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,_#faf8f4_0%,_var(--cloud)_70%)]"
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: reduce ? 0.2 : 0.55, ease: [0.22, 1, 0.36, 1] }}
-          role="status"
-          aria-label="Loading Relune"
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: reduce ? 0.2 : 0.75, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <Image
-              src="/brand/mark.png"
-              alt=""
-              width={92}
-              height={92}
-              priority
-              className="object-contain"
-            />
-          </motion.div>
-          <motion.p
-            className="mt-8 font-[family-name:var(--font-display)] text-3xl tracking-[0.32em] uppercase text-[var(--ink)]"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: reduce ? 0 : 0.28, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          >
-            Relune
-          </motion.p>
-          <motion.p
-            className="mt-3 text-xs tracking-[0.18em] text-[var(--muted)]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: reduce ? 0 : 0.55 }}
-          >
-            Presence, beautifully shared.
-          </motion.p>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+    <div
+      className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,_#faf8f4_0%,_var(--cloud)_70%)] transition-opacity"
+      style={{
+        opacity: visible ? 1 : 0,
+        transitionDuration: reduce ? "200ms" : "450ms",
+        transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+        pointerEvents: visible ? "auto" : "none",
+      }}
+      role="status"
+      aria-label="Loading Relune"
+      aria-live="polite"
+    >
+      <div
+        className="transition-all"
+        style={{
+          opacity: visible ? 1 : 0.85,
+          transform: visible ? "scale(1)" : "scale(0.98)",
+          transitionDuration: reduce ? "200ms" : "600ms",
+          transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      >
+        <Image
+          src="/brand/mark.png"
+          alt=""
+          width={92}
+          height={92}
+          priority
+          className="object-contain"
+        />
+      </div>
+      <p
+        className="mt-8 font-[family-name:var(--font-display)] text-3xl tracking-[0.32em] uppercase text-[var(--ink)]"
+        style={{
+          opacity: visible ? 1 : 0,
+          transform: visible ? "translateY(0)" : "translateY(8px)",
+          transition: `opacity ${reduce ? 200 : 400}ms ease, transform ${reduce ? 200 : 400}ms ease`,
+        }}
+      >
+        Relune
+      </p>
+      <p
+        className="mt-3 text-xs tracking-[0.18em] text-[var(--muted)]"
+        style={{
+          opacity: visible ? 1 : 0,
+          transition: `opacity ${reduce ? 150 : 300}ms ease`,
+        }}
+      >
+        Presence, beautifully shared.
+      </p>
+    </div>
   );
 }

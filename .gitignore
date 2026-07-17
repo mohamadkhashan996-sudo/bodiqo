@@ -43,6 +43,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Capacitor native projects (generate with npm run mobile:add)
+/ios
+/android
+/.capacitor
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, Card } from "@/components/ui/card";
 import { PageTransition } from "@/components/motion/primitives";
 import { useExperience } from "@/components/experience-provider";
+import { PushOptIn } from "@/components/notifications/push-opt-in";
+import { useSocket } from "@/hooks/use-socket";
 
 type Note = {
   id: string;
@@ -49,10 +51,13 @@ type OutgoingRequest = {
 
 export default function NotificationsPage() {
   const { t } = useExperience();
+  const { socket } = useSocket();
   const [items, setItems] = useState<Note[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [outgoing, setOutgoing] = useState<OutgoingRequest[]>([]);
-  const [filter, setFilter] = useState<"all" | "unread" | "social" | "mentions">("all");
+  const [filter, setFilter] = useState<
+    "all" | "unread" | "social" | "mentions" | "messages" | "calls"
+  >("all");
 
   function load() {
     void fetch("/api/notifications")
@@ -71,11 +76,24 @@ export default function NotificationsPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    const onNew = (note: Note) => {
+      setItems((old) => (old.some((item) => item.id === note.id) ? old : [note, ...old]));
+    };
+    socket?.on("notification:new", onNew);
+    return () => {
+      socket?.off("notification:new", onNew);
+    };
+  }, [socket]);
+
   const visible = items.filter((item) => {
     if (filter === "unread") return !item.readAt;
-    if (filter === "mentions") return item.type.includes("MENTION") || item.type.includes("COMMENT");
+    if (filter === "mentions")
+      return item.type.includes("MENTION") || item.type.includes("COMMENT") || item.type === "REPLY";
     if (filter === "social")
-      return ["FOLLOW", "LIKE", "FRIEND_REQUEST", "CALL", "MISSED_CALL"].includes(item.type);
+      return ["FOLLOW", "LIKE", "FRIEND_REQUEST"].includes(item.type);
+    if (filter === "messages") return item.type === "MESSAGE";
+    if (filter === "calls") return item.type === "CALL" || item.type === "MISSED_CALL";
     return true;
   });
 
@@ -86,6 +104,19 @@ export default function NotificationsPage() {
       body: "{}",
     });
     setItems((old) => old.map((x) => ({ ...x, readAt: new Date().toISOString() })));
+  }
+
+  async function markOne(id: string) {
+    await fetch("/api/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setItems((old) =>
+      old.map((x) =>
+        x.id === id ? { ...x, readAt: new Date().toISOString() } : x,
+      ),
+    );
   }
 
   async function respond(requestId: string, status: "ACCEPTED" | "DECLINED" | "CANCELLED") {
@@ -103,14 +134,20 @@ export default function NotificationsPage() {
 
   function hrefFor(item: Note) {
     const postId = item.post?.id ?? item.postId;
-    if (postId && ["LIKE", "COMMENT", "REPLY", "MENTION"].includes(item.type)) {
+    if (postId && ["LIKE", "COMMENT", "REPLY", "MENTION", "SHARE"].includes(item.type)) {
       return `/post/${postId}`;
     }
     if (item.actor?.handle && ["FOLLOW", "FRIEND_REQUEST"].includes(item.type)) {
       return `/u/${item.actor.handle}`;
     }
+    if (item.type === "MESSAGE") return "/messages";
     if (["CALL", "MISSED_CALL"].includes(item.type)) return "/calls";
     return null;
+  }
+
+  function labelFor(item: Note) {
+    if (item.body) return item.body;
+    return item.type.toLowerCase().replaceAll("_", " ");
   }
 
   return (
@@ -124,10 +161,14 @@ export default function NotificationsPage() {
             {t("notifications", "title")}
           </h1>
         </div>
-        <Button variant="quiet" type="button" onClick={() => void markAll()}>
-          {t("common", "markAllRead")}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="quiet" type="button" onClick={() => void markAll()}>
+            {t("common", "markAllRead")}
+          </Button>
+        </div>
       </div>
+
+      <PushOptIn />
 
       {requests.length ? (
         <Card className="mt-6 space-y-3 p-4">
@@ -205,6 +246,8 @@ export default function NotificationsPage() {
             ["unread", t("notifications", "unread")],
             ["social", t("notifications", "social")],
             ["mentions", t("notifications", "mentions")],
+            ["messages", "Messages"],
+            ["calls", "Calls"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -216,7 +259,7 @@ export default function NotificationsPage() {
             className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide transition ${
               filter === key
                 ? "bg-[var(--ink)] text-[var(--cloud)]"
-                : "border border-[var(--mist)] text-[var(--muted)]"
+                : "border-2 border-[var(--mist-strong)] text-[var(--muted)]"
             }`}
           >
             {label}
@@ -236,7 +279,7 @@ export default function NotificationsPage() {
               <div>
                 <p className="text-sm">
                   <b>{item.actor?.displayName ?? item.actor?.name ?? "Someone"}</b>{" "}
-                  {item.body ?? item.type.toLowerCase().replaceAll("_", " ")}
+                  {labelFor(item)}
                 </p>
                 <time className="text-xs text-[var(--muted)]">
                   {new Date(item.createdAt).toLocaleString()}
@@ -244,23 +287,22 @@ export default function NotificationsPage() {
               </div>
             </>
           );
+          const className = `flex gap-3 rounded-2xl border-2 border-[var(--mist-strong)] p-4 transition hover:bg-[var(--surface)] ${
+            item.readAt ? "bg-[var(--cloud-elevated)]" : "bg-[var(--surface)] shadow-sm"
+          }`;
           return href ? (
             <Link
               key={item.id}
               href={href}
-              className={`flex gap-3 rounded-2xl border border-[var(--mist)] p-4 transition hover:bg-[var(--surface)] ${
-                item.readAt ? "bg-[var(--glass)]" : "bg-white/80 shadow-sm dark:bg-white/5"
-              }`}
+              className={className}
+              onClick={() => {
+                if (!item.readAt) void markOne(item.id);
+              }}
             >
               {inner}
             </Link>
           ) : (
-            <article
-              key={item.id}
-              className={`flex gap-3 rounded-2xl border border-[var(--mist)] p-4 transition ${
-                item.readAt ? "bg-[var(--glass)]" : "bg-white/80 shadow-sm dark:bg-white/5"
-              }`}
-            >
+            <article key={item.id} className={className}>
               {inner}
             </article>
           );

@@ -1,4 +1,4 @@
-import { fail, ok, optionalUser } from "@/lib/api";
+import { fail, ok, optionalUser, guardApiAbuse} from "@/lib/api";
 import { getPostById } from "@/modules/feed/services/posts";
 import { PostVisibility } from "@prisma/client";
 import { z } from "zod";
@@ -26,6 +26,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await guardApiAbuse(r, "posts:id:patch");
     const u = await requireUser();
     const { id } = await params;
     return ok({
@@ -52,6 +53,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await guardApiAbuse(_r, "posts:id:delete");
     const u = await requireUser();
     const { id } = await params;
     await deletePost(u.id, id);

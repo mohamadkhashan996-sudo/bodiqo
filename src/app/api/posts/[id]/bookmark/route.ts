@@ -1,4 +1,4 @@
-import { fail, ok, requireUser } from "@/lib/api";
+import { fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { bookmarkPost } from "@/modules/feed/services/posts";
 import { prisma } from "@/lib/prisma";
 export async function POST(
@@ -6,6 +6,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await guardApiAbuse(_r, "posts:id:bookmark:post");
     const u = await requireUser();
     return ok({ bookmark: await bookmarkPost(u.id, (await params).id) });
   } catch (e) {
@@ -17,6 +18,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await guardApiAbuse(_r, "posts:id:bookmark:delete");
     const u = await requireUser();
     const id = (await params).id;
     await prisma.bookmark.deleteMany({ where: { userId: u.id, postId: id } });

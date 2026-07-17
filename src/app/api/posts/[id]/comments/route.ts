@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { addComment, listComments } from "@/modules/feed/services/comments";
 import { createNotification } from "@/modules/notifications/services/notify";
 import { prisma } from "@/lib/prisma";
@@ -26,6 +26,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await guardApiAbuse(r, "posts:id:comments:post");
     const u = await requireUser();
     const postId = (await params).id;
     const d = await body(

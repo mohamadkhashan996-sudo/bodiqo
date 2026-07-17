@@ -11,7 +11,9 @@ import { uploadFile } from "@/lib/upload-client";
 
 type MediaItem = { url: string; kind: MediaKind; name: string };
 
-export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => void }) {
+import type { FeedPost } from "@/types/feed";
+
+export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => void }) {
   const { t } = useExperience();
   const [body, setBody] = useState("");
   const [kind, setKind] = useState<"Post" | "Photo" | "Video" | "Reel">("Post");
@@ -114,7 +116,7 @@ export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => voi
   return (
     <form
       onSubmit={submit}
-      className="rounded-[1.75rem] border border-[var(--mist)] bg-[var(--glass)] p-4 shadow-[var(--shadow-lg)] backdrop-blur-xl"
+      className="rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-4 shadow-[var(--shadow-lg)] backdrop-blur-xl"
     >
       <Tabs
         items={["Post", "Photo", "Video", "Reel"]}
@@ -125,7 +127,7 @@ export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => voi
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder={t("home", "composerPlaceholder")}
-        className="min-h-28 border-0 bg-transparent px-2 text-lg shadow-none"
+        className="min-h-28 border-0 bg-transparent px-2 text-lg text-[var(--ink)] shadow-none placeholder:text-[var(--placeholder)]"
         maxLength={10000}
         aria-label={t("home", "composerPlaceholder")}
       />
@@ -149,7 +151,7 @@ export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => voi
           {media.map((item) => (
             <div
               key={item.url}
-              className="relative size-20 shrink-0 overflow-hidden rounded-2xl border border-[var(--mist)]"
+              className="relative size-20 shrink-0 overflow-hidden rounded-2xl border-2 border-[var(--mist-strong)]"
             >
               {item.kind === "VIDEO" ? (
                 <video src={item.url} className="size-full object-cover" muted />
@@ -176,8 +178,8 @@ export function PostComposer({ onCreated }: { onCreated?: (post: unknown) => voi
           ) : null}
         </div>
       ) : null}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--mist)] pt-3">
-        <div className="flex flex-wrap gap-2 text-xs text-[var(--muted)]">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t-2 border-[var(--mist-strong)] pt-3">
+        <div className="flex flex-wrap gap-2 text-xs text-[var(--muted-strong)]">
           <input
             ref={fileRef}
             type="file"

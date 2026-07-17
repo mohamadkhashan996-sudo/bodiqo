@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { ThemePreference } from "@prisma/client";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { isMediaUrl, optionalWebsiteSchema } from "@/lib/media-url";
 import { prisma } from "@/lib/prisma";
@@ -84,6 +84,7 @@ export async function GET() {
 
 export async function PATCH(r: Request) {
   try {
+    await guardApiAbuse(r, "users:me:patch");
     const u = await requireUser();
     const data = await body(r, schema);
 

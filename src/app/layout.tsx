@@ -50,20 +50,11 @@ export const metadata: Metadata = {
     url: site.url,
     siteName: site.name,
     locale: "en_US",
-    images: [
-      {
-        url: "/brand/app-icon.png",
-        width: 512,
-        height: 512,
-        alt: site.name,
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: site.name,
     description: site.tagline,
-    images: ["/brand/app-icon.png"],
   },
   robots: {
     index: true,
@@ -132,12 +123,12 @@ export default async function RootLayout({
         <Providers locale={locale} theme={theme}>
           <SplashScreen />
           <a
-            href="#main"
-            className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[90] focus:rounded-full focus:bg-[var(--ink)] focus:px-4 focus:py-2 focus:text-[var(--cloud)]"
+            href="#content"
+            className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-[90] focus:rounded-full focus:bg-[var(--ink)] focus:px-4 focus:py-2 focus:text-[var(--cloud)]"
           >
             Skip to content
           </a>
-          <div id="main">{children}</div>
+          <div id="app-root">{children}</div>
         </Providers>
       </body>
     </html>

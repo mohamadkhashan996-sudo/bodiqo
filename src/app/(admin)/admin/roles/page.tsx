@@ -40,7 +40,7 @@ export default function AdminRolesPage() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Custom role name"
-          className="rounded-2xl border border-[var(--mist)] bg-white/70 px-4 py-2 text-sm"
+          className="rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-2 text-sm"
         />
         <button type="button" className="rounded-full bg-[var(--ink)] px-4 py-2 text-xs text-[var(--cloud)]" onClick={() => void createRole()}>
           Create custom role

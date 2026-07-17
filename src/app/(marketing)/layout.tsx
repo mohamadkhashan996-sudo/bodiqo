@@ -9,7 +9,7 @@ export default function MarketingLayout({
   return (
     <div className="min-h-screen overflow-x-hidden bg-[var(--cloud)] text-[var(--ink)]">
       <a
-        href="#main"
+        href="#content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[calc(var(--z-nav)+1)] focus:rounded-[1rem] focus:bg-[var(--ink)] focus:px-4 focus:py-2 focus:text-sm focus:text-[var(--cloud)]"
       >
         Skip to content
@@ -17,9 +17,11 @@ export default function MarketingLayout({
 
       <MarketingHeader />
 
-      <div>{children}</div>
+      <div id="content" tabIndex={-1}>
+        {children}
+      </div>
 
-      <footer className="relative mt-2 border-t border-[var(--mist)]/70">
+      <footer className="relative mt-2 border-t-2 border-[var(--mist-strong)]">
         <div className="section-shell px-5 py-16 md:px-8 md:py-20">
           <div className="grid gap-12 md:grid-cols-[1.45fr_1fr] md:items-start">
             <div>

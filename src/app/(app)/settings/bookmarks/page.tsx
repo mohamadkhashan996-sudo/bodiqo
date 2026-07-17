@@ -5,9 +5,10 @@ import Link from "next/link";
 import { PostCard } from "@/components/feed/post-card";
 import { EmptyState, Skeleton } from "@/components/ui/card";
 import { PageTransition } from "@/components/motion/primitives";
+import type { FeedPost } from "@/types/feed";
 
 export default function BookmarksPage() {
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);

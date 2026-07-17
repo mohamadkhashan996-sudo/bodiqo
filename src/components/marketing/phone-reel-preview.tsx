@@ -237,7 +237,7 @@ export function PhoneReelPreview() {
             </AnimatePresence>
 
             {/* Top chrome */}
-            <div className="pointer-events-none absolute inset-x-0 top-[3.4rem] z-20 flex items-center justify-center gap-8 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">
+            <div className="pointer-events-none absolute inset-x-0 top-[3.4rem] z-20 flex items-center justify-center gap-8 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85">
               <span>Following</span>
               <span className="relative text-white">
                 For You
@@ -250,7 +250,7 @@ export function PhoneReelPreview() {
               <div className="flex items-end gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2.5">
-                    <div className="relative size-11 overflow-hidden rounded-[1.05rem] border border-white/30 bg-[var(--ink)] shadow-[var(--shadow-sm)]">
+                    <div className="relative size-11 overflow-hidden rounded-[1.05rem] border-2 border-white/65 bg-[var(--ink)] shadow-[var(--shadow-sm)]">
                       {reel.avatar ? (
                         <Image
                           src={reel.avatar}
@@ -278,14 +278,14 @@ export function PhoneReelPreview() {
                           />
                         )}
                       </div>
-                      <p className="truncate text-xs text-white/70">{reel.name}</p>
+                      <p className="truncate text-xs font-medium text-white/90">{reel.name}</p>
                     </div>
                   </div>
 
-                  <p className="mt-3.5 max-w-[14.5rem] text-[13px] leading-6 text-white/92">
+                  <p className="mt-3.5 max-w-[14.5rem] text-[13px] leading-6 text-white">
                     {reel.caption}
                   </p>
-                  <div className="mt-3 flex items-center gap-2 text-[11px] text-white/72">
+                  <div className="mt-3 flex items-center gap-2 text-[11px] text-white/90">
                     <Music2 className="size-3.5 shrink-0" />
                     <span className="truncate">{reel.music}</span>
                   </div>
@@ -356,9 +356,9 @@ function Action({
         e.stopPropagation();
         onClick?.();
       }}
-      className="group flex flex-col items-center gap-1.5 text-[10px] font-semibold tracking-wide text-white/92 transition active:scale-95"
+      className="group flex flex-col items-center gap-1.5 text-[10px] font-semibold tracking-wide text-white transition active:scale-95"
     >
-      <span className="grid size-11 place-items-center rounded-full bg-white/12 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-md transition group-hover:bg-white/20 group-hover:scale-105">
+      <span className="grid size-11 place-items-center rounded-full border-2 border-white/70 bg-[rgba(12,14,20,0.72)] shadow-[0_8px_20px_rgba(0,0,0,0.35)] backdrop-blur-md transition group-hover:border-white group-hover:bg-[rgba(20,24,34,0.88)] group-hover:scale-105">
         {children}
       </span>
       {count ? <span className="tabular-nums">{count}</span> : null}

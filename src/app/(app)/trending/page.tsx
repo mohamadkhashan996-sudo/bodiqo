@@ -6,10 +6,11 @@ import { Flame, Hash } from "lucide-react";
 import { PostCard } from "@/components/feed/post-card";
 import { Card, EmptyState, Skeleton } from "@/components/ui/card";
 import { PageTransition } from "@/components/motion/primitives";
+import type { FeedPost, HashtagSummary } from "@/types/feed";
 
 export default function TrendingPage() {
-  const [hashtags, setHashtags] = useState<any[]>([]);
-  const [posts, setPosts] = useState<any[]>([]);
+  const [hashtags, setHashtags] = useState<HashtagSummary[]>([]);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

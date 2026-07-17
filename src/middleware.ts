@@ -4,33 +4,48 @@ import { isMemberOnlyPath, safeCallbackUrl } from "@/lib/guest/paths";
 
 function applySecurityHeaders(response: NextResponse, request: NextRequest) {
   const path = request.nextUrl.pathname;
-  const realtime =
+  const appSurface =
     path.startsWith("/calls") ||
     path.startsWith("/messages") ||
-    path.startsWith("/home");
+    path.startsWith("/home") ||
+    path.startsWith("/u/") ||
+    path.startsWith("/settings") ||
+    path.startsWith("/notifications") ||
+    path.startsWith("/explore") ||
+    path.startsWith("/shorts") ||
+    path.startsWith("/communities") ||
+    path.startsWith("/post/") ||
+    path.startsWith("/search") ||
+    path.startsWith("/trending");
 
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set(
     "Permissions-Policy",
-    realtime
-      ? "camera=(self), microphone=(self), geolocation=()"
-      : "camera=(), microphone=(), geolocation=()",
+    appSurface
+      ? "camera=(self), microphone=(self), display-capture=(self), geolocation=()"
+      : "camera=(), microphone=(), display-capture=(), geolocation=()",
   );
+  // Avoid CSP nonces on React-rendered <script> tags — browsers strip nonce from the
+  // DOM after parse, which causes a hydration mismatch and can blank the client tree.
   response.headers.set(
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      process.env.NODE_ENV === "production"
+        ? "script-src 'self' 'unsafe-inline'"
+        : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' ws: wss: https:",
+      "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
+      "object-src 'none'",
     ].join("; "),
   );
   response.headers.set("X-XSS-Protection", "0");
@@ -81,7 +96,7 @@ export async function middleware(request: NextRequest) {
       "callbackUrl",
       safeCallbackUrl(path + request.nextUrl.search),
     );
-    return NextResponse.redirect(signIn);
+    return applySecurityHeaders(NextResponse.redirect(signIn), request);
   }
 
   return applySecurityHeaders(NextResponse.next(), request);

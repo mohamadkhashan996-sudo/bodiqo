@@ -1,42 +1,58 @@
-/* Relune service worker — cache shell assets for faster repeat visits.
-   Offline: serve cached shell; network-first for API. */
-const CACHE = "relune-shell-v1";
-const SHELL = ["/", "/favicon.png", "/brand/mark.png", "/brand/app-icon.png"];
+/* Relune service worker — Web Push only. Do not intercept page/asset fetches. */
 
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()),
+    caches.keys().then((keys) =>
+      Promise.all(keys.map((key) => caches.delete(key))),
+    ),
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
-    ).then(() => self.clients.claim()),
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .then(() => self.clients.claim()),
   );
 });
 
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  if (request.method !== "GET") return;
-  const url = new URL(request.url);
-  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/socket.io")) {
-    return;
+// Intentionally no fetch handler — pages and /_next must always hit the network.
+
+self.addEventListener("push", (event) => {
+  let data = {
+    title: "Relune",
+    body: "New activity",
+    url: "/notifications",
+  };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    /* ignore malformed payloads */
   }
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((res) => {
-          const copy = res.clone();
-          void caches.open(CACHE).then((cache) => cache.put(request, copy));
-          return res;
-        })
-        .catch(() => caches.match(request).then((hit) => hit || caches.match("/"))),
-    );
-    return;
-  }
-  event.respondWith(
-    caches.match(request).then((hit) => hit || fetch(request)),
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Relune", {
+      body: data.body || "New activity",
+      icon: "/brand/app-icon.png",
+      badge: "/brand/mark.png",
+      data: { url: data.url || "/notifications" },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/notifications";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client && client.url.includes(self.location.origin)) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    }),
   );
 });

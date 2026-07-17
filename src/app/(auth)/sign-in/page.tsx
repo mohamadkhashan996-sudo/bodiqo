@@ -11,6 +11,8 @@ import {
   type OAuthProviderId,
 } from "@/modules/auth/providers";
 import { PageTransition } from "@/components/motion/primitives";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { isValidE164 } from "@/lib/phone";
 import { safeCallbackUrl } from "@/lib/guest/paths";
 
 type ProviderRow = {
@@ -291,7 +293,7 @@ function SignInForm() {
       {mode === "email" && credentialsEnabled ? (
         <form
           onSubmit={onEmailSubmit}
-          className="mt-8 space-y-4 rounded-[1.75rem] border border-[var(--mist)] bg-[var(--glass)] p-5 backdrop-blur"
+          className="mt-8 space-y-4 rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur"
         >
           <button
             type="button"
@@ -310,7 +312,7 @@ function SignInForm() {
               required
               defaultValue={savedEmail}
               autoComplete="email"
-              className="mt-2 w-full rounded-2xl border border-[var(--mist)] bg-white/70 px-4 py-3 outline-none focus:border-[var(--signal)] dark:bg-white/5"
+              className="mt-2 w-full min-h-11 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 text-[var(--ink)] shadow-[var(--shadow-sm)] outline-none placeholder:text-[var(--placeholder)] focus-visible:border-[var(--signal-deep)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-strong)]"
             />
           </label>
           <label className="block">
@@ -323,13 +325,13 @@ function SignInForm() {
               required
               minLength={8}
               autoComplete="current-password"
-              className="mt-2 w-full rounded-2xl border border-[var(--mist)] bg-white/70 px-4 py-3 outline-none focus:border-[var(--signal)] dark:bg-white/5"
+              className="mt-2 w-full min-h-11 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 text-[var(--ink)] shadow-[var(--shadow-sm)] outline-none placeholder:text-[var(--placeholder)] focus-visible:border-[var(--signal-deep)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-strong)]"
             />
           </label>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-full bg-[var(--signal)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--ink)] disabled:opacity-60"
+            className="w-full rounded-full bg-[var(--signal-deep)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-[var(--shadow-sm)] disabled:opacity-60"
           >
             {loading ? "Signing in…" : "Sign in with email"}
           </button>
@@ -337,7 +339,7 @@ function SignInForm() {
       ) : null}
 
       {mode === "phone" ? (
-        <div className="mt-8 space-y-4 rounded-[1.75rem] border border-[var(--mist)] bg-[var(--glass)] p-5 backdrop-blur">
+        <div className="mt-8 space-y-4 rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur">
           <button
             type="button"
             className="text-xs text-[var(--muted)] hover:underline"
@@ -352,20 +354,19 @@ function SignInForm() {
             <form onSubmit={sendPhoneCode} className="space-y-4">
               <label className="block">
                 <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-                  Phone (E.164)
+                  Phone number
                 </span>
-                <input
+                <PhoneInput
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={setPhone}
                   required
-                  placeholder="+15551234567"
-                  className="mt-2 w-full rounded-2xl border border-[var(--mist)] bg-white/70 px-4 py-3 outline-none focus:border-[var(--signal)] dark:bg-white/5"
+                  className="mt-2"
                 />
               </label>
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full rounded-full bg-[var(--signal)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--ink)] disabled:opacity-60"
+                disabled={loading || !isValidE164(phone)}
+                className="w-full rounded-full bg-[var(--signal-deep)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-[var(--shadow-sm)] disabled:opacity-60"
               >
                 {loading ? "Sending…" : "Send code"}
               </button>
@@ -385,13 +386,13 @@ function SignInForm() {
                   required
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  className="mt-2 w-full rounded-2xl border border-[var(--mist)] bg-white/70 px-4 py-3 outline-none focus:border-[var(--signal)] dark:bg-white/5"
+                  className="mt-2 w-full min-h-11 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 text-[var(--ink)] shadow-[var(--shadow-sm)] outline-none placeholder:text-[var(--placeholder)] focus-visible:border-[var(--signal-deep)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-strong)]"
                 />
               </label>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-full bg-[var(--signal)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--ink)] disabled:opacity-60"
+                className="w-full rounded-full bg-[var(--signal-deep)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-[var(--shadow-sm)] disabled:opacity-60"
               >
                 {loading ? "Verifying…" : "Verify and sign in"}
               </button>
@@ -423,7 +424,7 @@ function SignInForm() {
         </div>
       ) : null}
 
-      <div className="mt-8 space-y-4 border-t border-[var(--mist)] pt-6">
+      <div className="mt-8 space-y-4 border-t-2 border-[var(--mist-strong)] pt-6">
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
           <Link href="/forgot-password" className="text-[var(--signal-deep)] hover:underline">
             Forgot Password
@@ -437,7 +438,7 @@ function SignInForm() {
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="size-4 rounded border-[var(--mist)]"
+            className="size-4 rounded border-2 border-[var(--mist-strong)] accent-[var(--signal-deep)]"
           />
           Remember Me
         </label>

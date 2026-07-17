@@ -251,20 +251,13 @@ export async function getFeed({
   const page = visible.slice(0, take);
 
   return {
-    posts: await Promise.all(page.map((p) => serializePost(p, userId))),
+    posts: await serializePosts(page, userId),
     nextCursor: visible.length > take ? visible[take].id : null,
   };
 }
 
 export async function getExplore(cursor?: string, limit = 20, viewerId?: string) {
   return getFeed({ userId: viewerId, cursor, limit });
-}
-
-export async function getSuggestedUsers(limit = 5, viewerId?: string) {
-  const { getSuggestedUsers: suggest } = await import(
-    "@/modules/users/services/suggestions"
-  );
-  return suggest(limit, viewerId);
 }
 
 export async function getPostsByHandle(
@@ -303,7 +296,7 @@ export async function getPostsByHandle(
   const visible = await filterVisiblePostIds(viewerId, posts);
 
   return {
-    posts: await Promise.all(visible.map((p) => serializePost(p, viewerId))),
+    posts: await serializePosts(visible, viewerId),
     authorId: author.id,
     visibility,
     locked: false,
@@ -328,7 +321,7 @@ export async function getShorts(viewerId?: string, cursor?: string, limit = 20) 
   const visible = await filterVisiblePostIds(viewerId, posts);
   const page = visible.slice(0, take);
   return {
-    posts: await Promise.all(page.map((p) => serializePost(p, viewerId))),
+    posts: await serializePosts(page, viewerId),
     nextCursor: visible.length > take ? visible[take].id : null,
   };
 }
@@ -351,7 +344,7 @@ export async function getBookmarks(userId: string, cursor?: string, limit = 20) 
     .filter((post) => post && post.status === "PUBLISHED" && !post.deletedAt);
 
   return {
-    posts: await Promise.all(posts.map((post) => serializePost(post, userId))),
+    posts: await serializePosts(posts, userId),
     nextCursor: bookmarks.length > take ? bookmarks[take].id : null,
   };
 }
@@ -371,31 +364,40 @@ export async function getPostById(id: string, viewerId?: string) {
   return serializePost(post, viewerId);
 }
 
-export async function serializePost<T extends { id: string; hashtags?: { hashtag: unknown }[] }>(
-  post: T,
-  viewerId?: string,
-) {
-  let liked = false;
-  let bookmarked = false;
+export async function serializePosts<
+  T extends { id: string; hashtags?: { hashtag: unknown }[] },
+>(posts: T[], viewerId?: string) {
+  if (!posts.length) return [];
+
+  const liked = new Set<string>();
+  const bookmarked = new Set<string>();
   if (viewerId) {
-    const [likeRow, bookmarkRow] = await Promise.all([
-      prisma.postLike.findUnique({
-        where: { postId_userId: { postId: post.id, userId: viewerId } },
-        select: { id: true },
+    const ids = posts.map((p) => p.id);
+    const [likeRows, bookmarkRows] = await Promise.all([
+      prisma.postLike.findMany({
+        where: { userId: viewerId, postId: { in: ids } },
+        select: { postId: true },
       }),
-      prisma.bookmark.findUnique({
-        where: { postId_userId: { postId: post.id, userId: viewerId } },
-        select: { id: true },
+      prisma.bookmark.findMany({
+        where: { userId: viewerId, postId: { in: ids } },
+        select: { postId: true },
       }),
     ]);
-    liked = Boolean(likeRow);
-    bookmarked = Boolean(bookmarkRow);
+    for (const row of likeRows) liked.add(row.postId);
+    for (const row of bookmarkRows) bookmarked.add(row.postId);
   }
 
-  return {
+  return posts.map((post) => ({
     ...post,
     hashtags: post.hashtags?.map((entry) => entry.hashtag) ?? [],
-    liked,
-    bookmarked,
-  };
+    liked: liked.has(post.id),
+    bookmarked: bookmarked.has(post.id),
+  }));
+}
+
+export async function serializePost<
+  T extends { id: string; hashtags?: { hashtag: unknown }[] },
+>(post: T, viewerId?: string) {
+  const [serialized] = await serializePosts([post], viewerId);
+  return serialized!;
 }

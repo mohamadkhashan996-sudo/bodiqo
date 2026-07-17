@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AdminPageHeader, Panel, StatCard, useAdminJson } from "@/components/admin/admin-ui";
 
 type Overview = {
@@ -25,6 +26,15 @@ function fmtBytes(n: number) {
   return `${(n / 1024 ** 3).toFixed(2)} GB`;
 }
 
+const shortcuts = [
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/content", label: "Posts" },
+  { href: "/admin/moderation", label: "Moderation" },
+  { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/analytics", label: "Analytics" },
+  { href: "/admin/settings", label: "Settings" },
+];
+
 export default function AdminOverviewPage() {
   const { data, error, loading } = useAdminJson<Overview>("/api/admin/overview");
 
@@ -32,8 +42,19 @@ export default function AdminOverviewPage() {
     <div>
       <AdminPageHeader
         title="Dashboard"
-        subtitle="Live platform pulse — users, content, health, and revenue readiness."
+        subtitle="Live platform pulse — users, content, health, and moderation queues."
       />
+      <div className="mb-6 flex flex-wrap gap-2">
+        {shortcuts.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-2 text-xs uppercase tracking-[0.12em] hover:border-[var(--signal)]"
+          >
+            {item.label}
+          </Link>
+        ))}
+      </div>
       {loading ? <p className="text-sm text-[var(--muted)]">Loading overview…</p> : null}
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}
       {data ? (

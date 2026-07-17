@@ -1,7 +1,11 @@
 import { randomInt } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
-import { hashOpaque } from "@/modules/auth/password";
+import {
+  hashOpaque,
+  hashOpaqueLegacy,
+  safeEqualHex,
+} from "@/modules/auth/password";
 import { sendSms } from "@/modules/auth/sms";
 import { normalizePhone } from "@/modules/auth/phone";
 import { rateLimit } from "@/lib/rate-limit";
@@ -10,6 +14,14 @@ export type PhoneOtpPurpose = "LOGIN" | "VERIFY" | "REGISTER";
 
 function otpCode() {
   return String(randomInt(100000, 999999));
+}
+
+function matchesOtpHash(stored: string, code: string) {
+  const trimmed = code.trim();
+  return (
+    safeEqualHex(stored, hashOpaque(trimmed)) ||
+    safeEqualHex(stored, hashOpaqueLegacy(trimmed))
+  );
 }
 
 export async function issuePhoneOtp(opts: {
@@ -23,6 +35,21 @@ export async function issuePhoneOtp(opts: {
   const phoneLimit = await rateLimit(`sms:phone:${phone}`, 5, 60_000);
   if (!ipLimit.ok || !phoneLimit.ok) {
     throw new AppError("Too many SMS requests. Try again shortly.", 429);
+  }
+
+  // LOGIN OTPs must target an existing account to reduce toll fraud.
+  if (opts.purpose === "LOGIN") {
+    const existing = await prisma.user.findFirst({
+      where: { phone, status: { not: "DELETED" } },
+      select: { id: true },
+    });
+    if (!existing) {
+      return {
+        phone,
+        expiresAt: new Date(Date.now() + 10 * 60_000),
+      };
+    }
+    opts = { ...opts, userId: opts.userId ?? existing.id };
   }
 
   const code = otpCode();
@@ -69,7 +96,7 @@ export async function consumePhoneOtp(opts: {
     throw new AppError("Too many attempts. Request a new code.", 429);
   }
 
-  const ok = row.codeHash === hashOpaque(opts.code.trim());
+  const ok = matchesOtpHash(row.codeHash, opts.code);
   if (!ok) {
     await prisma.phoneOtp.update({
       where: { id: row.id },

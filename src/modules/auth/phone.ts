@@ -1,17 +1,19 @@
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { AppError } from "@/lib/errors";
 
-/** Normalize to E.164-ish: digits with leading + */
+/** Normalize and validate to E.164 using libphonenumber. */
 export function normalizePhone(raw: string): string {
   const trimmed = raw.trim();
-  const digits = trimmed.replace(/[^\d+]/g, "");
-  if (!digits.startsWith("+")) {
-    throw new AppError("Phone must include country code (e.g. +1…)", 400);
+  if (!trimmed) {
+    throw new AppError("Phone number is required", 400);
   }
-  const only = `+${digits.slice(1).replace(/\D/g, "")}`;
-  if (only.length < 10 || only.length > 16) {
+
+  const parsed = parsePhoneNumberFromString(trimmed);
+  if (!parsed || !parsed.isValid()) {
     throw new AppError("Invalid phone number", 400);
   }
-  return only;
+
+  return parsed.format("E.164");
 }
 
 export function maskPhone(phone: string) {

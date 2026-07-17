@@ -120,7 +120,8 @@ export async function listFollowing(
   };
 }
 
-export async function listFriendRequests(userId: string) {
+export async function listFriendRequests(userId: string, limit = 50) {
+  const take = Math.min(Math.max(limit, 1), 100);
   const [incoming, outgoing] = await Promise.all([
     prisma.friendRequest.findMany({
       where: { toUserId: userId, status: "PENDING" },
@@ -128,6 +129,7 @@ export async function listFriendRequests(userId: string) {
         fromUser: { select: userSelect },
       },
       orderBy: { createdAt: "desc" },
+      take,
     }),
     prisma.friendRequest.findMany({
       where: { fromUserId: userId, status: "PENDING" },
@@ -135,27 +137,32 @@ export async function listFriendRequests(userId: string) {
         toUser: { select: userSelect },
       },
       orderBy: { createdAt: "desc" },
+      take,
     }),
   ]);
   return { incoming, outgoing };
 }
 
-export async function listBlocked(userId: string) {
+export async function listBlocked(userId: string, limit = 100) {
+  const take = Math.min(Math.max(limit, 1), 200);
   const rows = await prisma.block.findMany({
     where: { blockerId: userId },
     include: { blocked: { select: userSelect } },
     orderBy: { createdAt: "desc" },
+    take,
   });
   return {
     users: rows.map((row) => ({ ...row.blocked, blockedAt: row.createdAt })),
   };
 }
 
-export async function listMuted(userId: string) {
+export async function listMuted(userId: string, limit = 100) {
+  const take = Math.min(Math.max(limit, 1), 200);
   const rows = await prisma.mute.findMany({
     where: { muterId: userId },
     include: { muted: { select: userSelect } },
     orderBy: { createdAt: "desc" },
+    take,
   });
   return {
     users: rows.map((row) => ({ ...row.muted, mutedAt: row.createdAt })),

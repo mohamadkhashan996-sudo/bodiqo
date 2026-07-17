@@ -1,4 +1,4 @@
-import { fail, ok, requireUser } from "@/lib/api";
+import { fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { blockUser, unblockUser } from "@/modules/users/services/social";
@@ -17,6 +17,7 @@ export async function POST(
   { params }: { params: Promise<{ handle: string }> },
 ) {
   try {
+    await guardApiAbuse(_r, "users:handle:block:post");
     const me = await requireUser();
     const { handle } = await params;
     return ok({ block: await blockUser(me.id, await target(handle)) });
@@ -30,6 +31,7 @@ export async function DELETE(
   { params }: { params: Promise<{ handle: string }> },
 ) {
   try {
+    await guardApiAbuse(_r, "users:handle:block:delete");
     const me = await requireUser();
     const { handle } = await params;
     return ok(await unblockUser(me.id, await target(handle)));

@@ -1,11 +1,12 @@
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { deleteComment, editComment } from "@/modules/feed/services/comments";
 export async function PATCH(
   r: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await guardApiAbuse(r, "comments:id:patch");
     const u = await requireUser();
     return ok({
       comment: await editComment(
@@ -23,6 +24,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await guardApiAbuse(_r, "comments:id:delete");
     const u = await requireUser();
     await deleteComment(u.id, (await params).id);
     return ok({ ok: true });

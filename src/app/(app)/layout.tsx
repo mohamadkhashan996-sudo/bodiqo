@@ -31,7 +31,11 @@ export default async function AppShellLayout({
               role={session.user.role}
               isGuest={false}
             />
-            <main className="min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-5 md:px-7 md:pb-16 lg:px-10 lg:pb-10 lg:pt-6 xl:px-12">
+            <main
+              id="content"
+              tabIndex={-1}
+              className="min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-5 md:px-7 md:pb-16 lg:px-10 lg:pb-10 lg:pt-6 xl:px-12"
+            >
               {children}
             </main>
           </div>
@@ -39,7 +43,11 @@ export default async function AppShellLayout({
       ) : (
         <div className="app-shell lg:flex">
           <AppNavigation isGuest />
-          <main className="min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-5 md:px-7 md:pb-16 lg:px-10 lg:pb-10 lg:pt-6 xl:px-12">
+          <main
+            id="content"
+            tabIndex={-1}
+            className="min-w-0 flex-1 px-4 pb-24 pt-4 sm:px-5 md:px-7 md:pb-16 lg:px-10 lg:pb-10 lg:pt-6 xl:px-12"
+          >
             {children}
           </main>
         </div>

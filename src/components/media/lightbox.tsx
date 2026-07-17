@@ -47,7 +47,7 @@ export function MediaLightbox({
       >
         <button
           type="button"
-          className="absolute right-5 top-5 rounded-full bg-white/10 p-2 text-white"
+          className="on-dark-control absolute right-5 top-5"
           onClick={onClose}
           aria-label="Close"
         >
@@ -69,7 +69,7 @@ export function MediaLightbox({
         <div className="absolute bottom-6 flex gap-3">
           <button
             type="button"
-            className="rounded-full bg-white/15 px-4 py-2 text-xs text-white"
+            className="on-dark-control px-4 py-2 text-xs"
             onClick={(e) => {
               e.stopPropagation();
               onIndexChange(Math.max(0, index - 1));
@@ -79,7 +79,7 @@ export function MediaLightbox({
           </button>
           <button
             type="button"
-            className="rounded-full bg-white/15 px-4 py-2 text-xs text-white"
+            className="on-dark-control px-4 py-2 text-xs"
             onClick={(e) => {
               e.stopPropagation();
               setZoom((z) => (z === 1 ? 1.6 : 1));
@@ -89,7 +89,7 @@ export function MediaLightbox({
           </button>
           <button
             type="button"
-            className="rounded-full bg-white/15 px-4 py-2 text-xs text-white"
+            className="on-dark-control px-4 py-2 text-xs"
             onClick={(e) => {
               e.stopPropagation();
               onIndexChange(Math.min(items.length - 1, index + 1));

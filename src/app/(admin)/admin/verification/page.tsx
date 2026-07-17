@@ -54,7 +54,7 @@ export default function AdminVerificationPage() {
                 {r.notes ? <p className="mt-2 text-sm">{r.notes}</p> : null}
               </div>
               <div className="flex flex-wrap gap-2">
-                <button type="button" className="rounded-full bg-[var(--signal)] px-3 py-1.5 text-xs text-[var(--ink)]" onClick={() => void review(r.id, "approve")}>Approve</button>
+                <button type="button" className="rounded-full bg-[var(--signal-deep)] px-3 py-1.5 text-xs font-semibold text-white" onClick={() => void review(r.id, "approve")}>Approve</button>
                 <button type="button" className="rounded-full border px-3 py-1.5 text-xs" onClick={() => void review(r.id, "needs_info")}>Request info</button>
                 <button type="button" className="rounded-full bg-[var(--ember)] px-3 py-1.5 text-xs text-white" onClick={() => void review(r.id, "reject")}>Reject</button>
               </div>

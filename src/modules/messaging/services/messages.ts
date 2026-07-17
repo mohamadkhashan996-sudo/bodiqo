@@ -138,12 +138,18 @@ export async function markDelivered(userId: string, conversationId: string, mess
 export async function searchMessages(userId: string, query: string, conversationId?: string) {
   const q = query.trim();
   if (!q) return [];
+  if (conversationId) await assertConversationMember(userId, conversationId);
   return prisma.message.findMany({
     where: {
-      body: { contains: q },
-      ...(conversationId ? { conversationId } : { conversation: { members: { some: { userId, leftAt: null } } } }),
+      body: { contains: q, mode: "insensitive" },
+      deletedForAll: false,
+      ...(conversationId
+        ? { conversationId }
+        : { conversation: { members: { some: { userId, leftAt: null } } } }),
       hides: { none: { userId } },
     },
-    include, orderBy: { createdAt: "desc" }, take: 50,
+    include,
+    orderBy: { createdAt: "desc" },
+    take: 50,
   });
 }

@@ -8,8 +8,10 @@ import { PageTransition } from "@/components/motion/primitives";
 import { safeCallbackUrl } from "@/lib/guest/paths";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { StateBanner } from "@/components/ui/card";
 import { AuthProviderButton } from "@/components/auth/provider-button";
+import { isValidE164 } from "@/lib/phone";
 import {
   OAUTH_PROVIDER_ORDER,
   PROVIDER_LABELS,
@@ -23,12 +25,16 @@ type ProviderRow = {
   available: boolean;
 };
 
+type Mode = "main" | "email" | "phone";
+
 function SignUpForm() {
   const params = useSearchParams();
   const callbackUrl = safeCallbackUrl(params.get("callbackUrl") ?? params.get("next"));
+  const [mode, setMode] = useState<Mode>("main");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [checkEmail, setCheckEmail] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const [devVerifyUrl, setDevVerifyUrl] = useState<string | null>(null);
@@ -122,6 +128,7 @@ function SignUpForm() {
       handle: String(form.get("handle") || "").trim(),
       email: String(form.get("email") || "").trim(),
       password: passwordValue,
+      website: String(form.get("website") || ""),
     };
 
     try {
@@ -197,64 +204,172 @@ function SignUpForm() {
         Create your free Relune account. You’ll verify your email before signing in.
       </p>
 
-      <div className="mt-8 space-y-3">
-        {ordered.map((p) => (
-          <AuthProviderButton
-            key={p.id}
-            id={p.id}
-            label={PROVIDER_LABELS[p.id]}
-            disabled={!p.enabled}
-            hint={
-              !p.enabled
-                ? "Temporarily unavailable"
-                : !p.configured
-                  ? "Provider credentials not set"
-                  : undefined
-            }
-            onClick={() => void onOAuth(p.id, p.available)}
-          />
-        ))}
-      </div>
-
-      <div className="my-6 flex items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-        <div className="h-px flex-1 bg-[var(--mist)]" />
-        Or with email
-        <div className="h-px flex-1 bg-[var(--mist)]" />
-      </div>
-
-      <form onSubmit={onSubmit} className="space-y-5">
-        <Field label="Name" name="name" required autoComplete="name" />
-        <Field label="Handle" name="handle" required placeholder="yourname" autoComplete="username" />
-        <Field label="Email" name="email" type="email" required autoComplete="email" />
-        <Field
-          label="Password"
-          name="password"
-          type="password"
-          required
-          autoComplete="new-password"
-          onChange={(value) => setPassword(value)}
-        />
-        <div className="rounded-[var(--radius-xl)] border border-[var(--mist)] bg-[var(--surface)] p-4">
-          <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
-            <span>Password strength</span>
-            <span>{strength.label}</span>
-          </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--mist)]">
-            <div
-              className="h-full rounded-full bg-[linear-gradient(90deg,var(--signal),var(--ember))] transition-all"
-              style={{ width: `${strength.value}%` }}
+      {mode === "main" ? (
+        <>
+          <div className="mt-8 space-y-3">
+            {ordered.map((p) => (
+              <AuthProviderButton
+                key={p.id}
+                id={p.id}
+                label={PROVIDER_LABELS[p.id]}
+                disabled={!p.enabled}
+                hint={
+                  !p.enabled
+                    ? "Temporarily unavailable"
+                    : !p.configured
+                      ? "Provider credentials not set"
+                      : undefined
+                }
+                onClick={() => void onOAuth(p.id, p.available)}
+              />
+            ))}
+            <AuthProviderButton
+              id="credentials"
+              label="Continue with Phone"
+              onClick={() => {
+                setError(null);
+                setMode("phone");
+              }}
+            />
+            <AuthProviderButton
+              id="credentials"
+              label="Continue with Email"
+              onClick={() => {
+                setError(null);
+                setMode("email");
+              }}
             />
           </div>
-          <p className="mt-3 text-sm text-[var(--muted)]">
-            Use at least 8 characters with uppercase, lowercase, and a number.
-          </p>
+          {error ? (
+            <div className="mt-4">
+              <StateBanner tone="error">{error}</StateBanner>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+
+      {mode === "email" ? (
+        <div className="mt-8 space-y-4 rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur">
+          <button
+            type="button"
+            className="text-xs text-[var(--muted)] hover:underline"
+            onClick={() => setMode("main")}
+          >
+            ← All sign-up methods
+          </button>
+          <form onSubmit={onSubmit} className="space-y-5">
+            <Field label="Name" name="name" required autoComplete="name" />
+            <Field
+              label="Handle"
+              name="handle"
+              required
+              placeholder="yourname"
+              autoComplete="username"
+            />
+            <Field label="Email" name="email" type="email" required autoComplete="email" />
+            <Field
+              label="Password"
+              name="password"
+              type="password"
+              required
+              autoComplete="new-password"
+              onChange={(value) => setPassword(value)}
+            />
+            <div className="rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-4">
+              <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+                <span>Password strength</span>
+                <span>{strength.label}</span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--mist)]">
+                <div
+                  className="h-full rounded-full bg-[linear-gradient(90deg,var(--signal),var(--ember))] transition-all"
+                  style={{ width: `${strength.value}%` }}
+                />
+              </div>
+              <p className="mt-3 text-sm text-[var(--muted)]">
+                Use at least 8 characters with uppercase, lowercase, and a number.
+              </p>
+            </div>
+            <Field
+              label="Confirm password"
+              name="confirm"
+              type="password"
+              required
+              autoComplete="new-password"
+            />
+            <input
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden
+              className="absolute -left-[9999px] h-0 w-0 opacity-0"
+            />
+            {error ? <StateBanner tone="error">{error}</StateBanner> : null}
+            <Button type="submit" disabled={loading} className="w-full py-3.5 text-[11px]">
+              {loading ? "Creating…" : "Create account"}
+            </Button>
+          </form>
         </div>
-        <Field label="Confirm password" name="confirm" type="password" required autoComplete="new-password" />
-        {error ? <StateBanner tone="error">{error}</StateBanner> : null}
-        <Button type="submit" disabled={loading} className="w-full py-3.5 text-[11px]">
-          {loading ? "Creating…" : "Create account"}
-        </Button>
-      </form>
+      ) : null}
+
+      {mode === "phone" ? (
+        <div className="mt-8 space-y-4 rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur">
+          <button
+            type="button"
+            className="text-xs text-[var(--muted)] hover:underline"
+            onClick={() => {
+              setMode("main");
+              setPhone("");
+              setError(null);
+            }}
+          >
+            ← All sign-up methods
+          </button>
+          <label className="block">
+            <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+              Phone number
+            </span>
+            <PhoneInput
+              value={phone}
+              onChange={setPhone}
+              required
+              autoFocus
+              className="mt-2"
+            />
+          </label>
+          <p className="text-sm leading-6 text-[var(--muted)]">
+            Enter your mobile number with country code. SMS verification will be
+            enabled once an SMS provider is configured.
+          </p>
+          {error ? (
+            <StateBanner
+              tone={
+                error.includes("Configure SMS") ? "warning" : "error"
+              }
+            >
+              {error}
+            </StateBanner>
+          ) : null}
+          <Button
+            type="button"
+            disabled={!isValidE164(phone)}
+            className="w-full py-3.5 text-[11px]"
+            onClick={() => {
+              if (!isValidE164(phone)) {
+                setError("Enter a valid phone number for the selected country.");
+                return;
+              }
+              setError(
+                "Phone number looks valid. Configure SMS (Twilio) before OTP sign-up can continue.",
+              );
+            }}
+          >
+            Continue
+          </Button>
+        </div>
+      ) : null}
+
       <p className="mt-6 text-sm text-[var(--muted)]">
         Already have an account?{" "}
         <Link href="/sign-in" className="text-[var(--signal)] hover:underline">

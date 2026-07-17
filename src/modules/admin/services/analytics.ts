@@ -13,9 +13,56 @@ function daysAgo(n: number) {
   return x;
 }
 
+type DayCount = { day: Date; count: bigint | number };
+
+function toDayMap(rows: DayCount[]) {
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    const key = new Date(row.day).toISOString().slice(0, 10);
+    map.set(key, Number(row.count));
+  }
+  return map;
+}
+
 export async function getAnalytics(rangeDays = 30) {
   return cached(`admin:analytics:${rangeDays}`, 60, async () => {
     const since = daysAgo(rangeDays);
+
+    const [userRows, postRows, videoRows, storyRows, messageRows] =
+      await Promise.all([
+        prisma.$queryRaw<DayCount[]>`
+          SELECT date_trunc('day', "createdAt") AS day, COUNT(*)::bigint AS count
+          FROM "User"
+          WHERE "createdAt" >= ${since}
+          GROUP BY 1 ORDER BY 1 ASC`,
+        prisma.$queryRaw<DayCount[]>`
+          SELECT date_trunc('day', "createdAt") AS day, COUNT(*)::bigint AS count
+          FROM "Post"
+          WHERE "createdAt" >= ${since}
+          GROUP BY 1 ORDER BY 1 ASC`,
+        prisma.$queryRaw<DayCount[]>`
+          SELECT date_trunc('day', "createdAt") AS day, COUNT(*)::bigint AS count
+          FROM "Post"
+          WHERE "createdAt" >= ${since} AND "type" IN ('VIDEO', 'SHORT')
+          GROUP BY 1 ORDER BY 1 ASC`,
+        prisma.$queryRaw<DayCount[]>`
+          SELECT date_trunc('day', "createdAt") AS day, COUNT(*)::bigint AS count
+          FROM "Story"
+          WHERE "createdAt" >= ${since}
+          GROUP BY 1 ORDER BY 1 ASC`,
+        prisma.$queryRaw<DayCount[]>`
+          SELECT date_trunc('day', "createdAt") AS day, COUNT(*)::bigint AS count
+          FROM "Message"
+          WHERE "createdAt" >= ${since}
+          GROUP BY 1 ORDER BY 1 ASC`,
+      ]);
+
+    const userMap = toDayMap(userRows);
+    const postMap = toDayMap(postRows);
+    const videoMap = toDayMap(videoRows);
+    const storyMap = toDayMap(storyRows);
+    const messageMap = toDayMap(messageRows);
+
     const days: Array<{
       date: string;
       newUsers: number;
@@ -27,26 +74,26 @@ export async function getAnalytics(rangeDays = 30) {
 
     for (let i = rangeDays - 1; i >= 0; i--) {
       const from = daysAgo(i);
-      const to = daysAgo(i - 1);
-      const [newUsers, posts, videos, stories, messages] = await Promise.all([
-        prisma.user.count({ where: { createdAt: { gte: from, lt: to } } }),
-        prisma.post.count({ where: { createdAt: { gte: from, lt: to } } }),
-        prisma.post.count({
-          where: {
-            createdAt: { gte: from, lt: to },
-            type: { in: ["VIDEO", "SHORT"] },
-          },
-        }),
-        prisma.story.count({ where: { createdAt: { gte: from, lt: to } } }),
-        prisma.message.count({ where: { createdAt: { gte: from, lt: to } } }),
-      ]);
-      days.push({
-        date: from.toISOString().slice(0, 10),
-        newUsers,
-        posts,
-        videos,
-        stories,
-        messages,
+      const date = from.toISOString().slice(0, 10);
+      const dayDate = new Date(`${date}T00:00:00.000Z`);
+      const newUsers = userMap.get(date) ?? 0;
+      const posts = postMap.get(date) ?? 0;
+      const videos = videoMap.get(date) ?? 0;
+      const stories = storyMap.get(date) ?? 0;
+      const messages = messageMap.get(date) ?? 0;
+      days.push({ date, newUsers, posts, videos, stories, messages });
+      await prisma.analyticsDaily.upsert({
+        where: { date: dayDate },
+        create: {
+          date: dayDate,
+          newUsers,
+          activeUsers: 0,
+          posts,
+          videos,
+          stories,
+          messages,
+        },
+        update: { newUsers, posts, videos, stories, messages },
       });
     }
 

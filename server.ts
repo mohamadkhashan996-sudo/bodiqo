@@ -10,7 +10,7 @@ import { prisma } from "./src/lib/prisma";
 import { setIo } from "./src/lib/socket";
 import { assertConversationMember } from "./src/modules/messaging/services/conversations";
 import { deleteMessage, editMessage, markDelivered, markSeen, reactMessage, sendMessage } from "./src/modules/messaging/services/messages";
-import { addParticipant, createCall, updateCallStatus } from "./src/modules/media/services/calls";
+import { addParticipant, createCall, listCallParticipants, updateCallStatus, updateParticipantMedia } from "./src/modules/media/services/calls";
 import { createNotification } from "./src/modules/notifications/services/notify";
 import { shouldShowTyping } from "./src/modules/messaging/services/privacy-gate";
 
@@ -107,6 +107,15 @@ void app.prepare().then(async () => {
       emitPresence(io, userId, status);
       return { status };
     }));
+    socket.on("conversation:join", (input: { conversationId: string }, callback?: Ack) => ack(callback, async () => {
+      await assertConversationMember(userId, input.conversationId);
+      socket.join(`conversation:${input.conversationId}`);
+      return null;
+    }));
+    socket.on("conversation:leave", (input: { conversationId: string }, callback?: Ack) => ack(callback, async () => {
+      socket.leave(`conversation:${input.conversationId}`);
+      return null;
+    }));
     for (const event of ["typing:start", "typing:stop"] as const) {
       socket.on(event, (input: { conversationId: string }, callback?: Ack) => ack(callback, async () => {
         await assertConversationMember(userId, input.conversationId);
@@ -117,9 +126,14 @@ void app.prepare().then(async () => {
     }
     socket.on("message:send", (input: { conversationId: string } & Parameters<typeof sendMessage>[2], callback?: Ack) => ack(callback, async () => {
       const message = await sendMessage(userId, input.conversationId, input);
+      const roomMembers = await members(input.conversationId);
+      await Promise.all(roomMembers.map(async (member) => {
+        const sockets = await io.in(`user:${member.userId}`).fetchSockets();
+        for (const s of sockets) s.join(`conversation:${input.conversationId}`);
+      }));
       io.to(`conversation:${input.conversationId}`).emit("message:new", message);
-      for (const member of await members(input.conversationId)) {
-        if (member.userId !== userId) await createNotification({ userId: member.userId, actorId: userId, type: "MESSAGE", body: message.body.slice(0, 180) });
+      for (const member of roomMembers) {
+        if (member.userId !== userId) await createNotification({ userId: member.userId, actorId: userId, type: "MESSAGE", body: (message.body || "New message").slice(0, 180) });
       }
       return message;
     }));
@@ -140,7 +154,15 @@ void app.prepare().then(async () => {
       if (message) io.to(`conversation:${message.conversationId}`).emit("message:reaction", { messageId: input.messageId, reaction });
       return reaction;
     }));
-    socket.on("message:delivered", (input: { conversationId: string; messageId?: string }, callback?: Ack) => ack(callback, async () => markDelivered(userId, input.conversationId, input.messageId)));
+    socket.on("message:delivered", (input: { conversationId: string; messageId?: string }, callback?: Ack) => ack(callback, async () => {
+      await markDelivered(userId, input.conversationId, input.messageId);
+      io.to(`conversation:${input.conversationId}`).emit("message:delivered", {
+        conversationId: input.conversationId,
+        messageId: input.messageId,
+        userId,
+      });
+      return null;
+    }));
     socket.on("message:seen", (input: { conversationId: string; messageId?: string }, callback?: Ack) => ack(callback, async () => {
       await markSeen(userId, input.conversationId, input.messageId);
       io.to(`conversation:${input.conversationId}`).emit("message:seen", { conversationId: input.conversationId, messageId: input.messageId, userId });
@@ -148,9 +170,15 @@ void app.prepare().then(async () => {
     }));
     socket.on("call:invite", (input: { conversationId?: string; calleeIds: string[]; type: CallType }, callback?: Ack) => ack(callback, async () => {
       const call = await createCall(userId, input);
+      const label = input.type === "VIDEO" ? "Incoming video call" : "Incoming voice call";
       for (const calleeId of input.calleeIds) {
         io.to(`user:${calleeId}`).emit("call:incoming", call);
-        await createNotification({ userId: calleeId, actorId: userId, type: "CALL", body: `${input.type.toLowerCase()} call` });
+        await createNotification({
+          userId: calleeId,
+          actorId: userId,
+          type: "CALL",
+          body: label,
+        });
       }
       return call;
     }));
@@ -164,23 +192,46 @@ void app.prepare().then(async () => {
     socket.on("call:accept", (input: { callId: string }, callback?: Ack) => ack(callback, async () => {
       await addParticipant(input.callId, userId, true);
       const call = await updateCallStatus(userId, input.callId, "ACTIVE");
-      io.to(`user:${call.callerId}`).emit("call:accepted", { callId: input.callId, userId });
+      const participants = await listCallParticipants(input.callId);
+      for (const participant of participants) {
+        if (participant.userId === userId) continue;
+        io.to(`user:${participant.userId}`).emit("call:accepted", { callId: input.callId, userId });
+      }
       return call;
+    }));
+    socket.on("call:media-state", (input: { callId: string; muted?: boolean; cameraOff?: boolean; sharingScreen?: boolean }, callback?: Ack) => ack(callback, async () => {
+      await updateParticipantMedia(userId, input.callId, {
+        muted: input.muted,
+        cameraOff: input.cameraOff,
+      });
+      const participants = await listCallParticipants(input.callId);
+      for (const participant of participants) {
+        if (participant.userId === userId) continue;
+        io.to(`user:${participant.userId}`).emit("call:media-state", {
+          callId: input.callId,
+          userId,
+          muted: input.muted,
+          cameraOff: input.cameraOff,
+          sharingScreen: input.sharingScreen,
+        });
+      }
+      return null;
     }));
     for (const [event, status] of [["call:decline", "DECLINED"], ["call:end", "ENDED"]] as const) {
       socket.on(event, (input: { callId: string }, callback?: Ack) => ack(callback, async () => {
         const call = await updateCallStatus(userId, input.callId, status);
         await prisma.callParticipant.update({ where: { callId_userId: { callId: input.callId, userId } }, data: { leftAt: new Date() } });
-        io.to(`user:${call.callerId}`).emit(event, { callId: input.callId, userId });
+        const participants = await listCallParticipants(input.callId);
+        for (const participant of participants) {
+          if (participant.userId === userId) continue;
+          io.to(`user:${participant.userId}`).emit(event, { callId: input.callId, userId });
+        }
         return call;
       }));
     }
     socket.on("call:missed", (input: { callId: string }, callback?: Ack) => ack(callback, async () => {
       const call = await updateCallStatus(userId, input.callId, "MISSED");
-      const participants = await prisma.callParticipant.findMany({
-        where: { callId: input.callId },
-        select: { userId: true },
-      });
+      const participants = await listCallParticipants(input.callId);
       await createNotification({
         userId: call.callerId,
         actorId: userId,

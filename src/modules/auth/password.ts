@@ -1,5 +1,6 @@
+import { timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
-import { createHash, randomBytes } from "crypto";
+import { createHash, createHmac, randomBytes } from "crypto";
 import { AppError } from "@/lib/errors";
 
 export const BCRYPT_ROUNDS = 12;
@@ -39,8 +40,29 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
+function opaquePepper() {
+  return process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "relune-dev";
+}
+
+/** HMAC-SHA256 opaque digests (OTP, recovery codes, device fingerprints). */
 export function hashOpaque(value: string) {
+  return createHmac("sha256", opaquePepper()).update(value).digest("hex");
+}
+
+/** Legacy SHA-256 digests still present in older rows. */
+export function hashOpaqueLegacy(value: string) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+export function safeEqualHex(a: string, b: string) {
+  try {
+    const left = Buffer.from(a, "hex");
+    const right = Buffer.from(b, "hex");
+    if (left.length !== right.length || left.length === 0) return false;
+    return timingSafeEqual(left, right);
+  } catch {
+    return false;
+  }
 }
 
 export function randomRecoveryCode() {

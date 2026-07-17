@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MessageType } from "@prisma/client";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { optionalMediaUrlSchema } from "@/lib/media-url";
 import {
   listMessages,
@@ -33,6 +33,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await guardApiAbuse(request, "conversations:id:messages:post");
     const user = await requireUser();
     const input = await body(
       request,

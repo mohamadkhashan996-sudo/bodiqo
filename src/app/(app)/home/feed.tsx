@@ -11,10 +11,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { EmptyState, Skeleton } from "@/components/ui/card";
 import { FollowButton } from "@/components/social/follow-button";
 
+import type { FeedPost, SuggestedUser } from "@/types/feed";
+
 export function HomeFeed() {
   const { data: session } = useSession();
-  const [posts, setPosts] = useState<any[]>([]);
-  const [suggested, setSuggested] = useState<any[]>([]);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [suggested, setSuggested] = useState<SuggestedUser[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);

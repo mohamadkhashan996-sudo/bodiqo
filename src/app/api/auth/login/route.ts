@@ -6,6 +6,7 @@ import { verifyPassword } from "@/modules/auth/password";
 import { createAuthChallenge } from "@/modules/auth/challenges";
 import { trackLogin } from "@/modules/auth/session-track";
 import { isProviderEnabled } from "@/modules/auth/provider-settings";
+import { getAuthSecurityPolicy } from "@/modules/auth/security-policy";
 import { rateLimit } from "@/lib/rate-limit";
 import { headers } from "next/headers";
 
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
       throw new AppError("Email sign-in is currently unavailable", 403);
     }
     await guardApiAbuse(request, "auth:login", 20, 60_000);
+    const policy = await getAuthSecurityPolicy();
     const { email, password } = await body(
       request,
       z.object({
@@ -94,8 +96,8 @@ export async function POST(request: Request) {
         where: { id: user.id },
         data: {
           failedLoginCount: fails,
-          ...(fails >= 10
-            ? { lockedUntil: new Date(Date.now() + 15 * 60_000) }
+          ...(fails >= policy.maxLoginAttempts
+            ? { lockedUntil: new Date(Date.now() + policy.lockoutMs) }
             : {}),
         },
       });

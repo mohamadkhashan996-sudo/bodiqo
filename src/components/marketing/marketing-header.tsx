@@ -42,8 +42,8 @@ export function MarketingHeader() {
                   className={cn(
                     "group inline-flex items-center gap-2 rounded-[1.1rem] px-3.5 py-2.5 text-sm font-medium tracking-tight transition duration-[var(--duration)] ease-[var(--ease-out)]",
                     active
-                      ? "bg-[var(--ink)] text-[var(--cloud)] shadow-[var(--shadow-sm)]"
-                      : "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--ink)] hover:shadow-[var(--shadow-sm)]",
+                      ? "bg-[var(--ink)] text-[var(--cloud-elevated)] shadow-[var(--shadow-sm)]"
+                      : "text-[var(--ink)] hover:bg-[var(--cloud-elevated)] hover:shadow-[var(--shadow-sm)]",
                   )}
                 >
                   <Icon
@@ -63,13 +63,13 @@ export function MarketingHeader() {
           <div className="flex shrink-0 items-center justify-end gap-2 md:gap-2.5">
             <Link
               href="/sign-in"
-              className="hidden min-h-11 items-center justify-center rounded-[1.1rem] px-4 text-sm font-semibold tracking-tight text-[var(--muted)] transition hover:bg-[var(--surface)] hover:text-[var(--ink)] sm:inline-flex"
+              className="hidden min-h-11 items-center justify-center rounded-[1.1rem] border-2 border-[var(--mist-strong)] bg-white px-4 text-sm font-semibold tracking-tight text-[var(--night)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--cloud-elevated)] sm:inline-flex"
             >
               Sign In
             </Link>
             <Link
               href="/sign-up"
-              className="landing-cta-primary inline-flex min-h-11 items-center justify-center rounded-[1.15rem] px-5 text-[12px] font-semibold tracking-[0.03em] text-[var(--cloud)]"
+              className="landing-cta-primary inline-flex min-h-11 items-center justify-center rounded-[1.15rem] border-2 border-[var(--ink)] px-5 text-[12px] font-semibold tracking-[0.03em] text-white"
             >
               Create Account
             </Link>
@@ -87,10 +87,10 @@ export function MarketingHeader() {
                 key={href}
                 href={href}
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-[1.05rem] border px-3.5 py-2 text-xs font-medium backdrop-blur-md transition",
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-[1.05rem] border-2 px-3.5 py-2 text-xs font-semibold shadow-[var(--shadow-sm)] transition",
                   active
-                    ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--cloud)]"
-                    : "border-[var(--mist)]/80 bg-[var(--surface)]/85 text-[var(--muted)] hover:text-[var(--ink)]",
+                    ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--cloud-elevated)]"
+                    : "border-[var(--mist-strong)] bg-[var(--surface)] text-[var(--muted-strong)] hover:text-[var(--ink)]",
                 )}
               >
                 <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />

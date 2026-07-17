@@ -349,13 +349,13 @@ export default function ProfileSettingsPage() {
             </label>
           </div>
 
-          <div className="rounded-[var(--radius-xl)] border border-[var(--mist)] bg-[var(--surface)] p-4">
+          <div className="rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-4">
             <label className="flex items-start gap-3 text-sm">
               <input
                 type="checkbox"
                 checked={form.isPrivate}
                 onChange={(e) => setForm({ ...form, isPrivate: e.target.checked })}
-                className="mt-1 size-4 rounded border-[var(--mist)]"
+                className="mt-1 size-4 rounded border-2 border-[var(--mist-strong)] accent-[var(--signal-deep)]"
               />
               <span>
                 <span className="font-medium">Private account</span>

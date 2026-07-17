@@ -105,10 +105,10 @@ export function StoriesRail() {
           }}
           className="w-16 shrink-0 text-center"
         >
-          <span className="grid size-[3.75rem] place-items-center rounded-[1.25rem] border border-dashed border-[var(--mist)] bg-[var(--surface)]">
-            <Plus className="size-5 text-[var(--signal)]" />
+          <span className="grid size-[3.75rem] place-items-center rounded-[1.25rem] border-2 border-dashed border-[var(--mist-strong)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
+            <Plus className="size-5 text-[var(--signal-deep)]" />
           </span>
-          <span className="mt-1 block truncate text-[10px] text-[var(--muted)]">Your story</span>
+          <span className="mt-1 block truncate text-[10px] font-semibold text-[var(--muted-strong)]">Your story</span>
         </button>
         {stories.map((story) => {
           const seen = Boolean(story.views?.length);
@@ -133,7 +133,7 @@ export function StoriesRail() {
                   className="size-14 rounded-[1.1rem] border-2 border-[var(--cloud)]"
                 />
               </span>
-              <span className="mt-1 block truncate text-[10px] text-[var(--muted)]">
+              <span className="mt-1 block truncate text-[10px] font-semibold text-[var(--muted-strong)]">
                 {story.author?.handle ?? "Story"}
               </span>
             </motion.button>
@@ -188,7 +188,7 @@ export function StoriesRail() {
               type="button"
               disabled={uploading}
               onClick={() => fileRef.current?.click()}
-              className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--mist)] px-4 py-10 text-sm text-[var(--muted)]"
+              className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--mist-strong)] bg-[var(--cloud-elevated)] px-4 py-10 text-sm font-medium text-[var(--muted-strong)] shadow-[var(--shadow-sm)]"
             >
               <Plus className="size-6" />
               {uploading ? "Uploading…" : "Choose photo or video"}

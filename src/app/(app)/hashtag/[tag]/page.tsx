@@ -1,22 +1,23 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { PostCard } from "@/components/feed/post-card";
 import { EmptyState, Skeleton } from "@/components/ui/card";
 import { PageTransition } from "@/components/motion/primitives";
+import type { FeedPost, HashtagSummary } from "@/types/feed";
 
 export default function HashtagPage() {
   const { tag } = useParams<{ tag: string }>();
-  const [hashtag, setHashtag] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
+  const [hashtag, setHashtag] = useState<HashtagSummary | null>(null);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
 
-  const load = async (after?: string | null) => {
+  const load = useCallback(async (after?: string | null) => {
     if (after) setLoadingMore(true);
     const res = await fetch(
       `/api/hashtags/${encodeURIComponent(tag)}${after ? `?cursor=${after}` : ""}`,
@@ -29,11 +30,11 @@ export default function HashtagPage() {
     }
     setLoading(false);
     setLoadingMore(false);
-  };
+  }, [tag]);
 
   useEffect(() => {
     void load();
-  }, [tag]);
+  }, [load]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
@@ -41,7 +42,7 @@ export default function HashtagPage() {
     });
     if (sentinel.current) observer.observe(sentinel.current);
     return () => observer.disconnect();
-  }, [cursor, tag]);
+  }, [cursor, load]);
 
   return (
     <PageTransition className="page-shell page-stack">

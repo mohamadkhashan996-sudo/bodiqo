@@ -14,10 +14,12 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar } from "@/components/ui/avatar";
+import { MediaImage } from "@/components/ui/media-image";
 import { CommentsPanel } from "@/components/feed/comments-panel";
 import { useGuest } from "@/components/auth/guest-provider";
 import { VerificationBadge } from "@/components/brand/official-badge";
 import { ReportDialog } from "@/components/social/report-dialog";
+import type { FeedPost } from "@/types/feed";
 
 function MediaCarousel({
   media,
@@ -33,40 +35,45 @@ function MediaCarousel({
       <video
         src={item.url}
         controls
-        className="mt-5 max-h-[32rem] w-full rounded-[var(--radius-xl)] border border-[color:color-mix(in_srgb,var(--mist)_65%,transparent)] bg-[var(--night)] object-cover shadow-[var(--shadow-sm)]"
+        playsInline
+        preload="metadata"
+        className="mt-5 max-h-[32rem] w-full rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--night)] object-cover shadow-[var(--shadow-sm)]"
       />
     ) : (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <MediaImage
         src={item.url}
-        alt=""
-        className="mt-5 max-h-[32rem] w-full rounded-[var(--radius-xl)] border border-[color:color-mix(in_srgb,var(--mist)_65%,transparent)] object-cover shadow-[var(--shadow-sm)]"
-        loading="lazy"
+        alt="Post media"
+        className="mt-5 max-h-[32rem] h-auto w-full rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] object-cover shadow-[var(--shadow-sm)]"
       />
     );
   }
 
   return (
-    <div className="relative mt-5 overflow-hidden rounded-[var(--radius-xl)] border border-[color:color-mix(in_srgb,var(--mist)_65%,transparent)] shadow-[var(--shadow-sm)]">
+    <div
+      className="relative mt-5 overflow-hidden rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] shadow-[var(--shadow-sm)]"
+      role="group"
+      aria-roledescription="carousel"
+      aria-label={`Media ${index + 1} of ${media.length}`}
+    >
       {item.kind === "VIDEO" ? (
         <video
           src={item.url}
           controls
+          playsInline
+          preload="metadata"
           className="max-h-[32rem] w-full bg-[var(--night)] object-cover"
         />
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <MediaImage
           src={item.url}
-          alt=""
-          className="max-h-[32rem] w-full object-cover"
-          loading="lazy"
+          alt={`Post media ${index + 1} of ${media.length}`}
+          className="max-h-[32rem] h-auto w-full object-cover"
         />
       )}
       <button
         type="button"
-        aria-label="Previous"
-        className="absolute left-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-[var(--ink)]/70 text-white disabled:opacity-30"
+        aria-label="Previous media"
+        className="on-dark-control absolute start-2 top-1/2 -translate-y-1/2 disabled:opacity-50"
         disabled={index === 0}
         onClick={() => setIndex((i) => Math.max(0, i - 1))}
       >
@@ -74,34 +81,39 @@ function MediaCarousel({
       </button>
       <button
         type="button"
-        aria-label="Next"
-        className="absolute right-2 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full bg-[var(--ink)]/70 text-white disabled:opacity-30"
+        aria-label="Next media"
+        className="on-dark-control absolute end-2 top-1/2 -translate-y-1/2 disabled:opacity-50"
         disabled={index >= media.length - 1}
         onClick={() => setIndex((i) => Math.min(media.length - 1, i + 1))}
       >
         <ChevronRight className="size-4" />
       </button>
-      <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+      <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-0.5">
         {media.map((_, i) => (
           <button
             key={i}
             type="button"
-            aria-label={`Slide ${i + 1}`}
-            className={`size-1.5 rounded-full ${
-              i === index ? "bg-white" : "bg-white/40"
-            }`}
+            aria-label={`Go to media ${i + 1}`}
+            aria-current={i === index ? "true" : undefined}
+            className="grid size-9 place-items-center"
             onClick={() => setIndex(i)}
-          />
+          >
+            <span
+              className={`size-2 rounded-full border border-white/80 ${
+                i === index ? "bg-white" : "bg-white/55"
+              }`}
+            />
+          </button>
         ))}
       </div>
-      <span className="absolute right-3 top-3 rounded-full bg-[var(--ink)]/70 px-2 py-0.5 text-[10px] font-semibold text-white">
+      <span className="absolute end-3 top-3 rounded-full border border-white/60 bg-[var(--ink)]/85 px-2 py-0.5 text-[10px] font-semibold text-white">
         {index + 1}/{media.length}
       </span>
     </div>
   );
 }
 
-export function PostCard({ post }: { post: any }) {
+export function PostCard({ post }: { post: FeedPost }) {
   const { requireAuth } = useGuest();
   const [likes, setLikes] = useState(post.likeCount ?? 0);
   const [liked, setLiked] = useState(Boolean(post.liked));
@@ -134,7 +146,7 @@ export function PostCard({ post }: { post: any }) {
   async function share() {
     const url = `${location.origin}/post/${post.id}`;
     if (navigator.share) {
-      await navigator.share({ title: "RELUNE", text: post.body, url }).catch(() => {});
+      await navigator.share({ title: "RELUNE", text: post.body ?? undefined, url }).catch(() => {});
       return;
     }
     await navigator.clipboard?.writeText(url);
@@ -169,10 +181,10 @@ export function PostCard({ post }: { post: any }) {
                 className="size-4"
               />
             ) : null}
-            <span className="text-sm text-[var(--muted)]">@{author.handle}</span>
+            <span className="text-sm text-[var(--muted-strong)]">@{author.handle}</span>
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
-            <time>{new Date(post.publishedAt ?? post.createdAt).toLocaleDateString()}</time>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted-strong)]">
+            <time>{new Date(post.publishedAt ?? post.createdAt ?? Date.now()).toLocaleDateString()}</time>
             {post.type === "SHORT" ? (
               <span className="rounded-full bg-[var(--ember)]/15 px-2 py-0.5 font-semibold uppercase tracking-[0.12em] text-[var(--ember)]">
                 Reel
@@ -198,27 +210,27 @@ export function PostCard({ post }: { post: any }) {
         </p>
       ) : null}
       {media.length ? <MediaCarousel media={media} /> : null}
-      <div className="mt-5 flex items-center gap-2 border-t border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] pt-4 text-[var(--muted)]">
+      <div className="mt-5 flex flex-wrap items-center gap-2 border-t-2 border-[var(--mist-strong)] pt-4 text-[var(--muted-strong)]">
         <button
           type="button"
           onClick={() => void action("like")}
-          className={`icon-button h-10 px-3 text-sm ${liked ? "border-[var(--signal)]/25 bg-[var(--signal)]/12 text-[var(--signal)]" : ""}`}
+          className={`icon-button min-h-11 gap-1.5 px-3.5 text-sm ${liked ? "border-[var(--signal-deep)] bg-[var(--signal-soft)] text-[var(--signal-deep)]" : ""}`}
         >
           <Heart className="size-4" fill={liked ? "currentColor" : "none"} />
-          <span className="text-xs font-semibold">{likes}</span>
+          <span className="text-sm font-semibold tabular-nums text-current">{likes}</span>
         </button>
         <button
           type="button"
           onClick={() => setComments(!comments)}
-          className={`icon-button h-10 px-3 text-sm ${comments ? "text-[var(--ink)]" : ""}`}
+          className={`icon-button min-h-11 gap-1.5 px-3.5 text-sm ${comments ? "border-[var(--ink)] text-[var(--ink)]" : ""}`}
         >
           <MessageCircle className="size-4" />
-          <span className="text-xs font-semibold">{post.commentCount ?? 0}</span>
+          <span className="text-sm font-semibold tabular-nums text-current">{post.commentCount ?? 0}</span>
         </button>
         <button
           type="button"
           onClick={() => void action("bookmark")}
-          className={`icon-button h-10 w-10 ${bookmarked ? "border-[var(--signal)]/25 bg-[var(--signal)]/12 text-[var(--signal)]" : ""}`}
+          className={`icon-button size-11 ${bookmarked ? "border-[var(--signal-deep)] bg-[var(--signal-soft)] text-[var(--signal-deep)]" : ""}`}
           aria-label="Save"
         >
           <Bookmark className="size-4" fill={bookmarked ? "currentColor" : "none"} />
@@ -229,7 +241,7 @@ export function PostCard({ post }: { post: any }) {
             if (!requireAuth()) return;
             setReportOpen(true);
           }}
-          className="icon-button h-10 w-10"
+          className="icon-button size-11"
           aria-label="Report post"
         >
           <Flag className="size-4" />
@@ -237,7 +249,7 @@ export function PostCard({ post }: { post: any }) {
         <button
           type="button"
           onClick={() => void share()}
-          className="icon-button ml-auto h-10 w-10"
+          className="icon-button ms-auto size-11"
           aria-label="Share"
         >
           <Share2 className="size-4" />

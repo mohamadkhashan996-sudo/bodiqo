@@ -219,6 +219,7 @@ model User {
   trustedDevices   TrustedDevice[]
   backupCodes      TwoFactorBackupCode[]
   phoneOtps        PhoneOtp[]
+  emailTokens      EmailToken[]
   authChallenges   AuthChallenge[]
   posts            Post[]          @relation("AuthorPosts")
   comments         Comment[]
@@ -238,6 +239,7 @@ model User {
   friendRequestsReceived FriendRequest[] @relation("FriendTo")
   notifications    Notification[]  @relation("NotifyUser")
   actorNotifications Notification[] @relation("NotifyActor")
+  pushSubscriptions PushSubscription[]
   stories          Story[]
   storyViews       StoryView[]
   storyReactions   StoryReaction[]
@@ -253,6 +255,7 @@ model User {
   callParticipants CallParticipant[]
   communityMembers CommunityMember[]
   communitiesOwned Community[]     @relation("CommunityOwner")
+  communityPosts   CommunityPost[] @relation("CommunityPostAuthor")
   userNotes        UserNote[]      @relation("UserNotes")
   authoredNotes    UserNote[]      @relation("NoteAuthor")
   userWarnings     UserWarning[]   @relation("UserWarnings")
@@ -323,6 +326,7 @@ model VerificationToken {
 model EmailToken {
   id        String   @id @default(cuid())
   userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   email     String
   token     String   @unique
   purpose   String
@@ -332,6 +336,7 @@ model EmailToken {
 
   @@index([email, purpose])
   @@index([expiresAt])
+  @@index([userId])
 }
 
 model TwoFactorBackupCode {
@@ -468,6 +473,8 @@ model Block {
   createdAt DateTime @default(now())
 
   @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@index([blockerId, createdAt])
 }
 
 model Mute {
@@ -479,6 +486,8 @@ model Mute {
   createdAt DateTime @default(now())
 
   @@unique([muterId, mutedId])
+  @@index([mutedId])
+  @@index([muterId, createdAt])
 }
 
 model Report {
@@ -697,6 +706,20 @@ model Notification {
   createdAt DateTime         @default(now())
 
   @@index([userId, readAt, createdAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Story {
@@ -941,7 +964,6 @@ model Community {
   updatedAt     DateTime             @updatedAt
   members       CommunityMember[]
   posts         CommunityPost[]
-  events        CommunityEvent[]
   conversations Conversation[]
 
   @@index([visibility, membersCount])
@@ -972,25 +994,13 @@ model CommunityPost {
   isAnnouncement Boolean @default(false)
   mediaUrl    String?
   community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  author      User      @relation("CommunityPostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([communityId, createdAt])
   @@index([communityId, isPinned])
-}
-
-model CommunityEvent {
-  id          String    @id @default(cuid())
-  communityId String
-  title       String
-  description String?
-  startsAt    DateTime
-  endsAt      DateTime?
-  location    String?
-  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
-  createdAt   DateTime  @default(now())
-
-  @@index([communityId, startsAt])
+  @@index([authorId])
 }
 
 // ─── Phase 4: Admin, settings, media, backups ───────────────────────────────

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Avatar } from "@/components/ui/avatar";
@@ -33,7 +33,7 @@ export default function FollowListPage({ mode }: { mode: "followers" | "followin
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinel = useRef<HTMLDivElement>(null);
 
-  async function load(after?: string | null) {
+  const load = useCallback(async (after?: string | null) => {
     if (after) setLoadingMore(true);
     const res = await fetch(
       `/api/users/${handle}/${mode}${after ? `?cursor=${after}` : ""}`,
@@ -49,14 +49,13 @@ export default function FollowListPage({ mode }: { mode: "followers" | "followin
     setCursor(data.nextCursor ?? null);
     setLoading(false);
     setLoadingMore(false);
-  }
+  }, [handle, mode]);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handle, mode]);
+  }, [load]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
@@ -64,7 +63,7 @@ export default function FollowListPage({ mode }: { mode: "followers" | "followin
     });
     if (sentinel.current) observer.observe(sentinel.current);
     return () => observer.disconnect();
-  }, [cursor, handle, mode]);
+  }, [cursor, load]);
 
   return (
     <PageTransition className="page-shell page-stack max-w-2xl">

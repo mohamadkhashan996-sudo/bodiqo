@@ -86,10 +86,10 @@ export function ReportDialog({
             {REASONS.map((item) => (
               <label
                 key={item}
-                className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${
+                className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 px-4 py-3 text-sm shadow-[var(--shadow-sm)] ${
                   reason === item
-                    ? "border-[var(--signal)] bg-[var(--signal)]/10"
-                    : "border-[var(--mist)]"
+                    ? "border-[var(--signal-deep)] bg-[var(--signal)]/15"
+                    : "border-[var(--mist-strong)] bg-[var(--surface)]"
                 }`}
               >
                 <input

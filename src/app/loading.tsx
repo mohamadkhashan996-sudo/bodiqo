@@ -1,12 +1,13 @@
 export default function Loading() {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--cloud)]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="h-10 w-10 animate-pulse rounded-full border-2 border-[var(--signal)] border-t-transparent" />
-        <p className="font-[family-name:var(--font-display)] text-sm tracking-[0.28em] uppercase text-[var(--muted)]">
-          Relune
-        </p>
-      </div>
+    <div
+      className="mx-auto flex min-h-[40vh] max-w-3xl flex-col justify-center gap-4 px-4 py-16"
+      aria-busy="true"
+      aria-label="Loading Relune"
+    >
+      <div className="h-8 w-36 animate-pulse rounded-full bg-[var(--mist)]/70" />
+      <div className="h-48 animate-pulse rounded-[var(--radius-2xl)] bg-[var(--mist)]/45" />
+      <div className="h-32 animate-pulse rounded-[var(--radius-2xl)] bg-[var(--mist)]/35" />
     </div>
   );
 }

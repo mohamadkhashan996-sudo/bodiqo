@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { auth } from "@/modules/auth/auth";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
 import { bumpSessionVersion } from "@/modules/auth/security";
@@ -28,6 +28,7 @@ export async function GET() {
 
 export async function DELETE(r: Request) {
   try {
+    await guardApiAbuse(r, "auth:sessions:delete");
     const u = await requireUser();
     const session = await auth();
     const data = await body(

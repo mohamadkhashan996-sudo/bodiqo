@@ -8,17 +8,23 @@ export default function SecuritySettingsPage() {
   return (
     <PageTransition className="page-shell max-w-3xl">
       <div className="mb-6">
-        <Link href="/settings" className="text-sm text-[var(--muted)] hover:text-[var(--ink)]">
+        <Link
+          href="/settings"
+          className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
+        >
           ← Back to settings
         </Link>
         <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl tracking-tight">
           Security
         </h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Password, two-factor authentication, phone recovery, and trusted devices.
+          Two-factor authentication, device management, login history, encryption, and
+          account protection.
         </p>
       </div>
-      <SecuritySettings />
+      <div className="surface-panel-strong rounded-[var(--radius-2xl)] p-6 md:p-8">
+        <SecuritySettings />
+      </div>
     </PageTransition>
   );
 }

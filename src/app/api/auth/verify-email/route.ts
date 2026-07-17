@@ -1,10 +1,11 @@
 import { z } from "zod";
-import { body, fail, ok } from "@/lib/api";
+import { body, fail, ok, guardApiAbuse} from "@/lib/api";
 import { consumeEmailToken } from "@/modules/auth/email-tokens";
 import { prisma } from "@/lib/prisma";
 import { officialFollowNewUser } from "@/modules/platform/official-account";
 export async function POST(r: Request) {
   try {
+    await guardApiAbuse(r, "auth:verify-email:post");
     const { token } = await body(r, z.object({ token: z.string().min(20) }));
     const record = await consumeEmailToken(token, "VERIFY_EMAIL");
     await prisma.user.update({

@@ -1,6 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Sparkles, X } from "lucide-react";
 import { saveBrowseState } from "@/lib/guest/browse-state";
@@ -13,86 +14,155 @@ type AuthGateModalProps = {
 };
 
 export function AuthGateModal({ open, onClose, callbackUrl }: AuthGateModalProps) {
-  const next = safeCallbackUrl(callbackUrl ?? (typeof window !== "undefined" ? window.location.pathname + window.location.search : "/home"));
+  const titleId = useId();
+  const panelRef = useRef<HTMLElement>(null);
+  const next = safeCallbackUrl(
+    callbackUrl ??
+      (typeof window !== "undefined"
+        ? window.location.pathname + window.location.search
+        : "/home"),
+  );
 
-  function persistBrowse() {
-    saveBrowseState();
-  }
+  useEffect(() => {
+    if (!open) return;
 
-  return (
-    <AnimatePresence>
-      {open ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.22 }}
-          className="fixed inset-0 z-[100] grid place-items-center bg-[var(--ink)]/45 p-5 backdrop-blur-md"
-          onMouseDown={onClose}
-          role="presentation"
-        >
-          <motion.section
-            initial={{ opacity: 0, y: 18, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="surface-panel-strong premium-ring relative w-full max-w-md overflow-hidden rounded-[var(--radius-2xl)] p-8 shadow-[var(--shadow-xl)]"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="auth-gate-title"
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Portal mounts after paint; defer focus so Close is actually hittable/focusable.
+    const focusId = window.requestAnimationFrame(() => {
+      const panel = panelRef.current;
+      const closeBtn = panel?.querySelector<HTMLElement>('button[aria-label="Close"]');
+      const focusable = panel?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      (closeBtn ?? focusable?.[0])?.focus({ preventScroll: true });
+    });
+
+  // Mirror Modal Tab cycle so focus cannot escape the dialog.
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const nodes = [
+        ...panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+      if (!nodes.length) return;
+      const first = nodes[0]!;
+      const last = nodes[nodes.length - 1]!;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.cancelAnimationFrame(focusId);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [open, onClose]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      data-relune-auth-gate=""
+      className="fixed inset-0 grid place-items-center bg-[var(--ink)]/45 p-5 backdrop-blur-md"
+      style={{ zIndex: 120 }}
+      onPointerDown={(event) => {
+        // Dismiss on backdrop press (not click) so the gesture can't fall through
+        // to a gated control underneath after unmount.
+        if (event.target === event.currentTarget) onClose();
+      }}
+      role="presentation"
+    >
+      <section
+        ref={panelRef}
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="surface-panel-strong premium-ring relative w-full max-w-md overflow-hidden rounded-[var(--radius-2xl)] p-8 shadow-[var(--shadow-xl)]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
+        <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-[var(--signal)]/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-8 -left-8 size-32 rounded-full bg-[var(--ember)]/20 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--signal-deep)]/40 bg-[var(--signal-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--signal-deep)]">
+            <Sparkles className="size-3.5" />
+            Join Relune
+          </span>
+          <button
+            type="button"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onClose();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onClose();
+            }}
+            className="icon-button -me-2 -mt-2 size-10 shrink-0"
+            aria-label="Close"
           >
-            <div className="pointer-events-none absolute -right-10 -top-10 size-40 rounded-full bg-[var(--signal)]/15 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-8 -left-8 size-32 rounded-full bg-[var(--ember)]/20 blur-3xl" />
-            <button
-              type="button"
-              onClick={onClose}
-              className="absolute end-5 top-5 rounded-full p-2 text-[var(--muted)] transition hover:bg-[var(--mist)] hover:text-[var(--ink)]"
-              aria-label="Close"
-            >
-              <X className="size-5" />
-            </button>
-            <div className="relative">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--signal)]/25 bg-[var(--signal)]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--signal)]">
-                <Sparkles className="size-3.5" />
-                Join Relune
-              </span>
-              <h2
-                id="auth-gate-title"
-                className="mt-5 font-[family-name:var(--font-display)] text-3xl leading-tight tracking-tight"
-              >
-                Create an account or sign in to continue.
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-                Like, comment, follow, save, and share your own moments with the community.
-              </p>
-              <div className="mt-8 flex flex-col gap-3">
-                <Link
-                  href={`/sign-in?callbackUrl=${encodeURIComponent(next)}`}
-                  onClick={persistBrowse}
-                  className="inline-flex h-12 items-center justify-center rounded-full bg-[var(--ink)] text-sm font-semibold uppercase tracking-[0.14em] text-[var(--cloud)] shadow-[var(--shadow-md)] transition hover:-translate-y-0.5 hover:bg-[var(--ink-soft)]"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href={`/sign-up?callbackUrl=${encodeURIComponent(next)}`}
-                  onClick={persistBrowse}
-                  className="inline-flex h-12 items-center justify-center rounded-full border border-[var(--mist)] bg-[var(--glass-strong)] text-sm font-semibold uppercase tracking-[0.14em] transition hover:-translate-y-0.5 hover:bg-[var(--surface)]"
-                >
-                  Create Account
-                </Link>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="h-11 text-sm font-medium text-[var(--muted)] transition hover:text-[var(--ink)]"
-                >
-                  Continue Browsing
-                </button>
-              </div>
-            </div>
-          </motion.section>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+            <X className="size-5" />
+          </button>
+        </div>
+        <h2
+          id={titleId}
+          className="relative mt-5 font-[family-name:var(--font-display)] text-3xl leading-tight tracking-tight"
+        >
+          Create an account or sign in to continue.
+        </h2>
+        <p className="relative mt-3 text-sm leading-6 text-[var(--muted-strong)]">
+          Like, comment, follow, save, and share your own moments with the
+          community. You can keep browsing public pages as a guest.
+        </p>
+        <div className="relative mt-8 flex flex-col gap-3">
+          <Link
+            href={`/sign-in?callbackUrl=${encodeURIComponent(next)}`}
+            onClick={() => saveBrowseState()}
+            className="inline-flex h-12 items-center justify-center rounded-full border-2 border-[var(--ink)] bg-[var(--ink)] text-sm font-semibold uppercase tracking-[0.14em] text-[var(--cloud-elevated)] shadow-[var(--shadow-md)] transition hover:-translate-y-0.5 hover:bg-[var(--ink-soft)]"
+          >
+            Sign In
+          </Link>
+          <Link
+            href={`/sign-up?callbackUrl=${encodeURIComponent(next)}`}
+            onClick={() => saveBrowseState()}
+            className="inline-flex h-12 items-center justify-center rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] text-sm font-semibold uppercase tracking-[0.14em] text-[var(--ink)] shadow-[var(--shadow-sm)] transition hover:-translate-y-0.5 hover:bg-[var(--cloud-elevated)]"
+          >
+            Create Account
+          </Link>
+          <button
+            type="button"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              onClose();
+            }}
+            onClick={(event) => {
+              event.preventDefault();
+              onClose();
+            }}
+            className="h-11 rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] text-sm font-semibold text-[var(--ink)] shadow-[var(--shadow-sm)] transition hover:bg-[var(--cloud-elevated)]"
+          >
+            Continue Browsing
+          </button>
+        </div>
+      </section>
+    </div>,
+    document.body,
   );
 }

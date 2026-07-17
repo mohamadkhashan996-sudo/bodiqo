@@ -6,6 +6,7 @@ export const MEMBER_ONLY_PATH_PREFIXES = [
   "/calls",
   "/onboarding",
   "/communities/new",
+  "/admin",
 ] as const;
 
 export function isMemberOnlyPath(pathname: string) {

@@ -1,4 +1,4 @@
-import { fail, ok, requireUser } from "@/lib/api";
+import { fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { likePost, unlikePost } from "@/modules/feed/services/posts";
 import { createNotification } from "@/modules/notifications/services/notify";
 import { prisma } from "@/lib/prisma";
@@ -8,6 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await guardApiAbuse(_r, "posts:id:like:post");
     const u = await requireUser();
     const postId = (await params).id;
     const result = await likePost(u.id, postId);
@@ -33,6 +34,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await guardApiAbuse(_r, "posts:id:like:delete");
     const u = await requireUser();
     return ok(await unlikePost(u.id, (await params).id));
   } catch (e) {

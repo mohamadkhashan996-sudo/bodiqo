@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { body, fail, guardApiAbuse, ok, requireStaff } from "@/lib/api";
+import { AppError } from "@/lib/errors";
 import {
   deleteCustomRole,
   listRoles,
@@ -31,11 +32,11 @@ export async function POST(request: Request) {
       }),
     );
     if (data.action === "delete") {
-      if (!data.id) return ok({ error: "id required" }, 400);
+      if (!data.id) throw new AppError("id required", 400);
       return ok(await deleteCustomRole(staff.id, data.id));
     }
     if (!data.name || !data.permissions) {
-      return ok({ error: "name and permissions required" }, 400);
+      throw new AppError("name and permissions required", 400);
     }
     return ok(
       await upsertCustomRole(staff.id, {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { createGroup, getOrCreateDirect, listConversations } from "@/modules/messaging/services/conversations";
 
 export async function GET(request: Request) {
@@ -11,6 +11,7 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   try {
+    await guardApiAbuse(request, "conversations:post");
     const user = await requireUser();
     const input = await body(request, z.union([
       z.object({ type: z.literal("DIRECT"), userId: z.string().min(1) }),

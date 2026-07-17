@@ -1,72 +1,89 @@
-import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
+import { hashToken, randomToken } from "@/lib/tokens";
 import type { OAuthProviderId } from "@/modules/auth/providers";
 
+/** Non-secret fields only — never persist OAuth access/refresh/id tokens. */
 type PendingPayload = {
   email: string;
   provider: OAuthProviderId;
   providerAccountId: string;
   type: string;
-  access_token?: string | null;
-  refresh_token?: string | null;
-  expires_at?: number | null;
-  token_type?: string | null;
-  scope?: string | null;
-  id_token?: string | null;
   userName?: string | null;
   userImage?: string | null;
 };
 
-/** Store pending OAuth link in EmailToken.purpose = ACCOUNT_LINK (token encodes lookup). */
+type StoredLinkPayload = {
+  provider: OAuthProviderId;
+  providerAccountId: string;
+  type: string;
+  userName?: string | null;
+  userImage?: string | null;
+};
+
+/** Store pending OAuth link. Returns raw token (hashed at rest). */
 export async function createPendingOAuthLink(payload: PendingPayload) {
-  const existing = await prisma.user.findUnique({ where: { email: payload.email } });
+  const existing = await prisma.user.findUnique({
+    where: { email: payload.email },
+  });
   if (!existing) throw new AppError("Account not found", 404);
 
-  const token = randomBytes(32).toString("hex");
-  await prisma.emailToken.create({
-    data: {
-      userId: existing.id,
-      email: payload.email,
-      token,
-      purpose: `ACCOUNT_LINK:${JSON.stringify({
-        provider: payload.provider,
-        providerAccountId: payload.providerAccountId,
-        type: payload.type,
-        access_token: payload.access_token,
-        refresh_token: payload.refresh_token,
-        expires_at: payload.expires_at,
-        token_type: payload.token_type,
-        scope: payload.scope,
-        id_token: payload.id_token,
-        userName: payload.userName,
-        userImage: payload.userImage,
-      })}`,
-      expiresAt: new Date(Date.now() + 15 * 60_000),
-    },
-  });
-  return token;
+  const rawToken = randomToken();
+  const token = hashToken(rawToken);
+  const stored: StoredLinkPayload = {
+    provider: payload.provider,
+    providerAccountId: payload.providerAccountId,
+    type: payload.type || "oauth",
+    userName: payload.userName ?? null,
+    userImage: payload.userImage ?? null,
+  };
+
+  await prisma.$transaction([
+    prisma.emailToken.updateMany({
+      where: {
+        userId: existing.id,
+        purpose: { startsWith: "ACCOUNT_LINK:" },
+        usedAt: null,
+      },
+      data: { usedAt: new Date() },
+    }),
+    prisma.emailToken.create({
+      data: {
+        userId: existing.id,
+        email: payload.email,
+        token,
+        purpose: `ACCOUNT_LINK:${JSON.stringify(stored)}`,
+        expiresAt: new Date(Date.now() + 15 * 60_000),
+      },
+    }),
+  ]);
+  return rawToken;
 }
 
-export async function getPendingOAuthLink(token: string) {
-  const row = await prisma.emailToken.findUnique({ where: { token } });
+export async function getPendingOAuthLink(rawToken: string) {
+  const row = await prisma.emailToken.findUnique({
+    where: { token: hashToken(rawToken) },
+  });
   if (!row || row.usedAt || row.expiresAt < new Date()) return null;
   if (!row.purpose.startsWith("ACCOUNT_LINK:")) return null;
   const json = row.purpose.slice("ACCOUNT_LINK:".length);
   try {
-    const data = JSON.parse(json) as PendingPayload;
+    const data = JSON.parse(json) as StoredLinkPayload;
+    if (!data.provider || !data.providerAccountId) return null;
     return { row, data: { ...data, email: row.email } };
   } catch {
     return null;
   }
 }
 
-export async function confirmPendingOAuthLink(token: string, userId: string) {
-  const pending = await getPendingOAuthLink(token);
+export async function confirmPendingOAuthLink(rawToken: string, userId: string) {
+  const pending = await getPendingOAuthLink(rawToken);
   if (!pending || pending.row.userId !== userId) {
     throw new AppError("This link is invalid or expired", 400);
   }
   const { data, row } = pending;
+
+  // Link identity only — provider tokens are obtained on the next OAuth sign-in.
   await prisma.$transaction([
     prisma.account.upsert({
       where: {
@@ -80,17 +97,9 @@ export async function confirmPendingOAuthLink(token: string, userId: string) {
         type: data.type || "oauth",
         provider: data.provider,
         providerAccountId: data.providerAccountId,
-        access_token: data.access_token ?? undefined,
-        refresh_token: data.refresh_token ?? undefined,
-        expires_at: data.expires_at ?? undefined,
-        token_type: data.token_type ?? undefined,
-        scope: data.scope ?? undefined,
-        id_token: data.id_token ?? undefined,
       },
       update: {
         userId,
-        access_token: data.access_token ?? undefined,
-        refresh_token: data.refresh_token ?? undefined,
       },
     }),
     prisma.emailToken.update({

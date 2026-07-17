@@ -78,13 +78,13 @@ export default function LandingPage() {
             >
               <Link
                 href="/sign-up"
-                className="landing-cta-primary inline-flex min-h-[3.55rem] items-center justify-center rounded-[1.3rem] px-9 text-[0.9375rem] font-semibold tracking-[0.01em] text-[var(--cloud)]"
+                className="landing-cta-primary inline-flex min-h-[3.55rem] items-center justify-center rounded-[1.3rem] border-2 border-[var(--ink)] px-9 text-[0.9375rem] font-semibold tracking-[0.01em] text-white"
               >
                 Create Account
               </Link>
               <Link
                 href="/home"
-                className="landing-cta-secondary inline-flex min-h-[3.55rem] items-center justify-center rounded-[1.3rem] px-9 text-[0.9375rem] font-semibold tracking-[0.01em] text-[var(--ink)]"
+                className="landing-cta-secondary inline-flex min-h-[3.55rem] items-center justify-center rounded-[1.3rem] px-9 text-[0.9375rem] font-semibold tracking-[0.01em]"
               >
                 Continue as Guest
               </Link>
@@ -160,7 +160,7 @@ export default function LandingPage() {
               <h2 className="mt-5 max-w-xl font-[family-name:var(--font-display)] text-[clamp(2.25rem,4.2vw,3.75rem)] leading-[1.04] tracking-[-0.035em]">
                 Browse as a guest. Belong when you are ready.
               </h2>
-              <p className="mt-6 max-w-xl text-sm leading-7 text-white/68 md:text-base md:leading-8">
+              <p className="mt-6 max-w-xl text-sm leading-7 text-white/90 md:text-base md:leading-8">
                 Explore public reels, profiles, and conversations instantly.
                 Create an account when you want to like, comment, follow, or
                 message.
@@ -169,21 +169,21 @@ export default function LandingPage() {
             <div className="flex flex-col gap-3.5 sm:flex-row lg:flex-col lg:items-stretch">
               <Link
                 href="/home"
-                className="inline-flex min-h-[3.55rem] items-center justify-center gap-2 rounded-[1.3rem] bg-white px-8 text-[0.9375rem] font-semibold text-[var(--night)] transition duration-[var(--duration)] ease-[var(--ease-out)] hover:-translate-y-1 hover:bg-[var(--cloud-elevated)] hover:shadow-[var(--shadow-md)]"
+                className="inline-flex min-h-[3.55rem] items-center justify-center gap-2 rounded-[1.3rem] border-2 border-white bg-white px-8 text-[0.9375rem] font-semibold text-[var(--night)] shadow-[var(--shadow-md)] transition duration-[var(--duration)] ease-[var(--ease-out)] hover:-translate-y-1 hover:bg-[var(--cloud-elevated)] hover:shadow-[var(--shadow-lg)]"
               >
                 Enter as Guest
                 <ArrowUpRight className="size-4" />
               </Link>
               <Link
                 href="/sign-up"
-                className="inline-flex min-h-[3.55rem] items-center justify-center rounded-[1.3rem] border border-white/18 bg-white/[0.07] px-8 text-[0.9375rem] font-semibold text-white backdrop-blur-md transition duration-[var(--duration)] ease-[var(--ease-out)] hover:-translate-y-1 hover:bg-white/[0.14]"
+                className="inline-flex min-h-[3.55rem] items-center justify-center rounded-[1.3rem] border-2 border-white bg-[rgba(12,14,20,0.55)] px-8 text-[0.9375rem] font-semibold text-white shadow-[var(--shadow-md)] backdrop-blur-md transition duration-[var(--duration)] ease-[var(--ease-out)] hover:-translate-y-1 hover:bg-[rgba(12,14,20,0.72)]"
               >
                 Create Account
               </Link>
             </div>
           </div>
 
-          <div className="relative mt-14 grid gap-4 border-t border-white/10 pt-10 sm:grid-cols-3">
+          <div className="relative mt-14 grid gap-4 border-t border-white/35 pt-10 sm:grid-cols-3">
             {[
               { icon: Sparkles, label: "Cinematic media" },
               { icon: Lock, label: "Privacy-first" },
@@ -191,10 +191,10 @@ export default function LandingPage() {
             ].map(({ icon: Icon, label }) => (
               <div
                 key={label}
-                className="flex items-center gap-3 rounded-[1.4rem] bg-white/[0.06] px-5 py-4 backdrop-blur-md"
+                className="flex items-center gap-3 rounded-[1.4rem] border-2 border-white/55 bg-[rgba(12,14,20,0.45)] px-5 py-4 backdrop-blur-md"
               >
                 <Icon className="size-4 text-[var(--signal)]" strokeWidth={1.75} />
-                <span className="text-sm font-medium text-white/90">{label}</span>
+                <span className="text-sm font-semibold text-white">{label}</span>
               </div>
             ))}
           </div>

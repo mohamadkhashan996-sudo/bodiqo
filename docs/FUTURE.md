@@ -4,7 +4,7 @@ Relune’s modular layout (`src/modules/*`, thin routes, Prisma models) is desig
 
 | Capability | Suggested approach |
 | --- | --- |
-| Android / iPhone | React Native or Flutter clients against versioned REST + Socket.io; share auth via OAuth / token bridge |
+| Android / iPhone | Capacitor shells ship Relune 1.0 (`docs/MOBILE.md`); later React Native/Flutter can reuse REST + Socket.io |
 | Desktop | Electron/Tauri wrapping web or native shell |
 | Live streaming | Separate media SFU (LiveKit/mediasoup) + `LiveSession` model; keep signaling off the main API process if needed |
 | Marketplace | New `commerce` module + Stripe Connect; isolate from social write paths |

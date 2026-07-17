@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { ReportCategory, ReportStatus, ReportTarget } from "@prisma/client";
 import { body, fail, guardApiAbuse, ok, requireStaff } from "@/lib/api";
-import { listReports, updateReport } from "@/modules/admin/services";
+import {
+  listReports,
+  resolveReportWithAction,
+  updateReport,
+} from "@/modules/admin/services";
 
 export async function GET(request: Request) {
   try {
@@ -33,9 +37,22 @@ export async function PATCH(request: Request) {
         category: z.nativeEnum(ReportCategory).optional(),
         resolution: z.string().max(1000).optional(),
         assigneeId: z.string().nullable().optional(),
+        action: z
+          .enum(["delete_post", "delete_comment", "ban_user", "none"])
+          .optional(),
       }),
     );
-    const { reportId, ...patch } = data;
+    const { reportId, action, ...patch } = data;
+    if (action) {
+      return ok(
+        await resolveReportWithAction(
+          staff.id,
+          staff.role,
+          reportId,
+          action,
+        ),
+      );
+    }
     return ok(await updateReport(staff.id, reportId, patch));
   } catch (e) {
     return fail(e);

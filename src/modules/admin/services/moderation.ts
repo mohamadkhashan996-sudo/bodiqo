@@ -186,6 +186,75 @@ export async function deleteStory(actorId: string, storyId: string) {
   return { ok: true };
 }
 
+export async function moderateCommunity(
+  actorId: string,
+  communityId: string,
+  action: "hide" | "unhide" | "delete",
+) {
+  const community = await prisma.community.findUnique({
+    where: { id: communityId },
+  });
+  if (!community) throw new AppError("Community not found", 404);
+
+  if (action === "delete") {
+    await prisma.community.delete({ where: { id: communityId } });
+    await writeAudit({
+      actorId,
+      action: "admin.content.community.delete",
+      target: communityId,
+    });
+    await cacheDelPrefix("admin:");
+    return { ok: true, deleted: true };
+  }
+
+  const updated = await prisma.community.update({
+    where: { id: communityId },
+    data: {
+      visibility: action === "hide" ? "PRIVATE" : "PUBLIC",
+    },
+  });
+  await writeAudit({
+    actorId,
+    action: `admin.content.community.${action}`,
+    target: communityId,
+  });
+  await cacheDelPrefix("admin:");
+  return updated;
+}
+
+export async function resolveReportWithAction(
+  actorId: string,
+  actorRole: import("@prisma/client").Role,
+  reportId: string,
+  action: "delete_post" | "delete_comment" | "ban_user" | "none",
+) {
+  const report = await prisma.report.findUnique({ where: { id: reportId } });
+  if (!report) throw new AppError("Report not found", 404);
+
+  let outcome: unknown = null;
+  if (action === "delete_post" && report.targetType === "POST") {
+    outcome = await moderatePost(actorId, report.targetId, "delete");
+  } else if (action === "delete_comment" && report.targetType === "COMMENT") {
+    outcome = await moderateComment(actorId, report.targetId, "delete");
+  } else if (action === "ban_user" && report.targetType === "USER") {
+    const { banUser } = await import("./users");
+    outcome = await banUser(actorId, actorRole, report.targetId, {
+      permanent: false,
+      reason: `Banned from report ${reportId}: ${report.reason}`,
+    });
+  }
+
+  const updated = await updateReport(actorId, reportId, {
+    status: "RESOLVED",
+    resolution:
+      action === "none"
+        ? "Reviewed with no automated action"
+        : `Resolved with action: ${action}`,
+  });
+
+  return { report: updated, outcome };
+}
+
 export async function listHashtags(take = 40) {
   const posts = await prisma.post.findMany({
     where: { status: "PUBLISHED", body: { contains: "#" } },

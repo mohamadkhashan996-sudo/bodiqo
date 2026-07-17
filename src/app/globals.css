@@ -62,6 +62,22 @@ select {
   font: inherit;
 }
 
+select {
+  min-height: 2.75rem;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--mist-strong);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0.65rem 0.9rem;
+  box-shadow: var(--shadow-sm);
+}
+
+select:focus-visible {
+  border-color: var(--signal-deep);
+  outline: 2px solid var(--focus-ring-strong);
+  outline-offset: 2px;
+}
+
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
@@ -69,36 +85,36 @@ select {
 
 .glass {
   background: var(--glass);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  border: 2px solid var(--glass-border-strong);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   box-shadow: var(--shadow-md);
 }
 
 .glass-strong {
   background: var(--glass-strong);
-  border: 1px solid var(--glass-border-strong);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  border: 2px solid var(--glass-border-strong);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   box-shadow: var(--shadow-lg);
 }
 
 .surface-panel {
   background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--mist) 65%, transparent);
+  border: 2px solid var(--mist-strong);
   box-shadow: var(--shadow-sm);
 }
 
 .surface-panel-strong {
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  border: 1px solid color-mix(in srgb, var(--mist) 82%, transparent);
+  background: var(--surface);
+  border: 2px solid var(--mist-strong);
   box-shadow: var(--shadow-md);
 }
 
 .surface-subtle {
-  background: color-mix(in srgb, var(--surface) 68%, transparent);
-  border: 1px solid color-mix(in srgb, var(--mist) 45%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  background: var(--cloud-elevated);
+  border: 2px solid var(--mist-strong);
+  box-shadow: var(--shadow-sm);
 }
 
 .app-shell {
@@ -124,19 +140,22 @@ select {
 
 .kpi-chip {
   border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--surface) 84%, transparent);
-  border: 1px solid color-mix(in srgb, var(--mist) 58%, transparent);
+  background: var(--surface);
+  border: 2px solid var(--mist-strong);
   box-shadow: var(--shadow-sm);
+  color: var(--muted-strong);
 }
 
 .icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   border-radius: var(--radius-full);
-  border: 1px solid color-mix(in srgb, var(--mist) 65%, transparent);
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
-  color: var(--muted);
+  border: 2px solid var(--mist-strong);
+  background: var(--surface);
+  color: var(--ink);
   transition:
     transform var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out),
@@ -148,13 +167,54 @@ select {
 
 .icon-button:hover {
   transform: translateY(-1px);
-  background: var(--surface);
+  background: var(--cloud-elevated);
   color: var(--ink);
-  border-color: color-mix(in srgb, var(--ink) 14%, var(--mist));
+  border-color: color-mix(in srgb, var(--ink) 40%, var(--mist-strong));
+  box-shadow: var(--shadow-md);
 }
 
 .icon-button:active {
   transform: translateY(0);
+}
+
+.icon-button:focus-visible {
+  outline: 2px solid var(--focus-ring-strong);
+  outline-offset: 2px;
+  color: var(--ink);
+  border-color: var(--signal-deep);
+}
+
+/* High-visibility controls on dark media (shorts, calls, lightbox) */
+.on-dark-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  background: rgba(12, 14, 20, 0.72);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.on-dark-control:hover {
+  transform: translateY(-1px);
+  background: rgba(20, 24, 34, 0.88);
+  border-color: #ffffff;
+}
+
+.on-dark-control-active {
+  border-color: color-mix(in srgb, var(--signal) 55%, white);
+  background: color-mix(in srgb, var(--signal-deep) 82%, black);
+  color: #ffffff;
 }
 
 .premium-ring {
@@ -203,7 +263,7 @@ select {
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--signal);
+  color: var(--signal-deep);
 }
 
 .page-title {
@@ -223,6 +283,116 @@ select {
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+@keyframes phone-dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Relune theme for react-international-phone */
+.relune-phone {
+  --react-international-phone-height: 3rem;
+  --react-international-phone-font-size: 0.9375rem;
+  --react-international-phone-border-radius: 1rem;
+  --react-international-phone-border-color: var(--mist-strong);
+  --react-international-phone-background-color: var(--surface);
+  --react-international-phone-text-color: var(--ink);
+  --react-international-phone-selected-dropdown-item-background-color: var(--signal-soft);
+  --react-international-phone-selected-dropdown-item-text-color: var(--ink);
+  --react-international-phone-dropdown-item-text-color: var(--ink);
+  --react-international-phone-dropdown-item-dial-code-color: var(--muted-strong);
+  --react-international-phone-country-selector-background-color: var(--cloud-elevated);
+  --react-international-phone-country-selector-background-color-hover: var(--signal-soft);
+  --react-international-phone-country-selector-border-color: var(--mist-strong);
+  --react-international-phone-country-selector-arrow-color: var(--ink);
+  --react-international-phone-dropdown-shadow: var(--shadow-lg);
+  --react-international-phone-flag-width: 1.5rem;
+  --react-international-phone-flag-height: 1.125rem;
+  --react-international-phone-dropdown-item-height: 2.25rem;
+}
+
+.relune-phone .react-international-phone-input-container {
+  width: 100%;
+}
+
+.relune-phone .react-international-phone-input-container .react-international-phone-input {
+  flex: 1;
+  min-width: 0;
+  border-width: 2px !important;
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.relune-phone .react-international-phone-input-container .react-international-phone-country-selector-button {
+  min-width: 4.25rem;
+  padding-inline: 0.65rem;
+  border-width: 2px !important;
+  box-shadow: var(--shadow-sm);
+}
+
+.relune-phone .react-international-phone-input-container .react-international-phone-input:focus {
+  border-color: var(--signal-deep);
+  background-color: var(--cloud-elevated);
+  box-shadow: var(--shadow-md);
+}
+
+.relune-phone .relune-phone-input--invalid .react-international-phone-input,
+.relune-phone .relune-phone-input--invalid .react-international-phone-country-selector-button {
+  border-color: var(--danger);
+}
+
+.relune-phone .react-international-phone-country-selector-dropdown {
+  z-index: 130;
+  width: min(22rem, 92vw);
+  max-height: 17.5rem;
+  border: 2px solid var(--mist-strong);
+  border-radius: 1.15rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+}
+
+.relune-phone[dir="rtl"] .react-international-phone-input-container {
+  flex-direction: row-reverse;
+}
+
+.relune-phone[dir="rtl"] .react-international-phone-input-container .react-international-phone-country-selector-button {
+  margin-right: 0;
+  margin-left: -1px;
+  border-radius: var(--react-international-phone-border-radius);
+  border-bottom-left-radius: 0;
+  border-top-left-radius: 0;
+}
+
+.relune-phone[dir="rtl"] .react-international-phone-input-container .react-international-phone-input {
+  border-radius: var(--react-international-phone-border-radius);
+  border-bottom-right-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.relune-phone[dir="rtl"] .react-international-phone-country-selector-dropdown {
+  left: auto;
+  right: 0;
+}
+
+.relune-phone[dir="rtl"] .react-international-phone-country-selector-dropdown__list-item-flag-emoji {
+  margin-right: 0;
+  margin-left: 8px;
+}
+
+.relune-phone[dir="rtl"] .react-international-phone-country-selector-dropdown__list-item-country-name {
+  margin-right: 0;
+  margin-left: 8px;
 }
 
 .sr-only {
@@ -251,12 +421,8 @@ select {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background: linear-gradient(
-    135deg,
-    var(--ink) 0%,
-    var(--ink-soft) 48%,
-    color-mix(in srgb, var(--signal-deep) 48%, var(--ink)) 100%
-  );
+  color: #ffffff;
+  background: linear-gradient(135deg, #0e1016 0%, #151820 52%, #0a4a45 100%);
   box-shadow: var(--shadow-md);
   transition:
     transform var(--duration) var(--ease-out),
@@ -295,8 +461,9 @@ select {
 }
 
 .landing-cta-secondary {
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  border: 1px solid color-mix(in srgb, var(--mist) 78%, transparent);
+  background: rgba(255, 252, 248, 0.12);
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  color: #ffffff;
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -309,9 +476,20 @@ select {
 
 .landing-cta-secondary:hover {
   transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--signal) 42%, var(--mist));
-  background: var(--surface);
+  border-color: #ffffff;
+  background: rgba(255, 252, 248, 0.22);
   box-shadow: var(--shadow-md);
+}
+
+html:not([data-theme="dark"]) .landing-cta-secondary {
+  background: var(--surface);
+  border-color: var(--mist-strong);
+  color: var(--ink);
+}
+
+html:not([data-theme="dark"]) .landing-cta-secondary:hover {
+  border-color: color-mix(in srgb, var(--ink) 40%, var(--mist-strong));
+  background: var(--cloud-elevated);
 }
 
 .landing-cta-secondary:active {
@@ -329,19 +507,19 @@ select {
   padding: 0.75rem 1rem;
   border-radius: 1.15rem;
   font-size: 0.875rem;
-  font-weight: 550;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  color: color-mix(in srgb, var(--cloud) 78%, transparent);
+  color: #f3f1ec;
   background:
     linear-gradient(
       160deg,
-      color-mix(in srgb, #1a1e28 88%, transparent) 0%,
-      color-mix(in srgb, #12151c 92%, transparent) 100%
+      #1c212c 0%,
+      #13171f 100%
     );
-  border: 1px solid color-mix(in srgb, white 10%, transparent);
+  border: 2px solid rgba(255, 255, 255, 0.32);
   box-shadow:
-    0 1px 0 color-mix(in srgb, white 8%, transparent) inset,
-    0 10px 28px rgba(8, 10, 14, 0.18);
+    0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 10px 28px rgba(8, 10, 14, 0.22);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   transition:
@@ -354,18 +532,18 @@ select {
 
 .app-nav-item:hover {
   transform: translateY(-1px);
-  color: var(--cloud-elevated);
-  border-color: color-mix(in srgb, white 18%, transparent);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.34);
   background:
     linear-gradient(
       160deg,
-      color-mix(in srgb, #222833 92%, transparent) 0%,
-      color-mix(in srgb, #171b24 94%, transparent) 100%
+      #262c38 0%,
+      #1a1f2a 100%
     );
   box-shadow:
-    0 1px 0 color-mix(in srgb, white 12%, transparent) inset,
-    0 14px 36px rgba(8, 10, 14, 0.28),
-    0 0 0 1px color-mix(in srgb, var(--signal) 12%, transparent);
+    0 1px 0 rgba(255, 255, 255, 0.14) inset,
+    0 14px 36px rgba(8, 10, 14, 0.32),
+    0 0 0 1px color-mix(in srgb, var(--signal) 20%, transparent);
 }
 
 .app-nav-item:active {
@@ -373,58 +551,58 @@ select {
 }
 
 .app-nav-item-active {
-  color: #f4fffc;
-  border-color: color-mix(in srgb, var(--signal) 55%, transparent);
+  color: #ffffff;
+  border-color: color-mix(in srgb, var(--signal) 70%, white 20%);
   background:
     linear-gradient(
       145deg,
-      color-mix(in srgb, var(--signal) 42%, #141820) 0%,
-      color-mix(in srgb, var(--signal-deep) 55%, #0e1218) 100%
+      color-mix(in srgb, var(--signal) 48%, #141820) 0%,
+      color-mix(in srgb, var(--signal-deep) 60%, #0e1218) 100%
     );
   box-shadow:
-    0 1px 0 color-mix(in srgb, white 16%, transparent) inset,
-    0 12px 32px color-mix(in srgb, var(--signal) 28%, transparent),
-    0 0 24px color-mix(in srgb, var(--signal) 18%, transparent);
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 12px 32px color-mix(in srgb, var(--signal) 32%, transparent),
+    0 0 24px color-mix(in srgb, var(--signal) 20%, transparent);
 }
 
 .app-nav-item-active:hover {
   color: #ffffff;
-  border-color: color-mix(in srgb, var(--signal) 70%, transparent);
+  border-color: color-mix(in srgb, var(--signal) 80%, white 15%);
   box-shadow:
-    0 1px 0 color-mix(in srgb, white 18%, transparent) inset,
-    0 14px 36px color-mix(in srgb, var(--signal) 34%, transparent),
-    0 0 28px color-mix(in srgb, var(--signal) 22%, transparent);
+    0 1px 0 rgba(255, 255, 255, 0.2) inset,
+    0 14px 36px color-mix(in srgb, var(--signal) 38%, transparent),
+    0 0 28px color-mix(in srgb, var(--signal) 24%, transparent);
 }
 
 .app-nav-item-cta {
-  color: #f4fffc;
+  color: #ffffff;
   justify-content: center;
-  border-color: color-mix(in srgb, var(--signal) 40%, transparent);
+  border-color: color-mix(in srgb, var(--signal) 55%, white 15%);
   background:
     linear-gradient(
       145deg,
-      color-mix(in srgb, var(--signal) 28%, #161a22) 0%,
+      color-mix(in srgb, var(--signal) 36%, #161a22) 0%,
       color-mix(in srgb, var(--ink) 70%, #0e1218) 100%
     );
   box-shadow:
-    0 1px 0 color-mix(in srgb, white 12%, transparent) inset,
-    0 12px 30px rgba(8, 10, 14, 0.28),
-    0 0 20px color-mix(in srgb, var(--signal) 14%, transparent);
+    0 1px 0 rgba(255, 255, 255, 0.14) inset,
+    0 12px 30px rgba(8, 10, 14, 0.3),
+    0 0 20px color-mix(in srgb, var(--signal) 18%, transparent);
 }
 
 .app-nav-item-cta:hover {
   color: #ffffff;
-  border-color: color-mix(in srgb, var(--signal) 58%, transparent);
+  border-color: color-mix(in srgb, var(--signal) 70%, white 15%);
   background:
     linear-gradient(
       145deg,
-      color-mix(in srgb, var(--signal) 38%, #181c26) 0%,
+      color-mix(in srgb, var(--signal) 46%, #181c26) 0%,
       color-mix(in srgb, var(--ink-soft) 65%, #10141c) 100%
     );
   box-shadow:
-    0 1px 0 color-mix(in srgb, white 14%, transparent) inset,
-    0 14px 34px rgba(8, 10, 14, 0.32),
-    0 0 26px color-mix(in srgb, var(--signal) 22%, transparent);
+    0 1px 0 rgba(255, 255, 255, 0.16) inset,
+    0 14px 34px rgba(8, 10, 14, 0.34),
+    0 0 26px color-mix(in srgb, var(--signal) 26%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

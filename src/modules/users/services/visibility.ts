@@ -42,8 +42,6 @@ export async function getProfileVisibility(
   const self = viewerId === author.id;
   const following = await isFollowing(viewerId, author.id);
   const requested = await hasPendingFollowRequest(viewerId, author.id);
-  const isPrivate = Boolean(author.isPrivate) && !self;
-
   return {
     isPrivate: Boolean(author.isPrivate),
     canViewContent: self || following || !author.isPrivate,
@@ -78,12 +76,30 @@ export async function filterVisiblePostIds(
     author: AuthorLike;
   }>,
 ) {
-  const checks = await Promise.all(
-    posts.map(async (post) => ({
-      id: post.id,
-      ok: await canViewPostContent(viewerId, post.author, post.visibility),
-    })),
-  );
-  const allowed = new Set(checks.filter((c) => c.ok).map((c) => c.id));
-  return posts.filter((p) => allowed.has(p.id));
+  if (!posts.length) return posts;
+
+  const authorIds = [...new Set(posts.map((p) => p.authorId))];
+  const following = new Set<string>();
+  if (viewerId) {
+    following.add(viewerId);
+    const rows = await prisma.follow.findMany({
+      where: {
+        followerId: viewerId,
+        followingId: { in: authorIds },
+      },
+      select: { followingId: true },
+    });
+    for (const row of rows) following.add(row.followingId);
+  }
+
+  return posts.filter((post) => {
+    if (post.visibility === "PRIVATE") return viewerId === post.authorId;
+    if (post.visibility === "FOLLOWERS") {
+      return Boolean(viewerId && following.has(post.authorId));
+    }
+    if (post.author.isPrivate && viewerId !== post.authorId) {
+      return following.has(post.authorId);
+    }
+    return post.visibility === "PUBLIC";
+  });
 }

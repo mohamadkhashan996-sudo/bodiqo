@@ -58,7 +58,7 @@ export default function AdminMediaPage() {
           </div>
           <Panel className="mt-6 space-y-3">
             {data.assets.map((a) => (
-              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/55 px-4 py-3 text-sm">
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--surface)] px-4 py-3 text-sm">
                 <div>
                   <p className="font-medium">{a.kind} · {a.status}</p>
                   <p className="text-xs text-[var(--muted)] truncate max-w-md">{a.originalUrl}</p>

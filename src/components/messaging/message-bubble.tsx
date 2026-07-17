@@ -106,7 +106,7 @@ export function MessageBubble({
         {message.replyTo ? (
           <div
             className={`mb-2 border-l-2 pl-2 text-xs ${
-              mine ? "border-[var(--ember)] text-white/60" : "border-[var(--signal)] text-[var(--muted)]"
+              mine ? "border-[var(--ember)] text-white/90" : "border-[var(--signal)] text-[var(--muted-strong)]"
             }`}
           >
             Replying to {message.replyTo.sender.name ?? message.replyTo.sender.handle}:{" "}
@@ -140,8 +140,10 @@ export function MessageBubble({
                 href={message.mediaUrl}
                 target="_blank"
                 rel="noreferrer"
-                className={`mb-2 inline-flex items-center gap-2 rounded-[var(--radius-lg)] px-3 py-2 text-sm ${
-                  mine ? "bg-white/10" : "bg-[var(--mist)]/40"
+                className={`mb-2 inline-flex items-center gap-2 rounded-[var(--radius-lg)] px-3 py-2 text-sm font-medium ${
+                  mine
+                    ? "border-2 border-white/70 bg-black/35"
+                    : "border-2 border-[var(--mist-strong)] bg-[var(--cloud-elevated)]"
                 }`}
               >
                 <FileText className="size-4" />
@@ -162,7 +164,7 @@ export function MessageBubble({
         )}
         <div
           className={`mt-1 flex items-center gap-1 text-[10px] ${
-            mine ? "justify-end text-white/55" : "text-[var(--muted)]"
+            mine ? "justify-end text-white/90" : "text-[var(--muted-strong)]"
           }`}
         >
           <span>
@@ -181,7 +183,7 @@ export function MessageBubble({
         </div>
         {message.reactions.length > 0 ? (
           <div
-            className={`absolute -bottom-3 ${mine ? "right-2" : "left-2"} flex rounded-full border border-[color:color-mix(in_srgb,var(--mist)_72%,transparent)] bg-[var(--surface)] px-2 py-0.5 text-xs shadow-[var(--shadow-sm)]`}
+            className={`absolute -bottom-3 ${mine ? "right-2" : "left-2"} flex rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-2 py-0.5 text-xs shadow-[var(--shadow-sm)]`}
           >
             {[...new Set(message.reactions.map((reaction) => reaction.emoji))].join(" ")}
           </div>
@@ -195,7 +197,7 @@ export function MessageBubble({
             type="button"
             onClick={onReply}
             aria-label="Reply"
-            className="icon-button size-7 border-0 bg-transparent shadow-none"
+            className="icon-button size-7"
           >
             <Reply className="size-3" />
           </button>
@@ -204,12 +206,12 @@ export function MessageBubble({
               type="button"
               onClick={() => setReactOpen((v) => !v)}
               aria-label="React"
-              className="icon-button size-7 border-0 bg-transparent shadow-none"
+              className="icon-button size-7"
             >
               <Smile className="size-3" />
             </button>
             {reactOpen ? (
-              <div className="absolute bottom-9 left-0 z-10 flex gap-1 rounded-full border border-[var(--mist)] bg-[var(--surface)] p-1 shadow-[var(--shadow-md)]">
+              <div className="absolute bottom-9 left-0 z-10 flex gap-1 rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-1 shadow-[var(--shadow-md)]">
                 {REACTIONS.map((emoji) => (
                   <button
                     key={emoji}
@@ -231,7 +233,7 @@ export function MessageBubble({
               type="button"
               onClick={onEdit}
               aria-label="Edit"
-              className="icon-button size-7 border-0 bg-transparent shadow-none"
+              className="icon-button size-7"
             >
               <MoreHorizontal className="size-3" />
             </button>
@@ -240,7 +242,7 @@ export function MessageBubble({
             type="button"
             onClick={onDelete}
             aria-label="Delete"
-            className="icon-button size-7 border-0 bg-transparent shadow-none"
+            className="icon-button size-7"
           >
             <MoreHorizontal className="size-3" />
           </button>

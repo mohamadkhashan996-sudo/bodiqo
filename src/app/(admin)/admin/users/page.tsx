@@ -69,12 +69,12 @@ export default function AdminUsersPage() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search email, handle, name…"
-          className="min-w-[220px] flex-1 rounded-2xl border border-[var(--mist)] bg-white/70 px-4 py-2.5 text-sm outline-none focus:border-[var(--signal)]"
+          className="min-w-[220px] flex-1 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-2.5 text-sm outline-none focus:border-[var(--signal)]"
         />
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="rounded-2xl border border-[var(--mist)] bg-white/70 px-3 py-2.5 text-sm"
+          className="rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2.5 text-sm"
         >
           <option value="">All statuses</option>
           <option value="ACTIVE">Active</option>
@@ -103,7 +103,7 @@ export default function AdminUsersPage() {
                 <tr
                   key={u.id}
                   onClick={() => void loadDetail(u.id)}
-                  className={`cursor-pointer border-t border-[var(--mist)]/80 ${selected === u.id ? "bg-[var(--signal)]/15" : "hover:bg-white/60"}`}
+                  className={`cursor-pointer border-t-2 border-[var(--mist-strong)] ${selected === u.id ? "bg-[var(--signal)]/15" : "hover:bg-[var(--surface)]"}`}
                 >
                   <td className="py-3">
                     <div className="font-medium">
@@ -155,7 +155,7 @@ export default function AdminUsersPage() {
                     onClick={() =>
                       void act(action, action === "ban" ? { permanent: false, reason: "Policy" } : {})
                     }
-                    className="rounded-full border border-[var(--mist)] bg-white/70 px-3 py-1.5 text-xs hover:border-[var(--ink)]"
+                    className="rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-1.5 text-xs hover:border-[var(--ink)]"
                   >
                     {label}
                   </button>
@@ -173,7 +173,7 @@ export default function AdminUsersPage() {
                     const reason = window.prompt("Warning reason");
                     if (reason) void act("warn", { reason });
                   }}
-                  className="rounded-full border border-[var(--mist)] px-3 py-1.5 text-xs"
+                  className="rounded-full border-2 border-[var(--mist-strong)] px-3 py-1.5 text-xs"
                 >
                   Warn
                 </button>
@@ -183,7 +183,7 @@ export default function AdminUsersPage() {
                     const body = window.prompt("Staff note");
                     if (body) void act("note", { body });
                   }}
-                  className="rounded-full border border-[var(--mist)] px-3 py-1.5 text-xs"
+                  className="rounded-full border-2 border-[var(--mist-strong)] px-3 py-1.5 text-xs"
                 >
                   Add note
                 </button>
@@ -193,7 +193,7 @@ export default function AdminUsersPage() {
                     const password = window.prompt("New temporary password (min 8)");
                     if (password) void act("reset_password", { password });
                   }}
-                  className="rounded-full border border-[var(--mist)] px-3 py-1.5 text-xs"
+                  className="rounded-full border-2 border-[var(--mist-strong)] px-3 py-1.5 text-xs"
                 >
                   Reset password
                 </button>
@@ -202,7 +202,7 @@ export default function AdminUsersPage() {
                 <h3 className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">Notes</h3>
                 <ul className="mt-2 space-y-2 text-sm">
                   {detailData.notes.map((n, i) => (
-                    <li key={i} className="rounded-xl bg-white/60 px-3 py-2">
+                    <li key={i} className="rounded-xl bg-[var(--surface)] px-3 py-2">
                       {n.body}
                     </li>
                   ))}

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { body, clientIp, fail, ok, requireUser } from "@/lib/api";
+import { body, clientIp, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import {
   deviceFingerprint,
@@ -22,6 +22,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    await guardApiAbuse(request, "auth:trusted-devices:post");
     const u = await requireUser();
     const data = await body(
       request,
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(r: Request) {
   try {
+    await guardApiAbuse(r, "auth:trusted-devices:delete");
     const u = await requireUser();
     const { id } = await body(r, z.object({ id: z.string() }));
     await prisma.trustedDevice.deleteMany({ where: { id, userId: u.id } });

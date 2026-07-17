@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { hashOpaque, randomRecoveryCode } from "@/modules/auth/password";
+import {
+  hashOpaque,
+  hashOpaqueLegacy,
+  randomRecoveryCode,
+} from "@/modules/auth/password";
 import { AppError } from "@/lib/errors";
 import { verify } from "otplib";
+import { openSecret, sealSecret } from "@/lib/secret-box";
 
 export async function generateBackupCodes(userId: string, count = 10) {
   const plain = Array.from({ length: count }, () => randomRecoveryCode());
@@ -18,9 +23,9 @@ export async function generateBackupCodes(userId: string, count = 10) {
 export async function consumeBackupCode(userId: string, code: string) {
   const normalized = code.replace(/[-\s]/g, "").toUpperCase();
   if (normalized.length < 8) return false;
-  const hash = hashOpaque(normalized);
+  const hashes = [hashOpaque(normalized), hashOpaqueLegacy(normalized)];
   const row = await prisma.twoFactorBackupCode.findFirst({
-    where: { userId, codeHash: hash, usedAt: null },
+    where: { userId, codeHash: { in: hashes }, usedAt: null },
   });
   if (!row) return false;
   await prisma.twoFactorBackupCode.update({
@@ -30,14 +35,23 @@ export async function consumeBackupCode(userId: string, code: string) {
   return true;
 }
 
+export function resolveTotpSecret(stored: string | null | undefined) {
+  return openSecret(stored);
+}
+
+export function storeTotpSecret(plain: string) {
+  return sealSecret(plain);
+}
+
 export async function verifyTotpOrBackup(
   userId: string,
   secret: string | null | undefined,
   code: string,
 ) {
   const trimmed = code.trim();
-  if (secret && /^\d{6}$/.test(trimmed)) {
-    const result = await verify({ token: trimmed, secret });
+  const plain = resolveTotpSecret(secret);
+  if (plain && /^\d{6}$/.test(trimmed)) {
+    const result = await verify({ token: trimmed, secret: plain });
     if (result.valid) return { method: "totp" as const };
   }
   if (await consumeBackupCode(userId, trimmed)) {

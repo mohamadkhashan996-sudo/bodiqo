@@ -17,6 +17,7 @@ import { verifyPassword } from "@/modules/auth/password";
 import { verifyTotpOrBackup } from "@/modules/auth/two-factor";
 import { createAuthChallenge, consumeAuthChallenge } from "@/modules/auth/challenges";
 import { alertNewLogin } from "@/modules/auth/security";
+import { getAuthSecurityPolicy } from "@/modules/auth/security-policy";
 import { officialFollowNewUser } from "@/modules/platform/official-account";
 
 const credentialsSchema = z.object({
@@ -54,7 +55,6 @@ function buildOAuthProviders() {
       Google({
         clientId: process.env.AUTH_GOOGLE_ID!,
         clientSecret: process.env.AUTH_GOOGLE_SECRET!,
-        allowDangerousEmailAccountLinking: true,
       }),
     );
   }
@@ -63,7 +63,6 @@ function buildOAuthProviders() {
       Apple({
         clientId: process.env.AUTH_APPLE_ID!,
         clientSecret: process.env.AUTH_APPLE_SECRET!,
-        allowDangerousEmailAccountLinking: true,
       }),
     );
   }
@@ -72,7 +71,6 @@ function buildOAuthProviders() {
       Facebook({
         clientId: process.env.AUTH_FACEBOOK_ID!,
         clientSecret: process.env.AUTH_FACEBOOK_SECRET!,
-        allowDangerousEmailAccountLinking: true,
       }),
     );
   }
@@ -81,7 +79,6 @@ function buildOAuthProviders() {
       Twitter({
         clientId: process.env.AUTH_TWITTER_ID || process.env.AUTH_X_ID!,
         clientSecret: process.env.AUTH_TWITTER_SECRET || process.env.AUTH_X_SECRET!,
-        allowDangerousEmailAccountLinking: true,
       }),
     );
   }
@@ -90,7 +87,17 @@ function buildOAuthProviders() {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
+  session: {
+    strategy: "jwt",
+    maxAge:
+      Math.min(
+        365,
+        Math.max(1, Number(process.env.SESSION_DAYS) || 30),
+      ) *
+      24 *
+      60 *
+      60,
+  },
   pages: {
     signIn: "/sign-in",
     error: "/sign-in",
@@ -160,13 +167,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const ok = await verifyPassword(parsed.data.password, user.passwordHash);
         if (!ok) {
+          const policy = await getAuthSecurityPolicy();
           const fails = user.failedLoginCount + 1;
           await prisma.user.update({
             where: { id: user.id },
             data: {
               failedLoginCount: fails,
-              ...(fails >= 10
-                ? { lockedUntil: new Date(Date.now() + 15 * 60_000) }
+              ...(fails >= policy.maxLoginAttempts
+                ? { lockedUntil: new Date(Date.now() + policy.lockoutMs) }
                 : {}),
             },
           });
@@ -373,28 +381,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           provider,
           providerAccountId: account.providerAccountId,
           type: account.type,
-          access_token: account.access_token,
-          refresh_token: account.refresh_token,
-          expires_at: account.expires_at,
-          token_type: account.token_type,
-          scope: account.scope,
-          id_token: account.id_token,
           userName: user.name,
           userImage: user.image,
         });
         return `/link-account?token=${token}`;
       }
 
-      // OAuth-only account: auto-link new provider, then require 2FA if enabled
-      if (existing.twoFactorEnabled) {
-        const token = await createAuthChallenge(existing.id, "OAUTH_2FA", {
-          provider: account.provider,
-          providerAccountId: account.providerAccountId,
-        });
-        return `/sign-in/2fa?token=${token}`;
-      }
-
-      return true;
+      // OAuth-only account: never auto-link — require explicit confirmation.
+      const token = await createPendingOAuthLink({
+        email,
+        provider,
+        providerAccountId: account.providerAccountId,
+        type: account.type,
+        userName: user.name,
+        userImage: user.image,
+      });
+      return `/link-account?token=${token}`;
     },
     async jwt({ token, user, account, trigger }) {
       if (user) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -17,17 +17,17 @@ export function BlockedMutedList({ mode }: { mode: "blocked" | "muted" }) {
   const [users, setUsers] = useState<ListedUser[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     const res = await fetch(`/api/social/${mode}`);
     const data = await res.json();
     setUsers(data.users ?? []);
     setLoading(false);
-  }
+  }, [mode]);
 
   useEffect(() => {
     void load();
-  }, [mode]);
+  }, [load]);
 
   async function remove(handle: string | null) {
     if (!handle) return;
@@ -56,7 +56,7 @@ export function BlockedMutedList({ mode }: { mode: "blocked" | "muted" }) {
       {users.map((user) => (
         <li
           key={user.id}
-          className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--mist)] px-4 py-3"
+          className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[var(--mist-strong)] px-4 py-3"
         >
           <Link href={`/u/${user.handle}`} className="flex min-w-0 items-center gap-3">
             <Avatar src={user.image} name={user.displayName ?? user.name} className="size-10" />

@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Lock, Phone, Users, Video } from "lucide-react";
+import { Lock, Phone, Search, UserPlus, Users, Video, X } from "lucide-react";
 import { useSocket } from "@/hooks/use-socket";
 import { MessageBubble, type ChatMessage } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
 import { TypingIndicator } from "./typing-indicator";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   ensureIdentityKeys,
   encryptForPeer,
@@ -30,15 +32,28 @@ type Conversation = {
   }[];
 };
 
+type SearchHit = ChatMessage & {
+  conversationId: string;
+};
+
 export function ChatThread({ conversationId }: { conversationId: string }) {
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
   const { socket } = useSocket();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [typingUser, setTypingUser] = useState<string | null>(null);
+  const [typingUserId, setTypingUserId] = useState<string | null>(null);
   const [reply, setReply] = useState<ChatMessage | null>(null);
   const [e2eReady, setE2eReady] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [memberQuery, setMemberQuery] = useState("");
+  const [memberResults, setMemberResults] = useState<
+    { id: string; handle: string; displayName?: string | null; name?: string | null }[]
+  >([]);
   const bottom = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,6 +63,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
   }, []);
 
   useEffect(() => {
+    socket?.emit("conversation:join", { conversationId });
     void Promise.all([
       fetch(`/api/conversations/${conversationId}`).then((r) => r.json()),
       fetch(`/api/conversations/${conversationId}/messages`).then((r) => r.json()),
@@ -57,20 +73,45 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
       socket?.emit("message:seen", { conversationId });
       socket?.emit("message:delivered", { conversationId });
     });
+    return () => {
+      socket?.emit("conversation:leave", { conversationId });
+    };
   }, [conversationId, socket]);
 
   useEffect(() => {
     const append = (message: ChatMessage) => {
-      if (message.conversationId === conversationId) {
-        setMessages((old) =>
-          old.some((item) => item.id === message.id) ? old : [...old, message],
-        );
-      }
+      if (message.conversationId !== conversationId) return;
+      setMessages((old) =>
+        old.some((item) => item.id === message.id) ? old : [...old, message],
+      );
     };
     const update = (message: ChatMessage) =>
-      setMessages((old) => old.map((item) => (item.id === message.id ? message : item)));
-    const removed = ({ messageId }: { messageId: string }) =>
-      setMessages((old) => old.filter((item) => item.id !== messageId));
+      setMessages((old) =>
+        old.map((item) => (item.id === message.id ? message : item)),
+      );
+    const removed = ({
+      messageId,
+      forEveryone,
+      userId,
+    }: {
+      messageId: string;
+      forEveryone?: boolean;
+      userId?: string;
+    }) => {
+      setMessages((old) => {
+        if (forEveryone) {
+          return old.map((item) =>
+            item.id === messageId
+              ? { ...item, deletedForAll: true, body: "", mediaUrl: null }
+              : item,
+          );
+        }
+        if (userId === currentUserId) {
+          return old.filter((item) => item.id !== messageId);
+        }
+        return old;
+      });
+    };
     const type = ({
       conversationId: id,
       userId,
@@ -78,30 +119,44 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
       conversationId: string;
       userId: string;
     }) => {
-      if (id === conversationId && userId !== currentUserId) setTypingUser(userId);
+      if (id === conversationId && userId !== currentUserId) {
+        setTypingUserId(userId);
+      }
     };
     const stop = ({ conversationId: id }: { conversationId: string }) => {
-      if (id === conversationId) setTypingUser(null);
+      if (id === conversationId) setTypingUserId(null);
     };
     const reaction = ({
       messageId,
       reaction,
     }: {
       messageId: string;
-      reaction: { emoji: string; userId: string };
+      reaction: { emoji: string; userId: string; removed?: boolean };
     }) => {
       setMessages((old) =>
         old.map((item) => {
           if (item.id !== messageId) return item;
+          if (reaction.removed) {
+            return {
+              ...item,
+              reactions: item.reactions.filter(
+                (r) =>
+                  !(r.userId === reaction.userId && r.emoji === reaction.emoji),
+              ),
+            };
+          }
           const exists = item.reactions.some(
             (r) => r.userId === reaction.userId && r.emoji === reaction.emoji,
           );
-          return {
-            ...item,
-            reactions: exists
-              ? item.reactions
-              : [...item.reactions, reaction],
-          };
+          return exists
+            ? item
+            : {
+                ...item,
+                reactions: [
+                  ...item.reactions,
+                  { emoji: reaction.emoji, userId: reaction.userId },
+                ],
+              };
         }),
       );
     };
@@ -121,11 +176,28 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
         ),
       );
     };
+    const delivered = ({
+      conversationId: id,
+      userId,
+    }: {
+      conversationId: string;
+      userId: string;
+    }) => {
+      if (id !== conversationId || userId === currentUserId) return;
+      setMessages((old) =>
+        old.map((item) =>
+          item.senderId === currentUserId && item.delivery === "SENT"
+            ? { ...item, delivery: "DELIVERED" as const }
+            : item,
+        ),
+      );
+    };
     socket?.on("message:new", append);
     socket?.on("message:updated", update);
     socket?.on("message:deleted", removed);
     socket?.on("message:reaction", reaction);
     socket?.on("message:seen", seen);
+    socket?.on("message:delivered", delivered);
     socket?.on("typing:start", type);
     socket?.on("typing:stop", stop);
     return () => {
@@ -134,6 +206,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
       socket?.off("message:deleted", removed);
       socket?.off("message:reaction", reaction);
       socket?.off("message:seen", seen);
+      socket?.off("message:delivered", delivered);
       socket?.off("typing:start", type);
       socket?.off("typing:stop", stop);
     };
@@ -141,14 +214,57 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typingUser]);
+  }, [messages, typingUserId]);
+
+  useEffect(() => {
+    if (!searchOpen || !searchQuery.trim()) {
+      setSearchHits([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setSearching(true);
+      void fetch(
+        `/api/messages/search?q=${encodeURIComponent(searchQuery.trim())}&conversationId=${conversationId}`,
+      )
+        .then((r) => r.json())
+        .then((d) => setSearchHits(d.messages ?? []))
+        .finally(() => setSearching(false));
+    }, 280);
+    return () => window.clearTimeout(timer);
+  }, [searchOpen, searchQuery, conversationId]);
+
+  useEffect(() => {
+    if (!memberQuery.trim()) {
+      setMemberResults([]);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void fetch(`/api/search?q=${encodeURIComponent(memberQuery)}`)
+        .then((r) => r.json())
+        .then((d) => setMemberResults(d.users ?? []));
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [memberQuery]);
 
   const peer = useMemo(
-    () => conversation?.members.find((member) => member.userId !== currentUserId)?.user,
+    () =>
+      conversation?.members.find((member) => member.userId !== currentUserId)
+        ?.user,
     [conversation, currentUserId],
   );
 
-  async function send(payload: { body: string; type: string; mediaUrl?: string }) {
+  const typingName = useMemo(() => {
+    if (!typingUserId || !conversation) return undefined;
+    const member = conversation.members.find((m) => m.userId === typingUserId)
+      ?.user;
+    return member?.displayName ?? member?.name ?? member?.handle ?? undefined;
+  }, [conversation, typingUserId]);
+
+  async function send(payload: {
+    body: string;
+    type: string;
+    mediaUrl?: string;
+  }) {
     const input: Record<string, unknown> = {
       type: payload.type,
       body: payload.body,
@@ -178,13 +294,22 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
       }
     }
 
-    const response = await fetch(`/api/conversations/${conversationId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
+    const response = await fetch(
+      `/api/conversations/${conversationId}/messages`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      },
+    );
     const data = await response.json();
-    if (data.message) setMessages((old) => [...old, data.message]);
+    if (data.message) {
+      setMessages((old) =>
+        old.some((item) => item.id === data.message.id)
+          ? old
+          : [...old, data.message],
+      );
+    }
     setReply(null);
   }
 
@@ -230,6 +355,60 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     }
   }
 
+  async function react(message: ChatMessage, emoji: string) {
+    setMessages((old) =>
+      old.map((item) => {
+        if (item.id !== message.id || !currentUserId) return item;
+        const exists = item.reactions.some(
+          (r) => r.userId === currentUserId && r.emoji === emoji,
+        );
+        return {
+          ...item,
+          reactions: exists
+            ? item.reactions
+            : [...item.reactions, { emoji, userId: currentUserId }],
+        };
+      }),
+    );
+    await fetch(`/api/messages/${message.id}/react`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji }),
+    });
+  }
+
+  async function removeMessage(message: ChatMessage) {
+    const forEveryone = message.senderId === currentUserId;
+    setMessages((old) => {
+      if (forEveryone) {
+        return old.map((item) =>
+          item.id === message.id
+            ? { ...item, deletedForAll: true, body: "", mediaUrl: null }
+            : item,
+        );
+      }
+      return old.filter((item) => item.id !== message.id);
+    });
+    await fetch(
+      `/api/messages/${message.id}?forEveryone=${forEveryone}`,
+      { method: "DELETE" },
+    );
+  }
+
+  async function addMember(userId: string) {
+    await fetch(`/api/conversations/${conversationId}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userIds: [userId] }),
+    });
+    const thread = await fetch(`/api/conversations/${conversationId}`).then(
+      (r) => r.json(),
+    );
+    setConversation(thread.conversation ?? null);
+    setMemberQuery("");
+    setMemberResults([]);
+  }
+
   if (!conversation) {
     return (
       <div className="grid flex-1 place-items-center text-sm text-[var(--muted)]">
@@ -247,7 +426,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
   const isGroup = conversation.type === "GROUP";
 
   return (
-    <section className="flex min-h-[560px] flex-1 flex-col overflow-hidden rounded-[var(--radius-2xl)] bg-[radial-gradient(circle_at_80%_0%,color-mix(in_srgb,var(--ember)_22%,transparent),transparent_34%),transparent]">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-2xl)] bg-[radial-gradient(circle_at_80%_0%,color-mix(in_srgb,var(--ember)_22%,transparent),transparent_34%),transparent] max-md:min-h-[min(100dvh,100%)] md:min-h-[min(560px,70dvh)]">
       <header className="surface-subtle flex items-center justify-between border-b border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] px-5 py-4 backdrop-blur-xl">
         <div>
           <h2 className="flex items-center gap-2 font-[family-name:var(--font-display)] text-xl tracking-tight">
@@ -271,6 +450,24 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
         <div className="flex gap-2">
           <button
             type="button"
+            onClick={() => setSearchOpen((v) => !v)}
+            className="icon-button size-10"
+            aria-label="Search messages"
+          >
+            <Search className="size-4" />
+          </button>
+          {isGroup ? (
+            <button
+              type="button"
+              onClick={() => setMembersOpen((v) => !v)}
+              className="icon-button size-10"
+              aria-label="Manage members"
+            >
+              <UserPlus className="size-4" />
+            </button>
+          ) : null}
+          <button
+            type="button"
             onClick={() => invite("AUDIO")}
             className="icon-button size-10"
             aria-label="Voice call"
@@ -287,33 +484,131 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
           </button>
         </div>
       </header>
+
+      {searchOpen ? (
+        <div className="border-b border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] px-5 py-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-[var(--muted)]" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search in this chat"
+              className="ps-10 pe-10"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setSearchOpen(false);
+                setSearchQuery("");
+              }}
+              className="absolute end-2 top-1/2 -translate-y-1/2 icon-button size-8"
+              aria-label="Close search"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+          {searchQuery.trim() ? (
+            <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+              {searching ? (
+                <p className="px-1 text-xs text-[var(--muted)]">Searching…</p>
+              ) : searchHits.length ? (
+                searchHits.map((hit) => (
+                  <button
+                    key={hit.id}
+                    type="button"
+                    className="block w-full rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs hover:bg-[var(--mist)]/40"
+                    onClick={() => {
+                      document
+                        .getElementById(`msg-${hit.id}`)
+                        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                  >
+                    <span className="font-semibold text-[var(--signal)]">
+                      {hit.sender.displayName ?? hit.sender.name ?? hit.sender.handle}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[var(--muted)]">
+                      {hit.body || "Media message"}
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <p className="px-1 text-xs text-[var(--muted)]">No matches</p>
+              )}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {membersOpen && isGroup ? (
+        <div className="border-b border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] px-5 py-3">
+          <p className="text-xs font-semibold text-[var(--muted)]">Members</p>
+          <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto text-sm">
+            {conversation.members.map((m) => (
+              <li key={m.userId} className="flex justify-between gap-2">
+                <span>
+                  {m.user.displayName ?? m.user.name ?? m.user.handle}
+                </span>
+                <span className="text-xs text-[var(--muted)]">
+                  @{m.user.handle}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Input
+            value={memberQuery}
+            onChange={(e) => setMemberQuery(e.target.value)}
+            placeholder="Add people by name or @handle"
+            className="mt-3"
+          />
+          {memberResults.length ? (
+            <div className="mt-2 max-h-28 space-y-1 overflow-y-auto">
+              {memberResults
+                .filter(
+                  (u) =>
+                    !conversation.members.some((m) => m.userId === u.id),
+                )
+                .map((user) => (
+                  <button
+                    key={user.id}
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-[var(--radius-lg)] px-3 py-2 text-left text-sm hover:bg-[var(--mist)]/40"
+                    onClick={() => void addMember(user.id)}
+                  >
+                    <span>
+                      {user.displayName ?? user.name}{" "}
+                      <span className="text-[var(--muted)]">@{user.handle}</span>
+                    </span>
+                    <UserPlus className="size-4" />
+                  </button>
+                ))}
+            </div>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-3 w-full"
+            onClick={() => setMembersOpen(false)}
+          >
+            Done
+          </Button>
+        </div>
+      ) : null}
+
       <div className="flex-1 space-y-5 overflow-y-auto px-5 py-6">
         {messages.map((message) => (
-          <MessageBubble
-            key={message.id}
-            message={message}
-            mine={message.senderId === currentUserId}
-            onReply={() => setReply(message)}
-            onReact={(emoji) => {
-              void fetch(`/api/messages/${message.id}/react`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ emoji }),
-              });
-              socket?.emit("message:react", { messageId: message.id, emoji });
-            }}
-            onEdit={() => void edit(message)}
-            onDelete={() =>
-              void fetch(
-                `/api/messages/${message.id}?forEveryone=${message.senderId === currentUserId}`,
-                { method: "DELETE" },
-              )
-            }
-          />
+          <div key={message.id} id={`msg-${message.id}`}>
+            <MessageBubble
+              message={message}
+              mine={message.senderId === currentUserId}
+              onReply={() => setReply(message)}
+              onReact={(emoji) => void react(message, emoji)}
+              onEdit={() => void edit(message)}
+              onDelete={() => void removeMessage(message)}
+            />
+          </div>
         ))}
-        {typingUser ? (
-          <TypingIndicator name={peer?.name ?? peer?.handle ?? undefined} />
-        ) : null}
+        {typingUserId ? <TypingIndicator name={typingName} /> : null}
         <div ref={bottom} />
       </div>
       <MessageComposer

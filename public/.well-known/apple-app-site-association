@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.app.relune.social",
+        "paths": ["*", "/"]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["TEAMID.app.relune.social"]
+  }
+}

@@ -1,7 +1,6 @@
 import type { Server as SocketServer } from "socket.io";
 
 declare global {
-  // eslint-disable-next-line no-var
   var __reluneIo: SocketServer | undefined;
 }
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
+import { AppError } from "@/lib/errors";
 import {
   detectFakeAccountSignals,
   detectSpamSignals,
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
       return ok({ predictions: trendingPrediction(topics).slice(0, 12) });
     }
 
-    return ok({ error: "Unknown kind" }, 400);
+    throw new AppError("Unknown kind", 400);
   } catch (e) {
     return fail(e);
   }
@@ -83,9 +84,9 @@ export async function POST(request: Request) {
       return ok(translateAssist(data.text ?? "", data.targetLocale ?? "en"));
     }
     if (data.action === "fake") {
-      if (!data.userId) return ok({ error: "userId required" }, 400);
+      if (!data.userId) throw new AppError("userId required", 400);
       const user = await prisma.user.findUnique({ where: { id: data.userId } });
-      if (!user) return ok({ error: "not found" }, 404);
+      if (!user) throw new AppError("not found", 404);
       return ok(
         detectFakeAccountSignals({
           trustScore: user.trustScore,
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
         }),
       );
     }
-    return ok({ error: "Unknown action" }, 400);
+    throw new AppError("Unknown action", 400);
   } catch (e) {
     return fail(e);
   }

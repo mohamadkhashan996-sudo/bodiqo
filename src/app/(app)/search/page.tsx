@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { PageTransition } from "@/components/motion/primitives";
 import { FollowButton } from "@/components/social/follow-button";
 import { VerificationBadge } from "@/components/brand/official-badge";
+import type { FeedPost } from "@/types/feed";
 
 type SearchUser = {
   id: string;
@@ -31,7 +32,7 @@ export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [data, setData] = useState<{
     users?: SearchUser[];
-    posts?: unknown[];
+    posts?: FeedPost[];
     hashtags?: Array<{ id?: string; tag?: string; name?: string; postCount?: number }>;
     trending?: Array<{ id?: string; tag?: string; name?: string; postCount?: number }>;
   }>({});
@@ -204,7 +205,7 @@ export default function SearchPage() {
 
           {tab === "Posts" ? (
             posts.length ? (
-              posts.map((p: any) => <PostCard key={p.id} post={p} />)
+              posts.map((p) => <PostCard key={p.id} post={p} />)
             ) : (
               <EmptyState
                 title="No public posts found"

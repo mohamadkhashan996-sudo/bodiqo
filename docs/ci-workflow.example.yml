@@ -1,4 +1,7 @@
 # Copy to `.github/workflows/ci.yml` after granting GitHub `workflow` scope.
+# Canonical workflow now lives at `.github/workflows/ci.yml` (PHASE_12).
+# This file remains as a readable template for forks.
+
 name: CI
 
 on:
@@ -10,62 +13,6 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: relune
-          POSTGRES_PASSWORD: relune
-          POSTGRES_DB: relune
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U relune -d relune"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-
-    env:
-      DATABASE_URL: postgresql://relune:relune@localhost:5432/relune?schema=public
-      REDIS_URL: redis://localhost:6379
-      AUTH_SECRET: ci-test-secret-minimum-32-characters-long
-      AUTH_URL: http://localhost:3000
-      NEXTAUTH_URL: http://localhost:3000
-      NODE_ENV: test
-      MAIL_PROVIDER: log
-
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npx prisma migrate deploy
-      - run: npm run typecheck
-      - run: npm run lint
-        continue-on-error: true
-      - run: npm run build
-      - run: npx tsx server.ts &
-      - name: Wait for server
-        run: |
-          for i in $(seq 1 60); do
-            if curl -fsS http://localhost:3000/api/health >/dev/null; then
-              exit 0
-            fi
-            sleep 2
-          done
-          exit 1
-      - run: npm run test:smoke
-        env:
-          BASE_URL: http://localhost:3000
+      - run: echo "Use .github/workflows/ci.yml"

@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { uploadFile } from "@/lib/upload-client";
+import type { InterestItem } from "@/types/feed";
 
 const steps = ["Photo", "Identity", "Bio", "Interests", "Preferences"];
 
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [interests, setInterests] = useState<any[]>([]);
+  const [interests, setInterests] = useState<InterestItem[]>([]);
   const [chosen, setChosen] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +91,7 @@ export default function OnboardingPage() {
           ) : null}
 
           {step === 0 && (
-            <div className="surface-subtle mt-6 rounded-[var(--radius-xl)] border border-dashed border-[var(--mist)] p-10 text-center">
+            <div className="surface-subtle mt-6 rounded-[var(--radius-xl)] border-2 border-dashed border-[var(--mist-strong)] p-10 text-center">
               {form.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -185,14 +186,14 @@ export default function OnboardingPage() {
               <select
                 value={form.locale}
                 onChange={(e) => setForm({ ...form, locale: e.target.value })}
-                className="rounded-[var(--radius-lg)] border border-[var(--mist)] bg-[var(--surface)] p-4"
+                className="rounded-[var(--radius-lg)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-4"
               >
                 <option value="en">English</option>
               </select>
               <select
                 value={form.theme}
                 onChange={(e) => setForm({ ...form, theme: e.target.value })}
-                className="rounded-[var(--radius-lg)] border border-[var(--mist)] bg-[var(--surface)] p-4"
+                className="rounded-[var(--radius-lg)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-4"
               >
                 <option value="SYSTEM">Match my system</option>
                 <option value="LIGHT">Light</option>

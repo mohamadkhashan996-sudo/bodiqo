@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import {
   listNotifications,
   markRead,
@@ -21,6 +21,7 @@ export async function GET(r: Request) {
 }
 export async function PATCH(r: Request) {
   try {
+    await guardApiAbuse(r, "notifications:patch");
     const u = await requireUser();
     const d = await body(r, z.object({ id: z.string().optional() }));
     await markRead(u.id, d.id);

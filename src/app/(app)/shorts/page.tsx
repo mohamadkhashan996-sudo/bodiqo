@@ -210,30 +210,28 @@ export default function ShortsPage() {
                       <Avatar
                         src={post.author?.image}
                         name={post.author?.displayName ?? post.author?.name}
-                        className="size-11 border-white/15"
+                        className="size-11 border-2 border-white/70"
                       />
                       <span className="min-w-0">
                         <b className="block truncate text-sm tracking-wide">
                           {post.author?.displayName ?? post.author?.name}
                         </b>
-                        <span className="block truncate text-xs text-white/70">
+                        <span className="block truncate text-xs font-medium text-white/90">
                           @{post.author?.handle ?? "relune"}
                         </span>
                       </span>
                     </Link>
-                    <p className="mt-4 max-w-xs text-sm leading-6 text-white/88">{post.body}</p>
+                    <p className="mt-4 max-w-xs text-sm leading-6 text-white">{post.body}</p>
                   </div>
                   <div className="flex shrink-0 flex-col gap-3">
                     <button
                       type="button"
                       onClick={() => void toggleLike(post)}
-                      className={`flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md transition ${
-                        liked ? "bg-[var(--signal)] text-white" : "bg-white/12 text-white hover:bg-white/18"
-                      }`}
+                      className={liked ? "on-dark-control on-dark-control-active" : "on-dark-control"}
                     >
                       <Heart className="size-5" fill={liked ? "currentColor" : "none"} />
                     </button>
-                    <span className="text-center text-xs font-semibold text-white/80">
+                    <span className="text-center text-xs font-semibold text-white">
                       {post.likeCount ?? 0}
                     </span>
                     <button
@@ -242,21 +240,21 @@ export default function ShortsPage() {
                         if (!requireAuth()) return;
                         setCommentsFor(post.id);
                       }}
-                      className="flex h-12 w-12 items-center justify-center rounded-full bg-white/12 text-white backdrop-blur-md transition hover:bg-white/18"
+                      className="on-dark-control"
                     >
                       <MessageCircle className="size-5" />
                     </button>
-                    <span className="text-center text-xs font-semibold text-white/80">
+                    <span className="text-center text-xs font-semibold text-white">
                       {post.commentCount ?? 0}
                     </span>
                     <button
                       type="button"
                       onClick={() => void toggleBookmark(post)}
-                      className={`flex h-12 w-12 items-center justify-center rounded-full backdrop-blur-md transition ${
+                      className={
                         post.bookmarked
-                          ? "bg-[var(--signal)] text-white"
-                          : "bg-white/12 text-white hover:bg-white/18"
-                      }`}
+                          ? "on-dark-control on-dark-control-active"
+                          : "on-dark-control"
+                      }
                       aria-label="Save"
                     >
                       <Bookmark
@@ -267,7 +265,7 @@ export default function ShortsPage() {
                     <button
                       type="button"
                       onClick={() => void share(post)}
-                      className="flex h-12 w-12 items-center justify-center rounded-full bg-white/12 text-white backdrop-blur-md transition hover:bg-white/18"
+                      className="on-dark-control"
                     >
                       <Share2 className="size-5" />
                     </button>
@@ -287,7 +285,7 @@ export default function ShortsPage() {
               <EmptyState
                 title="No shorts in your orbit yet"
                 description="Fresh creator videos will appear here as soon as they are published."
-                className="w-full border-white/12 bg-white/6 text-[var(--cloud)]"
+                className="w-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] text-[var(--ink)]"
               />
             </div>
           ) : null}

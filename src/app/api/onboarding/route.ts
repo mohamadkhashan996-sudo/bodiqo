@@ -1,6 +1,7 @@
 import { ThemePreference } from "@prisma/client";
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
+import { AppError } from "@/lib/errors";
 import { optionalMediaUrlSchema } from "@/lib/media-url";
 import { prisma } from "@/lib/prisma";
 import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
@@ -23,6 +24,7 @@ const schema = z.object({
 });
 export async function POST(r: Request) {
   try {
+    await guardApiAbuse(r, "onboarding:post");
     const u = await requireUser();
     const d = await body(r, schema);
     if (d.handle) {
@@ -31,7 +33,7 @@ export async function POST(r: Request) {
         where: { handle: d.handle, NOT: { id: u.id } },
         select: { id: true },
       });
-      if (existing) return ok({ error: "Handle already in use" }, 409);
+      if (existing) throw new AppError("Handle already in use", 409);
     }
     const { interestIds, ...profile } = d;
     await prisma.user.update({

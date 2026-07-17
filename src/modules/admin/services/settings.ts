@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
     requireEmailVerification: true,
     maxLoginAttempts: 8,
     sessionDays: 30,
+    lockoutMinutes: 15,
   },
   storage: {
     maxUploadMb: 50,
@@ -66,13 +67,29 @@ export async function updateSettings(
   actorId: string,
   patch: Record<string, unknown>,
 ) {
+  const current = await getSettings();
   const keys = Object.keys(patch);
+  const mergedEntries = keys.map((key) => {
+    const next = patch[key];
+    const prev = current[key];
+    const value =
+      next &&
+      typeof next === "object" &&
+      !Array.isArray(next) &&
+      prev &&
+      typeof prev === "object" &&
+      !Array.isArray(prev)
+        ? { ...(prev as object), ...(next as object) }
+        : next;
+    return { key, value };
+  });
+
   await prisma.$transaction(
-    keys.map((key) =>
+    mergedEntries.map(({ key, value }) =>
       prisma.systemSetting.upsert({
         where: { key },
-        create: { key, value: patch[key] as object, updatedBy: actorId },
-        update: { value: patch[key] as object, updatedBy: actorId },
+        create: { key, value: value as object, updatedBy: actorId },
+        update: { value: value as object, updatedBy: actorId },
       }),
     ),
   );

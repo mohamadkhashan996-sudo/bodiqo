@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { body, fail, ok } from "@/lib/api";
+import { body, fail, ok, guardApiAbuse} from "@/lib/api";
 import { consumeEmailToken } from "@/modules/auth/email-tokens";
 import { prisma } from "@/lib/prisma";
 import { assertStrongPassword, hashPassword } from "@/modules/auth/password";
@@ -7,6 +7,7 @@ import { bumpSessionVersion, sendSecurityAlert } from "@/modules/auth/security";
 
 export async function POST(r: Request) {
   try {
+    await guardApiAbuse(r, "auth:reset-password:post");
     const { token, password } = await body(
       r,
       z.object({

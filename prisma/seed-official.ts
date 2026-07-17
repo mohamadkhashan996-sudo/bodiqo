@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { PrismaClient, PostType } from "@prisma/client";
 import { hashPassword } from "../src/modules/auth/password";
 import {
@@ -7,7 +8,24 @@ import {
 
 const prisma = new PrismaClient();
 
-const OFFICIAL_PASSWORD = "ReluneOfficial2026!";
+function resolveOfficialPassword(): { password: string; generated: boolean } {
+  const fromEnv = process.env.OFFICIAL_ACCOUNT_PASSWORD?.trim();
+  if (fromEnv) {
+    if (fromEnv.length < 12) {
+      throw new Error("OFFICIAL_ACCOUNT_PASSWORD must be at least 12 characters");
+    }
+    return { password: fromEnv, generated: false };
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Set OFFICIAL_ACCOUNT_PASSWORD before seeding the official account in production",
+    );
+  }
+  // Local/dev only: random password, printed once — never hardcoded.
+  const password = `Relune!${randomBytes(12).toString("hex")}A1`;
+  return { password, generated: true };
+}
+
 const AVATAR = "/brand/official-avatar.svg";
 const COVER = "/brand/official-cover.svg";
 const THUMB =
@@ -100,7 +118,8 @@ Follow @relune for official announcements, safety updates, and new features.`,
 ];
 
 async function main() {
-  const passwordHash = await hashPassword(OFFICIAL_PASSWORD);
+  const { password: officialPassword, generated } = resolveOfficialPassword();
+  const passwordHash = await hashPassword(officialPassword);
 
   const official = await prisma.user.upsert({
     where: { id: OFFICIAL_USER_ID },
@@ -200,7 +219,11 @@ async function main() {
   console.log("Official RELUNE account ready.");
   console.log(`Profile: http://localhost:3000/u/relune`);
   console.log(`Email:   ${OFFICIAL_EMAIL}`);
-  console.log(`Password: ${OFFICIAL_PASSWORD}`);
+  if (generated) {
+    console.log(`Password (dev, save now): ${officialPassword}`);
+  } else {
+    console.log("Password: set via OFFICIAL_ACCOUNT_PASSWORD (not printed).");
+  }
   console.log(`Posts:   ${postCount} (${POSTS.find((p) => p.pinned)?.id} pinned)`);
 }
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -17,6 +17,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
+    await guardApiAbuse(request, "crypto:keys:put");
     const user = await requireUser();
     const { publicKey } = await body(
       request,

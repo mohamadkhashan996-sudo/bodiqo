@@ -1,55 +1,98 @@
 # Deployment
 
-## Architecture
-Relune runs as a **custom Node server** (`server.ts`) that mounts Next.js and Socket.io on one port. Prefer a long-running Node process (not serverless-only) for realtime.
+Relune runs as a **custom Node server** (`server.ts`) that mounts Next.js and Socket.IO on one port. Prefer a long-running process (not serverless-only) for realtime.
+
+## Quick paths
+
+| Target | How |
+| --- | --- |
+| Local / VM | `npm run build && npm start` |
+| Docker Compose | `docker compose up -d --build` |
+| Hardened Compose | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build` |
+| Fly.io | `fly launch` using `fly.toml` + `fly secrets set …` |
+| Render | Blueprint `render.yaml` |
+| Image release | Tag `v*` → GHCR via `.github/workflows/release.yml` |
 
 ## Environments
 | Env | Notes |
 | --- | --- |
-| development | SQLite + `npm run dev` |
-| test | Use Postgres or SQLite; set `AUTH_SECRET` |
-| production | Postgres + Redis recommended; `MAIL_PROVIDER=resend`; strong `AUTH_SECRET` |
+| development | Postgres via Compose + `npm run dev` |
+| test | CI Postgres/Redis; `MAIL_PROVIDER=log` |
+| production | Postgres + Redis; `MAIL_PROVIDER=resend`; strong `AUTH_SECRET`; HTTPS `AUTH_URL` |
 
 ## Checklist before go-live
-1. Set `NODE_ENV=production`
+1. `NODE_ENV=production`
 2. Strong `AUTH_SECRET` (≥32 random bytes)
 3. `AUTH_URL` / `NEXTAUTH_URL` = public HTTPS origin
 4. `DATABASE_URL` Postgres with backups
-5. Configure mail (`RESEND_API_KEY` or equivalent)
-6. TLS terminator (Vercel/Cloudflare/Nginx/Caddy)
-7. Health probes: `GET /api/health` and `GET /api/health?mode=ready`
-8. Restrict Socket.io CORS to your origin in hardened deploys
-9. Trademark/domain legal confirmation for Relune (see `docs/brand/BRAND.md`)
+5. `REDIS_URL` (rate limits + Socket.IO scale-out)
+6. Mail: `MAIL_PROVIDER=resend` + `RESEND_API_KEY` + SPF/DKIM
+7. TLS terminator (Fly/Render/Cloudflare/Nginx/Caddy)
+8. Health: `GET /api/health` and `GET /api/health?mode=ready`
+9. Optional: VAPID, TURN, OAuth provider secrets
+10. Mobile: see `docs/MOBILE.md`
+11. Trademark/domain review (`docs/brand/BRAND.md`)
 
-## Build & run
+## Build & run (bare metal)
 ```bash
 docker compose up postgres redis -d
+cp .env.example .env   # fill production values
 npm ci
 npx prisma generate
-npm run db:migrate:dev   # first time / schema changes
-npm run db:migrate       # production
+npm run db:migrate
 npm run build
 NODE_ENV=production npm start
 ```
 
-## Docker (app sketch)
-See root `Dockerfile`. Typical compose: Postgres + Redis + app.
-
+## Docker
 ```bash
-docker build -t relune .
-docker run --env-file .env -p 3000:3000 relune
+docker build -t relune:1.0.0 .
+docker run --env-file .env -p 3000:3000 relune:1.0.0
 ```
 
-## Process manager
-Use systemd, PM2, or a container orchestrator. Enable restart on crash. Forward `PORT`.
+Entrypoint runs `prisma migrate deploy` then `tsx server.ts`. Non-root user `relune` in the image.
+
+### Production compose
+```bash
+export POSTGRES_PASSWORD=… REDIS_PASSWORD=… AUTH_SECRET=… AUTH_URL=https://… RESEND_API_KEY=…
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+## Process manager (systemd sketch)
+```ini
+[Unit]
+Description=Relune
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/relune
+EnvironmentFile=/opt/relune/.env
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=5
+User=relune
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## Health & observability
+- Liveness: `/api/health?mode=live`
+- Readiness: `/api/health?mode=ready` (DB + Redis when configured)
+- Admin: `/admin/monitoring`
+- Structured logs: `src/lib/logger.ts`
 
 ## Backups
-Admin UI can create metadata/settings JSON backups under `data/backups/`. For production databases use `pg_dump` / managed snapshots. Schedule volume backups for media.
-
-## Observability
-- Structured logs via `src/lib/logger.ts`
-- Admin monitoring at `/admin/monitoring`
-- Wire APM (OpenTelemetry) later without changing route contracts
+- DB: `pg_dump` / managed snapshots
+- Media volume: `public/uploads` (or CDN)
+- Admin JSON backups under `data/backups/`
 
 ## Rollback
-Keep previous container image + DB dump. Avoid force-pushing `main`/`social-platform` without review.
+Keep previous image tag + DB dump. Prefer `MAINTENANCE_MODE=true` during restore.
+
+## Related
+- `docs/PRODUCTION.md` — env matrix
+- `docs/RELEASE.md` — cut a version
+- `docs/MOBILE.md` — iOS / Android
+- `docs/PHASE-12.md` — phase summary

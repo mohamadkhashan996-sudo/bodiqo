@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BackupScope, BackupType } from "@prisma/client";
 import { body, fail, guardApiAbuse, ok, requireStaff } from "@/lib/api";
+import { AppError } from "@/lib/errors";
 import {
   createBackup,
   getBackupDownload,
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
       }),
     );
     if (data.action === "restore") {
-      if (!data.backupId) return ok({ error: "backupId required" }, 400);
+      if (!data.backupId) throw new AppError("backupId required", 400);
       return ok(await restoreBackup(staff.id, data.backupId));
     }
     return ok(

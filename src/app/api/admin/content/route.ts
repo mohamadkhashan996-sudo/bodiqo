@@ -6,6 +6,7 @@ import {
   listContent,
   listHashtags,
   moderateComment,
+  moderateCommunity,
   moderatePost,
 } from "@/modules/admin/services";
 
@@ -21,9 +22,6 @@ export async function GET(request: Request) {
       | "comments"
       | "communities"
       | "deleted";
-    if (kind === ("hashtags" as string)) {
-      return ok({ hashtags: await listHashtags() });
-    }
     const items = await listContent({
       kind,
       q: searchParams.get("q") ?? undefined,
@@ -44,9 +42,16 @@ export async function POST(request: Request) {
     const data = await body(
       request,
       z.object({
-        target: z.enum(["post", "comment", "story"]),
+        target: z.enum(["post", "comment", "story", "community"]),
         id: z.string().min(1),
-        action: z.enum(["delete", "restore", "pin", "unpin"]),
+        action: z.enum([
+          "delete",
+          "restore",
+          "pin",
+          "unpin",
+          "hide",
+          "unhide",
+        ]),
       }),
     );
     if (data.target === "post") {
@@ -67,7 +72,21 @@ export async function POST(request: Request) {
       }
       return ok(await moderateComment(staff.id, data.id, data.action));
     }
-    if (data.action !== "delete") throw new AppError("Stories only support delete", 400);
+    if (data.target === "community") {
+      if (!["hide", "unhide", "delete"].includes(data.action)) {
+        throw new AppError("Invalid community action", 400);
+      }
+      return ok(
+        await moderateCommunity(
+          staff.id,
+          data.id,
+          data.action as "hide" | "unhide" | "delete",
+        ),
+      );
+    }
+    if (data.action !== "delete") {
+      throw new AppError("Stories only support delete", 400);
+    }
     return ok(await deleteStory(staff.id, data.id));
   } catch (e) {
     return fail(e);

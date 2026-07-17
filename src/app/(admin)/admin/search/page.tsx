@@ -25,7 +25,7 @@ export default function AdminSearchPage() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search the platform…"
-        className="mb-6 w-full max-w-xl rounded-2xl border border-[var(--mist)] bg-white/70 px-4 py-3 text-sm outline-none focus:border-[var(--signal)]"
+        className="mb-6 w-full max-w-xl rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 text-sm outline-none focus:border-[var(--signal)]"
       />
       {loading ? <p className="text-sm text-[var(--muted)]">Searching…</p> : null}
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}

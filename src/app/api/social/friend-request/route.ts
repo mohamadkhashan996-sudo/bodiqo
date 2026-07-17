@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { body, fail, ok, requireUser } from "@/lib/api";
+import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
 import {
   respondFriendRequest,
   sendFriendRequest,
@@ -17,6 +17,7 @@ export async function GET() {
 
 export async function POST(r: Request) {
   try {
+    await guardApiAbuse(r, "social:friend-request:post");
     const u = await requireUser();
     const { toUserId } = await body(r, z.object({ toUserId: z.string() }));
     return ok({ request: await sendFriendRequest(u.id, toUserId) }, 201);
@@ -27,6 +28,7 @@ export async function POST(r: Request) {
 
 export async function PATCH(r: Request) {
   try {
+    await guardApiAbuse(r, "social:friend-request:patch");
     const u = await requireUser();
     const d = await body(
       r,

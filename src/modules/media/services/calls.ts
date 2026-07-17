@@ -45,14 +45,45 @@ export async function addParticipant(callId: string, userId: string, joined = fa
   });
 }
 
+export async function updateParticipantMedia(
+  userId: string,
+  callId: string,
+  flags: { muted?: boolean; cameraOff?: boolean },
+) {
+  const participant = await prisma.callParticipant.findUnique({
+    where: { callId_userId: { callId, userId } },
+  });
+  if (!participant) throw new AppError("Forbidden", 403);
+  return prisma.callParticipant.update({
+    where: { id: participant.id },
+    data: flags,
+  });
+}
+
+export async function listCallParticipants(callId: string) {
+  return prisma.callParticipant.findMany({
+    where: { callId },
+    select: { userId: true },
+  });
+}
+
 export async function listCallHistory(userId: string, cursor?: string, limit = 30) {
   const take = Math.min(Math.max(limit, 1), 50);
   const calls = await prisma.call.findMany({
     where: { participants: { some: { userId } } },
-    include: { caller: { select: { id: true, handle: true, name: true, image: true } }, participants: { include: { user: { select: { id: true, handle: true, name: true, image: true } } } } },
-    orderBy: { createdAt: "desc" }, take: take + 1,
+    include: {
+      caller: { select: { id: true, handle: true, name: true, image: true } },
+      participants: {
+        include: {
+          user: { select: { id: true, handle: true, name: true, image: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
   const nextCursor = calls.length > take ? calls.pop()!.id : null;
   return { calls, nextCursor };
 }
+

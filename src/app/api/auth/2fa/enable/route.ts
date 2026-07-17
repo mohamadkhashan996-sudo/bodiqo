@@ -3,7 +3,11 @@ import { z } from "zod";
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
-import { generateBackupCodes } from "@/modules/auth/two-factor";
+import {
+  generateBackupCodes,
+  resolveTotpSecret,
+  storeTotpSecret,
+} from "@/modules/auth/two-factor";
 import { sendSecurityAlert } from "@/modules/auth/security";
 
 export async function POST(request: Request) {
@@ -16,9 +20,16 @@ export async function POST(request: Request) {
     );
     const current = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { twoFactorPending: true, twoFactorSecret: true, twoFactorEnabled: true },
+      select: {
+        twoFactorPending: true,
+        twoFactorSecret: true,
+        twoFactorEnabled: true,
+      },
     });
-    const secret = current?.twoFactorPending || (!current?.twoFactorEnabled ? current?.twoFactorSecret : null);
+    const sealed =
+      current?.twoFactorPending ||
+      (!current?.twoFactorEnabled ? current?.twoFactorSecret : null);
+    const secret = resolveTotpSecret(sealed);
     if (!secret) throw new AppError("Start 2FA setup first", 400);
 
     const valid = await verify({ token: code, secret });
@@ -27,7 +38,7 @@ export async function POST(request: Request) {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        twoFactorSecret: secret,
+        twoFactorSecret: storeTotpSecret(secret),
         twoFactorPending: null,
         twoFactorEnabled: true,
       },

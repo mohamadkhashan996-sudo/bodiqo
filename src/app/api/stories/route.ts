@@ -1,6 +1,6 @@
 import { MediaKind } from "@prisma/client";
 import { z } from "zod";
-import { body, fail, ok, optionalUser, requireUser } from "@/lib/api";
+import { body, fail, ok, optionalUser, requireUser, guardApiAbuse} from "@/lib/api";
 import { mediaUrlSchema } from "@/lib/media-url";
 import {
   createStory,
@@ -18,6 +18,7 @@ export async function GET() {
 
 export async function POST(r: Request) {
   try {
+    await guardApiAbuse(r, "stories:post");
     const u = await requireUser();
     const d = await body(
       r,

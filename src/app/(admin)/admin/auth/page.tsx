@@ -122,7 +122,7 @@ export default function AdminAuthPage() {
               return (
                 <li
                   key={key}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--mist)] px-4 py-3"
+                  className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[var(--mist-strong)] px-4 py-3"
                 >
                   <div>
                     <p className="text-sm font-medium">{PROVIDER_SHORT[key]}</p>
@@ -187,7 +187,7 @@ export default function AdminAuthPage() {
           </h2>
           <ul className="mt-4 max-h-80 space-y-3 overflow-auto">
             {(stats.data?.recentLogins ?? []).map((row) => (
-              <li key={row.id} className="border-b border-[var(--mist)] pb-2 text-sm">
+              <li key={row.id} className="border-b-2 border-[var(--mist-strong)] pb-2 text-sm">
                 <p className="font-medium">
                   {row.user.handle ? `@${row.user.handle}` : row.user.email}
                 </p>
@@ -206,7 +206,7 @@ export default function AdminAuthPage() {
           </h2>
           <ul className="mt-4 max-h-80 space-y-3 overflow-auto">
             {(stats.data?.failedLogins ?? []).map((row) => (
-              <li key={row.id} className="border-b border-[var(--mist)] pb-2 text-sm">
+              <li key={row.id} className="border-b-2 border-[var(--mist-strong)] pb-2 text-sm">
                 <p className="font-medium">
                   {row.user?.handle
                     ? `@${row.user.handle}`

@@ -26,7 +26,6 @@ export function track(event: AnalyticsEvent, props: Props = {}) {
   if (mode === "none") return;
 
   if (mode === "console" || process.env.NODE_ENV !== "production") {
-    // eslint-disable-next-line no-console
     console.info("[analytics]", event, props);
   }
 

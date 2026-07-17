@@ -25,6 +25,7 @@ import {
   type OAuthProviderId,
 } from "@/modules/auth/providers";
 import { SecuritySettings } from "@/components/auth/security-settings";
+import { DeviceSecurityCard } from "@/components/auth/device-security-panel";
 import { BlockedMutedList } from "@/components/social/blocked-muted-list";
 
 const links = [
@@ -47,17 +48,6 @@ const links = [
 
 export default function SettingsPage() {
   const { t, theme, setTheme, locale, setLocale } = useExperience();
-  const [sessions, setSessions] = useState<
-    Array<{
-      id: string;
-      deviceLabel: string | null;
-      current?: boolean;
-      lastActiveAt?: string;
-      ip?: string | null;
-    }>
-  >([]);
-  const [devices, setDevices] = useState<Array<{ id: string; label: string | null }>>([]);
-  const [history, setHistory] = useState<Array<{ id: string; provider: string | null; createdAt: string }>>([]);
   const [accounts, setAccounts] = useState<Array<{ id: string; provider: string; label: string }>>([]);
   const [hasPassword, setHasPassword] = useState(false);
   const [providerAvailability, setProviderAvailability] = useState<
@@ -66,6 +56,8 @@ export default function SettingsPage() {
   const [accountsMsg, setAccountsMsg] = useState<string | null>(null);
   const [highContrast, setHighContrast] = useState(false);
   const [largeText, setLargeText] = useState(false);
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [dataMsg, setDataMsg] = useState<string | null>(null);
 
   async function loadAccounts() {
     const d = await fetch("/api/auth/accounts").then((r) => r.json());
@@ -74,9 +66,6 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    fetch("/api/auth/sessions").then((r) => r.json()).then((d) => setSessions(d.sessions ?? [])).catch(() => {});
-    fetch("/api/auth/trusted-devices").then((r) => r.json()).then((d) => setDevices(d.devices ?? [])).catch(() => {});
-    fetch("/api/auth/login-history").then((r) => r.json()).then((d) => setHistory(d.history ?? [])).catch(() => {});
     void loadAccounts().catch(() => {});
     fetch("/api/auth/providers-config")
       .then((r) => r.json())
@@ -95,6 +84,83 @@ export default function SettingsPage() {
     document.documentElement.dataset.text = largeText ? "large" : "";
   }, [highContrast, largeText]);
 
+  async function exportData() {
+    setAccountBusy(true);
+    setDataMsg(null);
+    try {
+      const res = await fetch("/api/account");
+      const data = await res.json();
+      if (!res.ok) {
+        setDataMsg(data.error || "Export failed");
+        return;
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `relune-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setDataMsg("Export downloaded.");
+    } catch {
+      setDataMsg("Export failed");
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
+  async function clearLocalCache() {
+    setDataMsg(null);
+    try {
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      }
+      localStorage.removeItem("relune-browse-state");
+      setDataMsg("Local cache cleared on this device.");
+    } catch {
+      setDataMsg("Could not clear cache");
+    }
+  }
+
+  async function lifecycle(action: "deactivate" | "delete") {
+    const password = window.prompt(
+      action === "delete"
+        ? "Enter your password to permanently delete your account"
+        : "Enter your password to deactivate your account",
+    );
+    if (password === null) return;
+    if (action === "delete") {
+      const confirm = window.prompt('Type DELETE to confirm permanent deletion');
+      if (confirm !== "DELETE") return;
+    }
+    setAccountBusy(true);
+    setDataMsg(null);
+    try {
+      const res = await fetch("/api/account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          password: password || undefined,
+          ...(action === "delete" ? { confirm: "DELETE" } : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDataMsg(data.error || "Request failed");
+        return;
+      }
+      await signOut({ callbackUrl: "/" });
+    } catch {
+      setDataMsg("Request failed");
+    } finally {
+      setAccountBusy(false);
+    }
+  }
+
   return (
     <PageTransition className="section-shell max-w-5xl px-5 md:px-8">
       <div className="glass-strong premium-ring rounded-[2rem] p-6 md:p-8">
@@ -111,7 +177,7 @@ export default function SettingsPage() {
           "Appearance and accessibility tuned for every device",
           "Production-grade session, device, and login management",
         ].map((item) => (
-          <div key={item} className="rounded-[var(--radius-xl)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)] shadow-[var(--shadow-sm)]">
+          <div key={item} className="rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--cloud-elevated)] px-4 py-3 text-sm text-[var(--muted-strong)] shadow-[var(--shadow-sm)]">
             {item}
           </div>
         ))}
@@ -159,7 +225,7 @@ export default function SettingsPage() {
         <Card id="language">
           <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "language")}</h2>
           <select
-            className="mt-4 w-full rounded-2xl border border-[var(--mist)] bg-[var(--glass)] px-4 py-3 text-sm"
+            className="mt-4 w-full min-h-11 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--ink)] shadow-[var(--shadow-sm)]"
             value={locale}
             onChange={(e) => setLocale(e.target.value as Locale)}
             aria-label={t("common", "language")}
@@ -179,7 +245,7 @@ export default function SettingsPage() {
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {["Official platform updates", "Security alerts", "Community activity", "Product announcements"].map((item) => (
-              <div key={item} className="rounded-[var(--radius-xl)] bg-[var(--surface)] px-4 py-3 text-sm shadow-[var(--shadow-sm)]">
+              <div key={item} className="rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--cloud-elevated)] px-4 py-3 text-sm text-[var(--ink)] shadow-[var(--shadow-sm)]">
                 {item}
               </div>
             ))}
@@ -208,7 +274,7 @@ export default function SettingsPage() {
           <p className="mt-2 text-sm text-[var(--muted)]">
             Control whether media can be saved from your public posts and stories.
           </p>
-          <div className="mt-4 rounded-[var(--radius-xl)] bg-[var(--surface)] p-4 text-sm leading-7 text-[var(--muted)] shadow-[var(--shadow-sm)]">
+          <div className="mt-4 rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--cloud-elevated)] p-4 text-sm leading-7 text-[var(--muted-strong)] shadow-[var(--shadow-sm)]">
             Downloads are governed by your privacy settings, post visibility, and future creator permissions.
           </div>
         </Card>
@@ -216,14 +282,27 @@ export default function SettingsPage() {
         <Card id="data">
           <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "data")}</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Request a copy of your data or clear cached media to free storage.
+            {t("settings", "dataHint")}
           </p>
+          {dataMsg ? (
+            <p className="mt-3 text-sm text-[var(--signal-deep)]">{dataMsg}</p>
+          ) : null}
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="outline" type="button">
-              Request data export
+            <Button
+              variant="outline"
+              type="button"
+              disabled={accountBusy}
+              onClick={() => void exportData()}
+            >
+              {t("settings", "exportData")}
             </Button>
-            <Button variant="outline" type="button">
-              Clear cache
+            <Button
+              variant="outline"
+              type="button"
+              disabled={accountBusy}
+              onClick={() => void clearLocalCache()}
+            >
+              {t("settings", "clearCache")}
             </Button>
           </div>
         </Card>
@@ -231,142 +310,34 @@ export default function SettingsPage() {
         <Card id="account">
           <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "account")}</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            Deactivate temporarily or permanently delete your account and content.
+            {t("settings", "accountHint")}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="outline" type="button">
-              Deactivate account
+            <Button
+              variant="outline"
+              type="button"
+              disabled={accountBusy}
+              onClick={() => void lifecycle("deactivate")}
+            >
+              {t("settings", "deactivate")}
             </Button>
-            <Button variant="outline" type="button" className="text-[var(--danger)]">
-              Delete account
+            <Button
+              variant="outline"
+              type="button"
+              disabled={accountBusy}
+              className="text-[var(--danger)]"
+              onClick={() => void lifecycle("delete")}
+            >
+              {t("settings", "deleteAccount")}
             </Button>
           </div>
         </Card>
 
         <Card id="security">
-          <SecuritySettings />
+          <SecuritySettings showDevices={false} />
         </Card>
 
-        <Card id="sessions">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "sessions")}</h2>
-          {sessions.length === 0 ? (
-            <p className="mt-3 text-sm text-[var(--muted)]">No active sessions.</p>
-          ) : null}
-          {sessions.map((s) => (
-            <div key={s.id} className="mt-3 flex items-start justify-between gap-3 text-sm">
-              <div>
-                <p>
-                  {s.deviceLabel ?? "Unknown device"}
-                  {s.current ? (
-                    <span className="ml-2 text-[11px] uppercase tracking-[0.14em] text-[var(--signal-deep)]">
-                      This device
-                    </span>
-                  ) : null}
-                </p>
-                <p className="mt-1 text-xs text-[var(--muted)]">
-                  {[
-                    s.ip,
-                    s.lastActiveAt
-                      ? `Active ${new Date(s.lastActiveAt).toLocaleString()}`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </div>
-              {s.current ? (
-                <span className="text-xs text-[var(--muted)]">Current</span>
-              ) : (
-                <button
-                  type="button"
-                  className="text-[var(--signal)]"
-                  onClick={async () => {
-                    await fetch("/api/auth/sessions", {
-                      method: "DELETE",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ id: s.id }),
-                    });
-                    setSessions((old) => old.filter((x) => x.id !== s.id));
-                  }}
-                >
-                  Revoke
-                </button>
-              )}
-            </div>
-          ))}
-          <h3 className="mt-6 text-sm font-semibold">Trusted devices</h3>
-          {devices.map((d) => (
-            <div key={d.id} className="mt-2 flex justify-between text-sm">
-              <span>{d.label ?? "Trusted device"}</span>
-              <button
-                type="button"
-                className="text-[var(--signal)]"
-                onClick={async () => {
-                  await fetch("/api/auth/trusted-devices", {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: d.id }),
-                  });
-                  setDevices((old) => old.filter((x) => x.id !== d.id));
-                }}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-          <h3 className="mt-6 text-sm font-semibold">Login history</h3>
-          {history.slice(0, 8).map((item) => (
-            <p key={item.id} className="mt-2 text-sm text-[var(--muted)]">
-              {item.provider ?? "credentials"} · {new Date(item.createdAt).toLocaleString()}
-            </p>
-          ))}
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={async () => {
-                await fetch("/api/auth/trusted-devices", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ label: "This device" }),
-                });
-                const d = await fetch("/api/auth/trusted-devices").then((r) => r.json());
-                setDevices(d.devices ?? []);
-              }}
-            >
-              Trust this device
-            </Button>
-            <Button
-              variant="outline"
-              type="button"
-              onClick={async () => {
-                await fetch("/api/auth/sessions", {
-                  method: "DELETE",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ others: true }),
-                });
-                setSessions((old) => old.filter((s) => s.current));
-              }}
-            >
-              Log out other devices
-            </Button>
-            <Button
-              variant="outline"
-              type="button"
-              onClick={async () => {
-                await fetch("/api/auth/sessions", {
-                  method: "DELETE",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ all: true }),
-                });
-                setSessions([]);
-                await signOut({ callbackUrl: "/sign-in" });
-              }}
-            >
-              Log out from all devices
-            </Button>
-          </div>
-        </Card>
+        <DeviceSecurityCard />
 
         <Card id="blocked">
           <h2 className="font-[family-name:var(--font-display)] text-2xl">{t("settings", "blocked")}</h2>
@@ -392,7 +363,7 @@ export default function SettingsPage() {
               return (
                 <li
                   key={id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--mist)] px-4 py-3"
+                  className="flex items-center justify-between gap-3 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 shadow-[var(--shadow-sm)]"
                 >
                   <div>
                     <p className="text-sm font-medium">{PROVIDER_SHORT[id]}</p>

@@ -58,14 +58,14 @@ export function AuthProviderButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "group flex w-full items-center gap-4 rounded-[var(--radius-xl)] border border-[var(--mist)] bg-[var(--surface)] px-5 py-4 text-left shadow-[var(--shadow-sm)] transition",
+        "group flex w-full items-center gap-4 rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-5 py-4 text-left shadow-[var(--shadow-sm)] transition",
         disabled
           ? "cursor-not-allowed opacity-55"
           : "hover:-translate-y-0.5 hover:border-[var(--ink)]/25 hover:shadow-[var(--shadow-md)]",
       )}
       aria-label={label}
     >
-      <span className="grid size-11 place-items-center rounded-[1rem] border border-[var(--mist)]/60 bg-[var(--cloud-elevated)] dark:bg-white/10">
+      <span className="grid size-11 place-items-center rounded-[1rem] border-2 border-[var(--mist-strong)] bg-[var(--cloud-elevated)]">
         {icons[id] ?? icons.credentials}
       </span>
       <span className="min-w-0 flex-1">
@@ -73,7 +73,7 @@ export function AuthProviderButton({
           {label}
         </span>
         {hint ? (
-          <span className="mt-0.5 block text-xs text-[var(--muted)]">{hint}</span>
+          <span className="mt-0.5 block text-xs text-[var(--muted-strong)]">{hint}</span>
         ) : null}
       </span>
     </motion.button>

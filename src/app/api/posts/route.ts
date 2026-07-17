@@ -1,4 +1,11 @@
-import { fail, ok, optionalUser } from "@/lib/api";
+import {
+  body,
+  fail,
+  guardApiAbuse,
+  ok,
+  optionalUser,
+  requireUser,
+} from "@/lib/api";
 import {
   createPost,
   getFeed,
@@ -6,7 +13,6 @@ import {
 } from "@/modules/feed/services/posts";
 import { MediaKind, PostType, PostVisibility } from "@prisma/client";
 import { z } from "zod";
-import { body, guardApiAbuse, requireUser } from "@/lib/api";
 import { mediaUrlSchema } from "@/lib/media-url";
 
 const schema = z.object({

@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useGuest } from "@/components/auth/guest-provider";
+import type { FeedComment } from "@/types/feed";
 
 export function CommentsPanel({ postId }: { postId: string }) {
   const { requireAuth } = useGuest();
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<FeedComment[]>([]);
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -39,16 +40,16 @@ export function CommentsPanel({ postId }: { postId: string }) {
   }
 
   return (
-    <section className="mt-5 border-t border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] pt-5">
-      <div className="surface-subtle rounded-[var(--radius-xl)] p-4">
+    <section className="mt-5 border-t-2 border-[var(--mist-strong)] pt-5">
+      <div className="surface-subtle rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-[var(--ink)]">Conversation</p>
-            <p className="text-xs text-[var(--muted)]">
+            <p className="text-xs text-[var(--muted-strong)]">
               Thoughtful replies make the feed feel alive.
             </p>
           </div>
-          <span className="rounded-full bg-[var(--signal-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--signal)]">
+          <span className="rounded-full border-2 border-[var(--signal-deep)]/45 bg-[var(--signal-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--signal-deep)]">
             {comments.length} replies
           </span>
         </div>
@@ -80,10 +81,13 @@ export function CommentsPanel({ postId }: { postId: string }) {
                     className="size-8 rounded-[1rem]"
                   />
                   <div className="min-w-0 flex-1">
-                    <b className="block truncate text-[var(--ink)]">
+                    <b
+                      className="block truncate text-[var(--ink)]"
+                      title={comment.author?.displayName ?? comment.author?.name ?? undefined}
+                    >
                       {comment.author?.displayName ?? comment.author?.name}
                     </b>
-                    <p className="mt-1 whitespace-pre-wrap leading-6 text-[var(--muted)]">
+                    <p className="mt-1 whitespace-pre-wrap text-[0.9375rem] leading-7 text-[var(--ink)]">
                       {comment.body}
                     </p>
                   </div>
@@ -103,7 +107,11 @@ export function CommentsPanel({ postId }: { postId: string }) {
         <Input
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          onFocus={() => requireAuth()}
+          onPointerDown={(e) => {
+            if (!requireAuth()) {
+              e.preventDefault();
+            }
+          }}
           placeholder="Add a considered reply…"
           className="min-w-0 flex-1"
         />

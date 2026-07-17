@@ -18,8 +18,12 @@ for i in $(seq 1 30); do
 done
 
 npx prisma db push
+if [[ -z "${OFFICIAL_ACCOUNT_PASSWORD:-}" ]]; then
+  export OFFICIAL_ACCOUNT_PASSWORD="Relune!$(openssl rand -base64 18 | tr -d '=+/')"
+  echo "Generated OFFICIAL_ACCOUNT_PASSWORD for this run (export to reuse)."
+fi
 npm run db:seed:official
 echo ""
 echo "Official account ready — sign in at http://localhost:3000/sign-in"
 echo "Email: official@relune.app"
-echo "Password: ReluneOfficial2026!"
+echo "Password: use OFFICIAL_ACCOUNT_PASSWORD from your environment (not logged by seed when set)."

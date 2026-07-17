@@ -52,7 +52,7 @@ export function MessageComposer({
     setUploading(true);
     setError(null);
     try {
-      const result = await uploadFile(file);
+      const result = await uploadFile(file, { private: true });
       setMedia({ url: result.url, kind, name: file.name });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -77,7 +77,7 @@ export function MessageComposer({
             const file = new File([audio], `voice-${Date.now()}.webm`, {
               type: audio.type,
             });
-            const result = await uploadFile(file);
+            const result = await uploadFile(file, { private: true });
             await onSend({
               body: "Voice note",
               type: "AUDIO",
@@ -121,7 +121,7 @@ export function MessageComposer({
   return (
     <form
       onSubmit={submit}
-      className="border-t border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] bg-[var(--glass)] p-3 backdrop-blur-xl md:p-4"
+      className="border-t-2 border-[var(--mist-strong)] bg-[var(--surface)] p-3 md:p-4"
     >
       <div className="mx-auto max-w-4xl">
         {reply ? (
@@ -214,7 +214,7 @@ export function MessageComposer({
             }}
           />
 
-          <div className="flex-1 rounded-[var(--radius-lg)] px-2 py-1">
+          <div className="flex-1 rounded-[var(--radius-lg)] border-2 border-[var(--mist-strong)] bg-[var(--cloud-elevated)] px-3 py-2 shadow-[var(--shadow-sm)]">
             <textarea
               value={body}
               onChange={(event) => {
@@ -223,7 +223,7 @@ export function MessageComposer({
               }}
               placeholder={uploading ? "Uploading…" : "Share a thought…"}
               rows={1}
-              className="max-h-28 w-full resize-none bg-transparent text-sm leading-6 outline-none"
+              className="max-h-28 w-full resize-none bg-transparent text-sm leading-6 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
             />
           </div>
 

@@ -62,19 +62,17 @@ export function paramsId(context: { params: Promise<Record<string, string>> }) {
 }
 
 export function clientIp(request: Request) {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    // Prefer the right-most hop when behind a trusted reverse proxy chain.
+    const parts = forwarded.split(",").map((p) => p.trim()).filter(Boolean);
+    return parts[parts.length - 1] || "unknown";
+  }
+  return request.headers.get("x-real-ip") || "unknown";
 }
 
-/** Reject cross-site POSTs in production when Origin is present and mismatched */
-export function assertSameOrigin(request: Request) {
-  if (process.env.NODE_ENV !== "production") return;
-  const origin = request.headers.get("origin");
-  if (!origin) return;
-  const allowed = new Set(
+function allowedOrigins() {
+  return new Set(
     [site.url, process.env.AUTH_URL, process.env.NEXTAUTH_URL]
       .filter(Boolean)
       .map((u) => {
@@ -86,9 +84,38 @@ export function assertSameOrigin(request: Request) {
       })
       .filter(Boolean) as string[],
   );
-  if (allowed.size && !allowed.has(origin)) {
-    throw new AppError("Invalid origin", 403, "ORIGIN_FORBIDDEN");
+}
+
+/** Reject cross-site cookie mutations in production (fail closed). */
+export function assertSameOrigin(request: Request) {
+  if (process.env.NODE_ENV !== "production") return;
+  const method = request.method.toUpperCase();
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") return;
+
+  const allowed = allowedOrigins();
+  if (!allowed.size) {
+    throw new AppError("Origin not configured", 403, "ORIGIN_FORBIDDEN");
   }
+
+  const origin = request.headers.get("origin");
+  if (origin) {
+    if (!allowed.has(origin)) {
+      throw new AppError("Invalid origin", 403, "ORIGIN_FORBIDDEN");
+    }
+    return;
+  }
+
+  const referer = request.headers.get("referer");
+  if (referer) {
+    try {
+      const refOrigin = new URL(referer).origin;
+      if (allowed.has(refOrigin)) return;
+    } catch {
+      /* fall through */
+    }
+  }
+
+  throw new AppError("Invalid origin", 403, "ORIGIN_FORBIDDEN");
 }
 
 /** API abuse guard — call at the top of sensitive handlers */

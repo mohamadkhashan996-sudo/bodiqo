@@ -6,8 +6,10 @@ import { Plus, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Card, EmptyState } from "@/components/ui/card";
+import { MediaImage } from "@/components/ui/media-image";
 import { PageTransition } from "@/components/motion/primitives";
 import { track } from "@/lib/analytics";
+import { useGuest } from "@/components/auth/guest-provider";
 
 type Community = {
   slug: string;
@@ -20,6 +22,7 @@ type Community = {
 };
 
 export default function CommunitiesPage() {
+  const { requireAuth } = useGuest();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -38,6 +41,7 @@ export default function CommunitiesPage() {
   }, []);
 
   async function create() {
+    if (!requireAuth()) return;
     setBusy(true);
     setError(null);
     const res = await fetch("/api/communities", {
@@ -75,7 +79,13 @@ export default function CommunitiesPage() {
             Communities
           </h1>
         </div>
-        <Button type="button" onClick={() => setOpen((v) => !v)}>
+        <Button
+          type="button"
+          onClick={() => {
+            if (!requireAuth()) return;
+            setOpen((v) => !v);
+          }}
+        >
           <Plus className="size-4" /> Create space
         </Button>
       </div>
@@ -129,12 +139,18 @@ export default function CommunitiesPage() {
           <Link
             href={`/communities/${community.slug}`}
             key={community.slug}
-            className="group rounded-[2rem] border border-[var(--mist)] bg-[var(--glass)] p-6 backdrop-blur transition hover:-translate-y-1 hover:shadow-xl"
+            className="group rounded-[2rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-6 backdrop-blur transition hover:-translate-y-1 hover:shadow-xl"
           >
-            <div className="grid size-12 place-items-center overflow-hidden rounded-2xl bg-[var(--mist)] font-[family-name:var(--font-display)] text-xl">
+            <div className="relative grid size-12 place-items-center overflow-hidden rounded-2xl bg-[var(--mist)] font-[family-name:var(--font-display)] text-xl">
               {community.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={community.image} alt="" className="size-full object-cover" />
+                <MediaImage
+                  src={community.image}
+                  alt=""
+                  width={96}
+                  height={96}
+                  sizes="48px"
+                  className="size-full object-cover"
+                />
               ) : (
                 community.name.slice(0, 1)
               )}

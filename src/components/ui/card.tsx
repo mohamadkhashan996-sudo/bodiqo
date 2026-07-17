@@ -42,7 +42,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "surface-subtle flex flex-col items-center justify-center rounded-[var(--radius-xl)] border border-dashed border-[var(--mist)] px-6 py-16 text-center shadow-[var(--shadow-sm)]",
+        "surface-subtle flex flex-col items-center justify-center rounded-[var(--radius-xl)] border-2 border-dashed border-[var(--mist-strong)] px-6 py-16 text-center shadow-[var(--shadow-sm)]",
         className,
       )}
     >
@@ -50,7 +50,7 @@ export function EmptyState({
         {title}
       </p>
       {description ? (
-        <p className="mt-2 max-w-sm text-sm leading-6 text-[var(--muted)]">{description}</p>
+        <p className="mt-2 max-w-sm text-sm leading-6 text-[var(--muted-strong)]">{description}</p>
       ) : null}
       {action ? <div className="mt-6">{action}</div> : null}
     </div>
@@ -77,10 +77,10 @@ export function StateBanner({
   return (
     <div
       role="status"
-      className="rounded-2xl border px-4 py-3 text-sm"
+      className="rounded-2xl border-2 px-4 py-3 text-sm font-medium shadow-[var(--shadow-sm)]"
       style={{
-        borderColor: `color-mix(in srgb, ${color} 35%, transparent)`,
-        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        borderColor: `color-mix(in srgb, ${color} 55%, transparent)`,
+        background: `color-mix(in srgb, ${color} 16%, var(--surface))`,
         color,
       }}
     >

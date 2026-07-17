@@ -62,7 +62,7 @@ export function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-3xl border border-[var(--mist)] bg-white/55 p-5 backdrop-blur">
+    <div className="rounded-3xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur">
       <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
         {label}
       </p>
@@ -98,6 +98,35 @@ export function AdminPageHeader({
   );
 }
 
+export function SparkBars({
+  series,
+  label,
+}: {
+  series: Array<{ date: string; value: number }>;
+  label?: string;
+}) {
+  const max = Math.max(1, ...series.map((s) => s.value));
+  return (
+    <div>
+      {label ? (
+        <p className="mb-3 text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+          {label}
+        </p>
+      ) : null}
+      <div className="flex h-28 items-end gap-0.5">
+        {series.map((point) => (
+          <div
+            key={point.date}
+            className="group relative min-w-0 flex-1 rounded-t bg-[linear-gradient(180deg,var(--signal),color-mix(in_srgb,var(--ember)_70%,var(--signal)))] opacity-85 transition hover:opacity-100"
+            style={{ height: `${Math.max(4, (point.value / max) * 100)}%` }}
+            title={`${point.date}: ${point.value}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Panel({
   children,
   className = "",
@@ -107,7 +136,7 @@ export function Panel({
 }) {
   return (
     <div
-      className={`rounded-3xl border border-[var(--mist)] bg-white/50 p-5 backdrop-blur ${className}`}
+      className={`rounded-3xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur ${className}`}
     >
       {children}
     </div>
