@@ -243,6 +243,7 @@ model User {
   stories          Story[]
   storyViews       StoryView[]
   storyReactions   StoryReaction[]
+  highlights       Highlight[]
   interests        UserInterest[]
   pollVotes        PollVote[]
   searchHistory    SearchHistory[]
@@ -760,6 +761,34 @@ model StoryReaction {
   createdAt DateTime @default(now())
 
   @@unique([storyId, userId])
+}
+
+/** Permanent story collections — media is snapshotted so items survive 24h expiry. */
+model Highlight {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  coverUrl  String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  items     HighlightItem[]
+
+  @@index([userId, createdAt])
+}
+
+model HighlightItem {
+  id          String    @id @default(cuid())
+  highlightId String
+  highlight   Highlight @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+  storyId     String?
+  mediaUrl    String
+  mediaKind   MediaKind @default(IMAGE)
+  textOverlay String?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  @@index([highlightId, sortOrder])
 }
 
 model SearchHistory {

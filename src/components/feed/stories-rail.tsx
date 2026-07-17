@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Plus } from "lucide-react";
+import { BookmarkPlus, Eye, Plus } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,14 @@ import { Input } from "@/components/ui/input";
 import { useGuest } from "@/components/auth/guest-provider";
 import { uploadFile } from "@/lib/upload-client";
 
+const REACTION_EMOJIS = ["❤️", "🔥", "😂", "😮", "👏", "😢"];
+
 type Story = {
   id: string;
   mediaUrl: string;
   mediaKind?: string;
   textOverlay?: string | null;
+  viewCount?: number;
   author?: {
     id?: string;
     handle?: string | null;
@@ -24,6 +28,17 @@ type Story = {
     name?: string | null;
   };
   views?: Array<{ id: string }>;
+  myReaction?: string | null;
+  reactionCounts?: Record<string, number>;
+};
+
+type Viewer = {
+  id: string;
+  handle?: string | null;
+  displayName?: string | null;
+  name?: string | null;
+  image?: string | null;
+  viewedAt: string;
 };
 
 export function StoriesRail() {
@@ -37,7 +52,14 @@ export function StoriesRail() {
   const [error, setError] = useState<string | null>(null);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const [pendingKind, setPendingKind] = useState<"IMAGE" | "VIDEO">("IMAGE");
+  const [viewers, setViewers] = useState<Viewer[]>([]);
+  const [viewersOpen, setViewersOpen] = useState(false);
+  const [highlightBusy, setHighlightBusy] = useState(false);
+  const [highlightDone, setHighlightDone] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const isOwner =
+    Boolean(active?.author?.id) && active?.author?.id === session?.user?.id;
 
   async function load() {
     const d = await fetch("/api/stories").then((r) => r.json());
@@ -50,8 +72,69 @@ export function StoriesRail() {
 
   async function openStory(story: Story) {
     setActive(story);
+    setViewers([]);
+    setViewersOpen(false);
+    setHighlightDone(false);
     if (session?.user) {
-      void fetch(`/api/stories/${story.id}/view`, { method: "POST" }).catch(() => {});
+      void fetch(`/api/stories/${story.id}/view`, { method: "POST" }).catch(
+        () => {},
+      );
+      setStories((prev) =>
+        prev.map((s) =>
+          s.id === story.id
+            ? { ...s, views: s.views?.length ? s.views : [{ id: "local" }] }
+            : s,
+        ),
+      );
+    }
+  }
+
+  async function react(emoji: string) {
+    if (!active || !requireAuth()) return;
+    const res = await fetch(`/api/stories/${active.id}/react`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji }),
+    });
+    if (!res.ok) return;
+    const nextCounts = { ...(active.reactionCounts ?? {}) };
+    if (active.myReaction && nextCounts[active.myReaction]) {
+      nextCounts[active.myReaction] = Math.max(
+        0,
+        nextCounts[active.myReaction] - 1,
+      );
+      if (!nextCounts[active.myReaction]) delete nextCounts[active.myReaction];
+    }
+    nextCounts[emoji] = (nextCounts[emoji] ?? 0) + 1;
+    const updated = { ...active, myReaction: emoji, reactionCounts: nextCounts };
+    setActive(updated);
+    setStories((prev) => prev.map((s) => (s.id === active.id ? updated : s)));
+  }
+
+  async function loadViewers() {
+    if (!active || !isOwner) return;
+    const d = await fetch(`/api/stories/${active.id}/viewers`).then((r) =>
+      r.json(),
+    );
+    setViewers(d.viewers ?? []);
+    setViewersOpen(true);
+    if (typeof d.viewCount === "number") {
+      setActive((prev) => (prev ? { ...prev, viewCount: d.viewCount } : prev));
+    }
+  }
+
+  async function addToHighlight() {
+    if (!active || !isOwner) return;
+    setHighlightBusy(true);
+    try {
+      const res = await fetch("/api/highlights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyId: active.id }),
+      });
+      if (res.ok) setHighlightDone(true);
+    } finally {
+      setHighlightBusy(false);
     }
   }
 
@@ -108,7 +191,9 @@ export function StoriesRail() {
           <span className="grid size-[3.75rem] place-items-center rounded-[1.25rem] border-2 border-dashed border-[var(--mist-strong)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
             <Plus className="size-5 text-[var(--signal-deep)]" />
           </span>
-          <span className="mt-1 block truncate text-[10px] font-semibold text-[var(--muted-strong)]">Your story</span>
+          <span className="mt-1 block truncate text-[10px] font-semibold text-[var(--muted-strong)]">
+            Your story
+          </span>
         </button>
         {stories.map((story) => {
           const seen = Boolean(story.views?.length);
@@ -143,16 +228,104 @@ export function StoriesRail() {
 
       <Modal
         open={Boolean(active)}
-        onClose={() => setActive(null)}
+        onClose={() => {
+          setActive(null);
+          setViewersOpen(false);
+        }}
         title={active?.author?.displayName ?? active?.author?.handle ?? "Story"}
       >
         {active?.mediaKind === "VIDEO" ? (
-          <video src={active.mediaUrl} controls autoPlay className="w-full rounded-2xl" />
+          <video
+            src={active.mediaUrl}
+            controls
+            autoPlay
+            className="w-full rounded-2xl"
+          />
         ) : active?.mediaUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={active.mediaUrl} alt="" className="w-full rounded-2xl" />
         ) : null}
-        {active?.textOverlay ? <p className="mt-3 text-sm">{active.textOverlay}</p> : null}
+        {active?.textOverlay ? (
+          <p className="mt-3 text-sm">{active.textOverlay}</p>
+        ) : null}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {REACTION_EMOJIS.map((emoji) => {
+            const count = active?.reactionCounts?.[emoji] ?? 0;
+            const mine = active?.myReaction === emoji;
+            return (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => void react(emoji)}
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-sm transition ${
+                  mine
+                    ? "bg-[var(--signal)] text-white"
+                    : "bg-[var(--surface)] text-[var(--ink)] shadow-[var(--shadow-sm)] hover:bg-[var(--cloud-elevated)]"
+                }`}
+              >
+                <span>{emoji}</span>
+                {count > 0 ? (
+                  <span className="text-xs opacity-80">{count}</span>
+                ) : null}
+              </button>
+            );
+          })}
+        </div>
+
+        {isOwner ? (
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void loadViewers()}
+              className="inline-flex items-center gap-2 text-sm font-medium text-[var(--muted-strong)] hover:text-[var(--ink)]"
+            >
+              <Eye className="size-4" />
+              {active?.viewCount ?? 0} views
+            </button>
+            <button
+              type="button"
+              disabled={highlightBusy || highlightDone}
+              onClick={() => void addToHighlight()}
+              className="inline-flex items-center gap-2 text-sm font-medium text-[var(--signal-deep)] disabled:opacity-60"
+            >
+              <BookmarkPlus className="size-4" />
+              {highlightDone
+                ? "Saved to highlights"
+                : highlightBusy
+                  ? "Saving…"
+                  : "Add to highlight"}
+            </button>
+          </div>
+        ) : null}
+
+        {viewersOpen ? (
+          <div className="mt-4 max-h-48 space-y-2 overflow-y-auto rounded-2xl bg-[var(--cloud-elevated)] p-3">
+            {viewers.length ? (
+              viewers.map((viewer) => (
+                <Link
+                  key={viewer.id}
+                  href={`/u/${viewer.handle}`}
+                  className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-[var(--surface)]"
+                  onClick={() => setActive(null)}
+                >
+                  <Avatar
+                    src={viewer.image}
+                    name={viewer.displayName ?? viewer.name}
+                    className="size-8"
+                  />
+                  <span className="text-sm font-medium">
+                    {viewer.displayName ?? viewer.handle}
+                  </span>
+                </Link>
+              ))
+            ) : (
+              <p className="px-2 py-3 text-sm text-[var(--muted)]">
+                No viewers yet
+              </p>
+            )}
+          </div>
+        ) : null}
       </Modal>
 
       <Modal
@@ -200,7 +373,9 @@ export function StoriesRail() {
             placeholder="Optional caption"
             maxLength={500}
           />
-          {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+          {error ? (
+            <p className="text-sm text-[var(--danger)]">{error}</p>
+          ) : null}
           <Button
             type="button"
             className="w-full"

@@ -12,8 +12,9 @@ export async function runAutomaticCleanup() {
       "@/modules/feed/services/posts"
     );
     const scheduled = await publishScheduledPosts(now);
-    const [stories, search, sessions, media] = await Promise.all([
-      prisma.story.deleteMany({ where: { expiresAt: { lt: now } } }),
+    const { expireStories } = await import("@/modules/media/services/stories");
+    const expiredStories = await expireStories(now);
+    const [search, sessions, media] = await Promise.all([
       prisma.searchHistory.deleteMany({ where: { createdAt: { lt: thirtyDaysAgo } } }),
       prisma.deviceSession.deleteMany({
         where: { revokedAt: { not: null, lt: thirtyDaysAgo } },
@@ -24,14 +25,14 @@ export async function runAutomaticCleanup() {
     ]);
     logger.info("cleanup_completed", {
       scheduled: scheduled.published,
-      stories: stories.count,
+      stories: expiredStories.count,
       search: search.count,
       sessions: sessions.count,
       media: media.count,
     });
     return {
       scheduled: scheduled.published,
-      stories: stories.count,
+      stories: expiredStories.count,
       search: search.count,
       sessions: sessions.count,
       media: media.count,

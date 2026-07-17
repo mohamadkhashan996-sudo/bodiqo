@@ -18,6 +18,7 @@ import { useGuest } from "@/components/auth/guest-provider";
 import { VerificationBadge } from "@/components/brand/official-badge";
 import { ReportDialog } from "@/components/social/report-dialog";
 import { InterestChips } from "@/components/profile/interest-picker";
+import { ProfileHighlights } from "@/components/profile/highlights";
 
 type ProfileVisibility = {
   isPrivate?: boolean;
@@ -419,6 +420,8 @@ export default function ProfilePageClient() {
               </p>
             </div>
           ) : null}
+
+          <ProfileHighlights handle={handle} isOwner={isOwner} />
 
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {[

@@ -114,6 +114,7 @@ export const en: Dictionary = {
     about: "About",
     followers: "Followers",
     following: "Following",
+    highlights: "Highlights",
   },
   ai: {
     caption: "Suggest caption",
