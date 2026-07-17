@@ -41,7 +41,14 @@ export async function verifyPassword(password: string, hash: string) {
 }
 
 function opaquePepper() {
-  return process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "relune-dev";
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new AppError("AUTH_SECRET is required", 500, "MISCONFIGURED");
+    }
+    return "relune-dev";
+  }
+  return secret;
 }
 
 /** HMAC-SHA256 opaque digests (OTP, recovery codes, device fingerprints). */

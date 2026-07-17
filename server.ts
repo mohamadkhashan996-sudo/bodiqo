@@ -28,10 +28,17 @@ const ack = (callback: unknown, work: () => Promise<unknown>) => {
 };
 
 async function resolveToken(req: { headers: Record<string, string> }) {
-  const secret = process.env.AUTH_SECRET;
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret) return null;
-  for (const cookieName of ["__Secure-authjs.session-token", "authjs.session-token"]) {
-    const token = await getToken({ req, secret, cookieName });
+  for (const cookieName of [
+    "__Secure-authjs.session-token",
+    "authjs.session-token",
+  ]) {
+    const token = await getToken({
+      req: { headers: req.headers },
+      secret,
+      cookieName,
+    });
     if (token?.sub) return token;
   }
   return null;
@@ -49,7 +56,11 @@ void app.prepare().then(async () => {
     new Server(server, {
       path: "/socket.io",
       cors: {
-        origin: origins.length ? origins : true,
+        origin: origins.length
+          ? origins
+          : process.env.NODE_ENV === "production"
+            ? false
+            : ["http://localhost:3000", "http://127.0.0.1:3000"],
         credentials: true,
       },
     }),

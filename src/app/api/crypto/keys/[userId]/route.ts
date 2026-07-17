@@ -1,4 +1,4 @@
-import { fail, ok, requireUser } from "@/lib/api";
+import { fail, ok, requireUser, guardApiAbuse } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
@@ -6,6 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ userId: string }> },
 ) {
   try {
+    await guardApiAbuse(_request, "crypto:keys:userId:get", 60, 60000);
     await requireUser();
     const { userId } = await params;
     const key = await prisma.userEncryptionKey.findUnique({

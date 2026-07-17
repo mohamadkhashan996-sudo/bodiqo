@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { optionalHttpUrlSchema } from "@/lib/security";
 
 const UPLOADS_PREFIX = "/uploads/";
 const PRIVATE_API_PREFIX = "/api/media/";
@@ -51,11 +52,5 @@ export const mediaUrlSchema = z
 
 export const optionalMediaUrlSchema = mediaUrlSchema.optional();
 
-export const optionalWebsiteSchema = z
-  .union([z.string().url(), z.literal(""), z.null()])
-  .optional()
-  .transform((value) => {
-    if (value === undefined) return undefined;
-    if (value === "" || value === null) return null;
-    return value;
-  });
+/** Profile/website links — http(s) only (blocks javascript: XSS). */
+export const optionalWebsiteSchema = optionalHttpUrlSchema;

@@ -19,6 +19,7 @@ import { VerificationBadge } from "@/components/brand/official-badge";
 import { ReportDialog } from "@/components/social/report-dialog";
 import { InterestChips } from "@/components/profile/interest-picker";
 import { ProfileHighlights } from "@/components/profile/highlights";
+import { sanitizeHttpUrl } from "@/lib/security";
 
 type ProfileVisibility = {
   isPrivate?: boolean;
@@ -387,14 +388,22 @@ export default function ProfilePageClient() {
                   {location}
                 </span>
               ) : null}
-              {user.website ? (
+              {sanitizeHttpUrl(
+                typeof user.website === "string" ? user.website : null,
+              ) ? (
                 <a
-                  href={String(user.website)}
+                  href={
+                    sanitizeHttpUrl(
+                      typeof user.website === "string" ? user.website : null,
+                    )!
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[var(--signal-deep)] hover:underline"
                 >
-                  {String(user.website).replace(/^https?:\/\//, "")}
+                  {sanitizeHttpUrl(
+                    typeof user.website === "string" ? user.website : null,
+                  )!.replace(/^https?:\/\//, "")}
                 </a>
               ) : null}
             </div>
@@ -549,18 +558,30 @@ export default function ProfilePageClient() {
                       </p>
                     </div>
                   ) : null}
-                  {user.website ? (
+                  {sanitizeHttpUrl(
+                    typeof user.website === "string" ? user.website : null,
+                  ) ? (
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
                         Website
                       </p>
                       <a
-                        href={String(user.website)}
+                        href={
+                          sanitizeHttpUrl(
+                            typeof user.website === "string"
+                              ? user.website
+                              : null,
+                          )!
+                        }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-2 inline-block text-sm text-[var(--signal-deep)] hover:underline"
                       >
-                        {String(user.website)}
+                        {sanitizeHttpUrl(
+                          typeof user.website === "string"
+                            ? user.website
+                            : null,
+                        )}
                       </a>
                     </div>
                   ) : null}

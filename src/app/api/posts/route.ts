@@ -16,12 +16,13 @@ import {
 import { MediaKind, PostStatus, PostType, PostVisibility } from "@prisma/client";
 import { z } from "zod";
 import { mediaUrlSchema } from "@/lib/media-url";
+import { clampInt, httpUrlSchema } from "@/lib/security";
 
 const schema = z.object({
   body: z.string().max(10000).optional(),
   type: z.nativeEnum(PostType).optional(),
   visibility: z.nativeEnum(PostVisibility).optional(),
-  linkUrl: z.string().url().optional(),
+  linkUrl: httpUrlSchema.optional(),
   status: z
     .enum([PostStatus.PUBLISHED, PostStatus.DRAFT, PostStatus.SCHEDULED])
     .optional(),
@@ -56,6 +57,7 @@ const feedModes = z.enum([
 
 export async function GET(r: Request) {
   try {
+    await guardApiAbuse(r, "posts:get", 90);
     const u = await optionalUser();
     const q = new URL(r.url).searchParams;
     const author = q.get("author");
@@ -66,12 +68,18 @@ export async function GET(r: Request) {
         await getAuthorWorkspacePosts(
           me.id,
           mine === "drafts" ? "DRAFT" : "SCHEDULED",
-          Number(q.get("limit") ?? 30),
+          clampInt(q.get("limit"), 30, 1, 50),
         ),
       );
     }
     if (author) {
-      return ok(await getPostsByHandle(author, Number(q.get("limit") ?? 30), u?.id));
+      return ok(
+        await getPostsByHandle(
+          author,
+          clampInt(q.get("limit"), 30, 1, 50),
+          u?.id,
+        ),
+      );
     }
     const mode = (feedModes.safeParse(q.get("mode") ?? "home").data ??
       "home") as FeedMode;
@@ -79,7 +87,7 @@ export async function GET(r: Request) {
       await getFeed({
         userId: u?.id,
         cursor: q.get("cursor") ?? undefined,
-        limit: Number(q.get("limit") ?? 20),
+        limit: clampInt(q.get("limit"), 20, 1, 50),
         mode,
       }),
     );

@@ -5,6 +5,15 @@ type Bucket = { count: number; resetAt: number };
 
 const buckets = new Map<string, Bucket>();
 
+/** Atomic INCR + PEXPIRE so keys never stick without TTL. */
+const INCR_EXPIRE_LUA = `
+local current = redis.call("INCR", KEYS[1])
+if current == 1 then
+  redis.call("PEXPIRE", KEYS[1], ARGV[1])
+end
+return current
+`;
+
 /**
  * Distributed rate limit when Redis is configured.
  * Production fails closed without Redis; development uses in-memory fallback.
@@ -18,10 +27,12 @@ export async function rateLimit(
   if (redis) {
     try {
       const bucketKey = `rl:${key}`;
-      const count = await redis.incr(bucketKey);
-      if (count === 1) {
-        await redis.pExpire(bucketKey, windowMs);
-      }
+      const count = Number(
+        await redis.eval(INCR_EXPIRE_LUA, {
+          keys: [bucketKey],
+          arguments: [String(windowMs)],
+        }),
+      );
       if (count > limit) {
         return { ok: false, remaining: 0 };
       }

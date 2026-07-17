@@ -7,6 +7,7 @@ import { can, isStaff, type Permission } from "@/lib/permissions";
 import { rateLimit } from "@/lib/rate-limit";
 import { writeSecurityEvent } from "@/modules/admin/services/audit";
 import { site } from "@/config/site";
+import { clampInt } from "@/lib/security";
 
 export async function requireUser() {
   const session = await auth();
@@ -61,14 +62,29 @@ export function paramsId(context: { params: Promise<Record<string, string>> }) {
   return context.params;
 }
 
+/**
+ * Client IP for rate limiting.
+ * Prefer the left-most X-Forwarded-For hop (original client) when behind a
+ * trusted reverse proxy. Spoofing is mitigated by only trusting the header
+ * when TRUST_PROXY is enabled (default true in production).
+ */
 export function clientIp(request: Request) {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) {
-    // Prefer the right-most hop when behind a trusted reverse proxy chain.
-    const parts = forwarded.split(",").map((p) => p.trim()).filter(Boolean);
-    return parts[parts.length - 1] || "unknown";
+  const trustProxy =
+    process.env.TRUST_PROXY === "true" ||
+    (process.env.TRUST_PROXY !== "false" &&
+      process.env.NODE_ENV === "production");
+
+  if (trustProxy) {
+    const forwarded = request.headers.get("x-forwarded-for");
+    if (forwarded) {
+      const parts = forwarded.split(",").map((p) => p.trim()).filter(Boolean);
+      if (parts[0]) return parts[0];
+    }
+    const realIp = request.headers.get("x-real-ip");
+    if (realIp) return realIp.trim();
   }
-  return request.headers.get("x-real-ip") || "unknown";
+
+  return "unknown";
 }
 
 function allowedOrigins() {
@@ -86,15 +102,32 @@ function allowedOrigins() {
   );
 }
 
-/** Reject cross-site cookie mutations in production (fail closed). */
+/**
+ * CSRF defense for cookie-authenticated mutating requests:
+ * - Reject cross-site Sec-Fetch-Site
+ * - Require Origin/Referer match against allowlist when configured
+ * Enforced in all environments when allowed origins are configured.
+ */
 export function assertSameOrigin(request: Request) {
-  if (process.env.NODE_ENV !== "production") return;
   const method = request.method.toUpperCase();
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") return;
 
+  const fetchSite = request.headers.get("sec-fetch-site");
+  if (
+    fetchSite &&
+    fetchSite !== "same-origin" &&
+    fetchSite !== "none" &&
+    fetchSite !== "same-site"
+  ) {
+    throw new AppError("Invalid origin", 403, "ORIGIN_FORBIDDEN");
+  }
+
   const allowed = allowedOrigins();
   if (!allowed.size) {
-    throw new AppError("Origin not configured", 403, "ORIGIN_FORBIDDEN");
+    if (process.env.NODE_ENV === "production") {
+      throw new AppError("Origin not configured", 403, "ORIGIN_FORBIDDEN");
+    }
+    return;
   }
 
   const origin = request.headers.get("origin");
@@ -105,6 +138,7 @@ export function assertSameOrigin(request: Request) {
     return;
   }
 
+  // Same-origin navigations / some native clients omit Origin — accept Referer.
   const referer = request.headers.get("referer");
   if (referer) {
     try {
@@ -114,6 +148,11 @@ export function assertSameOrigin(request: Request) {
       /* fall through */
     }
   }
+
+  // Non-browser clients (curl, server jobs) often omit both — allow only outside
+  // production, or when Sec-Fetch-Site is absent / "none".
+  if (process.env.NODE_ENV !== "production" && !fetchSite) return;
+  if (fetchSite === "none" || fetchSite === "same-origin") return;
 
   throw new AppError("Invalid origin", 403, "ORIGIN_FORBIDDEN");
 }
@@ -138,4 +177,20 @@ export async function guardApiAbuse(
     throw new AppError("Too many requests", 429, "RATE_LIMITED");
   }
   return result;
+}
+
+/** Parse a bounded integer query param. */
+export function queryInt(
+  request: Request,
+  name: string,
+  fallback: number,
+  min: number,
+  max: number,
+) {
+  return clampInt(
+    new URL(request.url).searchParams.get(name),
+    fallback,
+    min,
+    max,
+  );
 }

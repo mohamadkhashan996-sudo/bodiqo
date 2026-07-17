@@ -1,0 +1,67 @@
+import { z } from "zod";
+import { AppError } from "@/lib/errors";
+
+/** Escape text for safe HTML embedding (XSS). */
+export function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Only allow http(s) absolute URLs or empty — blocks javascript:/data: XSS. */
+export function isSafeHttpUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function sanitizeHttpUrl(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null;
+  const trimmed = value.trim();
+  return isSafeHttpUrl(trimmed) ? trimmed : null;
+}
+
+export const httpUrlSchema = z
+  .string()
+  .min(1)
+  .max(2048)
+  .refine(isSafeHttpUrl, { message: "URL must be http or https" });
+
+export const optionalHttpUrlSchema = z
+  .union([httpUrlSchema, z.literal(""), z.null()])
+  .optional()
+  .transform((value) => {
+    if (value === undefined) return undefined;
+    if (value === "" || value === null) return null;
+    return value;
+  });
+
+/** Clamp query/limit integers to a safe range. */
+export function clampInt(
+  raw: string | null | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(n)));
+}
+
+export function requireClampInt(
+  raw: string | null | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+) {
+  if (raw !== null && raw !== undefined && raw !== "" && !Number.isFinite(Number(raw))) {
+    throw new AppError("Invalid numeric parameter", 400, "VALIDATION_ERROR");
+  }
+  return clampInt(raw, fallback, min, max);
+}

@@ -1,4 +1,4 @@
-import { fail, ok } from "@/lib/api";
+import { fail, ok, guardApiAbuse } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getPendingOAuthLink } from "@/modules/auth/account-link";
@@ -7,6 +7,7 @@ import { PROVIDER_SHORT, type OAuthProviderId } from "@/modules/auth/providers";
 /** Public preview of a pending OAuth account link (no secrets). */
 export async function GET(request: Request) {
   try {
+    await guardApiAbuse(request, "auth:link-account:get", 20, 60000);
     const token = new URL(request.url).searchParams.get("token");
     if (!token) throw new AppError("Missing link token", 400);
     const pending = await getPendingOAuthLink(token);

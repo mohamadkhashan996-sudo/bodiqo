@@ -1,12 +1,13 @@
-import { fail, ok, optionalUser } from "@/lib/api";
+import { fail, ok, optionalUser, guardApiAbuse } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { getPublicProfile } from "@/modules/users/services/profile";
 
 export async function GET(
-  _r: Request,
+  request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ) {
   try {
+    await guardApiAbuse(request, "users:handle:get", 60, 60000);
     const { handle } = await params;
     const viewer = await optionalUser();
     const user = await getPublicProfile(handle, viewer?.id);

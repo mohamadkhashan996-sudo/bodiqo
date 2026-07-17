@@ -1,4 +1,5 @@
-import { fail, ok, optionalUser, requireUser } from "@/lib/api";
+import { fail, ok, optionalUser, requireUser, guardApiAbuse } from "@/lib/api";
+import { clampInt } from "@/lib/security";
 import {
   clearSearchHistory,
   listSearchHistory,
@@ -18,6 +19,7 @@ const TYPES = new Set<SearchType>([
 
 export async function GET(request: Request) {
   try {
+    await guardApiAbuse(request, "search:get", 90, 60000);
     const user = await optionalUser();
     const params = new URL(request.url).searchParams;
     const q = params.get("q")?.trim() ?? "";
@@ -25,7 +27,7 @@ export async function GET(request: Request) {
     const type = (TYPES.has(typeParam as SearchType)
       ? typeParam
       : "all") as SearchType;
-    const limit = Number(params.get("limit") ?? 20);
+    const limit = clampInt(params.get("limit"), 20, 1, 40);
 
     if (!q) {
       return ok({
@@ -50,8 +52,9 @@ export async function GET(request: Request) {
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
+    await guardApiAbuse(request, "search:delete", 90, 60000);
     const user = await requireUser();
     return ok(await clearSearchHistory(user.id));
   } catch (e) {

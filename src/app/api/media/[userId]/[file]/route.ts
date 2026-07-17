@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import { access, constants, stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { fail, optionalUser, requireUser } from "@/lib/api";
+import { fail, optionalUser, requireUser, guardApiAbuse } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
@@ -14,6 +14,7 @@ function safeSegment(value: string) {
 
 export async function GET(_request: Request, context: Ctx) {
   try {
+    await guardApiAbuse(_request, "media:userId:file:get", 180, 60000);
     const { userId, file } = await context.params;
     if (!safeSegment(userId) || !safeSegment(file)) {
       throw new AppError("Not found", 404);

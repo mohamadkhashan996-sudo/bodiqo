@@ -21,19 +21,23 @@ function applySecurityHeaders(response: NextResponse, request: NextRequest) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Resource-Policy", "same-site");
+  response.headers.set("X-Permitted-Cross-Domain-Policies", "none");
   response.headers.set(
     "Permissions-Policy",
     appSurface
-      ? "camera=(self), microphone=(self), display-capture=(self), geolocation=()"
-      : "camera=(), microphone=(), display-capture=(), geolocation=()",
+      ? "camera=(self), microphone=(self), display-capture=(self), geolocation=(), interest-cohort=()"
+      : "camera=(), microphone=(), display-capture=(), geolocation=(), interest-cohort=()",
   );
   // Avoid CSP nonces on React-rendered <script> tags — browsers strip nonce from the
   // DOM after parse, which causes a hydration mismatch and can blank the client tree.
+  const isProd = process.env.NODE_ENV === "production";
   response.headers.set(
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      process.env.NODE_ENV === "production"
+      isProd
         ? "script-src 'self' 'unsafe-inline'"
         : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
@@ -42,14 +46,16 @@ function applySecurityHeaders(response: NextResponse, request: NextRequest) {
       "font-src 'self' data:",
       "connect-src 'self' ws: wss: https:",
       "worker-src 'self' blob:",
+      "frame-src 'none'",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
       "object-src 'none'",
+      ...(isProd ? ["upgrade-insecure-requests"] : []),
     ].join("; "),
   );
   response.headers.set("X-XSS-Protection", "0");
-  if (process.env.NODE_ENV === "production") {
+  if (isProd) {
     response.headers.set(
       "Strict-Transport-Security",
       "max-age=63072000; includeSubDomains; preload",

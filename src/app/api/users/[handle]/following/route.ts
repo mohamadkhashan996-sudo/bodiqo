@@ -1,4 +1,4 @@
-import { fail, ok, optionalUser } from "@/lib/api";
+import { fail, ok, optionalUser, guardApiAbuse } from "@/lib/api";
 import { listFollowing } from "@/modules/users/services/lists";
 
 export async function GET(
@@ -6,6 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ handle: string }> },
 ) {
   try {
+    await guardApiAbuse(request, "users:handle:following:get", 60, 60000);
     const viewer = await optionalUser();
     const { handle } = await params;
     const q = new URL(request.url).searchParams;

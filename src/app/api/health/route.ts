@@ -3,9 +3,19 @@ import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { site } from "@/config/site";
 import { redisPing } from "@/lib/redis";
+import { guardApiAbuse } from "@/lib/api";
 
 /** Liveness — process is up */
 export async function GET(request: Request) {
+  try {
+    await guardApiAbuse(request, "health:get", 120, 60000);
+  } catch (error) {
+    // Health probes should degrade gracefully under abuse rather than throw.
+    return NextResponse.json(
+      { ok: false, error: "rate_limited" },
+      { status: 429 },
+    );
+  }
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get("mode") || "health";
 

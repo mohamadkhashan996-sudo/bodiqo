@@ -1,8 +1,9 @@
-import { fail, ok, optionalUser } from "@/lib/api";
+import { fail, ok, optionalUser, guardApiAbuse } from "@/lib/api";
 import { getTrendingFeed } from "@/modules/feed/services/posts";
 
 export async function GET(request: Request) {
   try {
+    await guardApiAbuse(request, "trending:get", 90, 60000);
     const viewer = await optionalUser();
     const q = new URL(request.url).searchParams;
     return ok(
