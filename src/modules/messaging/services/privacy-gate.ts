@@ -75,6 +75,59 @@ export async function canFollow(actorId: string, targetId: string) {
   return audienceAllows(actorId, targetId, privacy?.whoCanFollow ?? "EVERYONE");
 }
 
+async function audienceSetting(
+  actorId: string,
+  targetId: string,
+  setting: "whoCanComment" | "whoCanSeeStories" | "whoCanSeeActivity",
+  fallback: PrivacyAudience,
+) {
+  if (actorId === targetId) return true;
+  const [privacy, blocked] = await Promise.all([
+    prisma.privacySettings.findUnique({
+      where: { userId: targetId },
+      select: { [setting]: true },
+    }),
+    prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: actorId, blockedId: targetId },
+          { blockerId: targetId, blockedId: actorId },
+        ],
+      },
+      select: { id: true },
+    }),
+  ]);
+  if (blocked) return false;
+  return audienceAllows(
+    actorId,
+    targetId,
+    (privacy?.[setting] as PrivacyAudience | undefined) ?? fallback,
+  );
+}
+
+/** Whether actor may comment on target author's posts. */
+export function canComment(actorId: string, authorId: string) {
+  return audienceSetting(actorId, authorId, "whoCanComment", "EVERYONE");
+}
+
+/** Whether viewer may see target author's stories. */
+export function canSeeStories(viewerId: string | undefined, authorId: string) {
+  if (!viewerId) {
+    return prisma.privacySettings
+      .findUnique({
+        where: { userId: authorId },
+        select: { whoCanSeeStories: true },
+      })
+      .then((privacy) => (privacy?.whoCanSeeStories ?? "EVERYONE") === "EVERYONE");
+  }
+  return audienceSetting(viewerId, authorId, "whoCanSeeStories", "EVERYONE");
+}
+
+/** Whether viewer may see target author's activity (likes, etc.). */
+export function canSeeActivity(viewerId: string, authorId: string) {
+  return audienceSetting(viewerId, authorId, "whoCanSeeActivity", "FOLLOWERS");
+}
+
 export async function getMessagingPrivacy(userId: string) {
   return (
     (await prisma.privacySettings.findUnique({

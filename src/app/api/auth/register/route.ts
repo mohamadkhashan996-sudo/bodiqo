@@ -32,9 +32,7 @@ export async function POST(request: Request) {
     if (!(await rateLimit(`register:${ip}`, 8, 60000)).ok)
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     const registration =
-      (await getSetting<{ open?: boolean; requireCaptcha?: boolean }>(
-        "registration",
-      )) ?? {};
+      (await getSetting<{ open?: boolean }>("registration")) ?? {};
     if (registration.open === false) {
       return NextResponse.json(
         { error: "Registration is closed" },
@@ -43,7 +41,7 @@ export async function POST(request: Request) {
     }
     const data = await body(request, schema);
     assertHoneypotEmpty(data.website);
-    // Captcha providers can be wired later; honeypot + rate limits remain active.
+    // Honeypot + rate limits are the active bot controls.
     assertHandleAvailable(data.handle);
     const email = data.email.toLowerCase();
     const exists = await prisma.user.findFirst({

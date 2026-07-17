@@ -43,7 +43,6 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   registration: {
     open: true,
     inviteOnly: false,
-    requireCaptcha: false,
   },
 };
 

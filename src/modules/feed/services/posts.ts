@@ -307,11 +307,17 @@ export async function getShorts(viewerId?: string, cursor?: string, limit = 20) 
   const take = Math.min(Math.max(limit, 1), 50);
   const posts = await prisma.post.findMany({
     where: {
-      type: "SHORT",
       status: "PUBLISHED",
       deletedAt: null,
       visibility: "PUBLIC",
       author: { status: "ACTIVE" },
+      OR: [
+        { type: "SHORT" },
+        {
+          type: "VIDEO",
+          media: { some: { kind: "VIDEO" } },
+        },
+      ],
     },
     include,
     orderBy: { publishedAt: "desc" },

@@ -1,6 +1,7 @@
 import { MediaKind } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { canSeeStories } from "@/modules/messaging/services/privacy-gate";
 
 export async function createStory(authorId: string, data: { mediaUrl: string; mediaKind?: MediaKind; textOverlay?: string }) {
   return prisma.$transaction(async (tx) => {
@@ -44,6 +45,7 @@ export async function listPublicStories(viewerId?: string) {
   for (const story of stories) {
     const author = authorMap.get(story.authorId);
     if (!author) continue;
+    if (!(await canSeeStories(viewerId, story.authorId))) continue;
     if (author.isPrivate && viewerId !== story.authorId) {
       if (!viewerId) continue;
       const following = await prisma.follow.findUnique({
@@ -64,6 +66,9 @@ export async function viewStory(viewerId: string, storyId: string) {
   return prisma.$transaction(async (tx) => {
     const story = await tx.story.findFirst({ where: { id: storyId, expiresAt: { gt: new Date() } } });
     if (!story) throw new AppError("Story not found", 404);
+    if (!(await canSeeStories(viewerId, story.authorId))) {
+      throw new AppError("Story not available", 403);
+    }
     const exists = await tx.storyView.findUnique({ where: { storyId_viewerId: { storyId, viewerId } } });
     if (exists) return exists;
     const view = await tx.storyView.create({ data: { storyId, viewerId } });
@@ -74,5 +79,8 @@ export async function viewStory(viewerId: string, storyId: string) {
 export async function reactStory(userId: string, storyId: string, emoji: string) {
   const story = await prisma.story.findFirst({ where: { id: storyId, expiresAt: { gt: new Date() } } });
   if (!story) throw new AppError("Story not found", 404);
+  if (!(await canSeeStories(userId, story.authorId))) {
+    throw new AppError("Story not available", 403);
+  }
   return prisma.storyReaction.upsert({ where: { storyId_userId: { storyId, userId } }, create: { storyId, userId, emoji }, update: { emoji } });
 }

@@ -1,5 +1,6 @@
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { canComment } from "@/modules/messaging/services/privacy-gate";
 
 const include = { author: { select: { id: true, handle: true, name: true, image: true } } };
 export async function addComment(authorId: string, postId: string, body: string, parentId?: string) {
@@ -7,6 +8,9 @@ export async function addComment(authorId: string, postId: string, body: string,
   return prisma.$transaction(async (tx) => {
     const post = await tx.post.findFirst({ where: { id: postId, deletedAt: null, commentsEnabled: true } });
     if (!post) throw new AppError("Comments are unavailable", 404);
+    if (!(await canComment(authorId, post.authorId))) {
+      throw new AppError("You cannot comment on this post", 403);
+    }
     if (parentId) { const parent = await tx.comment.findFirst({ where: { id: parentId, postId, deletedAt: null } }); if (!parent) throw new AppError("Parent comment not found", 404); }
     const comment = await tx.comment.create({ data: { authorId, postId, body: body.trim(), parentId }, include });
     await tx.post.update({ where: { id: postId }, data: { commentCount: { increment: 1 } } });

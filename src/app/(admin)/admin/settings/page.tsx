@@ -33,7 +33,6 @@ type Settings = {
   registration?: {
     open?: boolean;
     inviteOnly?: boolean;
-    requireCaptcha?: boolean;
   };
   comments?: { enabled?: boolean; requireFollow?: boolean };
 };
@@ -183,19 +182,9 @@ export default function AdminSettingsPage() {
               />
               Invite only
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={Boolean(form.registration?.requireCaptcha)}
-                onChange={(e) =>
-                  setNested("registration", {
-                    ...form.registration,
-                    requireCaptcha: e.target.checked,
-                  })
-                }
-              />
-              Require captcha
-            </label>
+            <p className="text-xs text-[var(--muted-strong)]">
+              Bot protection uses honeypot fields and rate limits (no captcha provider wired).
+            </p>
             <Field label="Maintenance message">
               <input
                 className={inputClass}

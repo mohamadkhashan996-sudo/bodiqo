@@ -10,7 +10,7 @@
 ## Strongly recommended
 - `REDIS_URL` — rate limits + Socket.IO adapter
 - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` — web push
-- `TURN_URLS` / `TURN_USERNAME` / `TURN_CREDENTIAL` — calls on cellular
+- `TURN_URLS` / `TURN_CREDENTIAL` — TURN URLs + shared secret for time-limited WebRTC credentials (cellular/NAT)
 - `SESSION_DAYS` — JWT lifetime
 - OAuth client IDs/secrets you enable in admin
 

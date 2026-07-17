@@ -17,10 +17,16 @@ export async function GET(request: Request) {
     const downloadId = searchParams.get("download");
     if (downloadId) {
       const { backup, data } = await getBackupDownload(downloadId);
-      return new Response(data, {
+      const isDump = backup.path?.endsWith(".dump");
+      const filename = isDump
+        ? `backup-${backup.id}.dump`
+        : `backup-${backup.id}.json`;
+      return new Response(new Uint8Array(data), {
         headers: {
-          "Content-Type": "application/json",
-          "Content-Disposition": `attachment; filename="backup-${backup.id}.json"`,
+          "Content-Type": isDump
+            ? "application/octet-stream"
+            : "application/json",
+          "Content-Disposition": `attachment; filename="${filename}"`,
         },
       });
     }

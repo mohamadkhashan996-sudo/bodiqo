@@ -67,7 +67,6 @@ const settingsPatchSchema = z
       .object({
         open: z.boolean().optional(),
         inviteOnly: z.boolean().optional(),
-        requireCaptcha: z.boolean().optional(),
       })
       .strict()
       .optional(),

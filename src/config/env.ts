@@ -34,8 +34,8 @@ const productionSchema = baseSchema.extend({
   TWILIO_FROM: z.string().optional(),
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
-  TURN_HOST: z.string().optional(),
-  TURN_SECRET: z.string().optional(),
+  TURN_URLS: z.string().optional(),
+  TURN_CREDENTIAL: z.string().optional(),
 }).superRefine((env, ctx) => {
   if (env.SMS_PROVIDER === "twilio") {
     for (const key of ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM"] as const) {

@@ -23,19 +23,19 @@ type Privacy = Record<
   showTyping: boolean;
 };
 
-const labels: Record<keyof Privacy, string> = {
+const labels: Partial<Record<keyof Privacy, string>> = {
   whoCanFollow: "Who can follow me",
   whoCanMessage: "Who can message me",
   whoCanCall: "Who can call me",
   whoCanComment: "Who can comment",
-  whoCanMention: "Who can mention me",
-  whoCanTag: "Who can tag me",
   whoCanSeeStories: "Who can see my stories",
-  whoCanSeeActivity: "Who can see my activity",
   whoCanSeeOnline: "Who can see my online status",
   showReadReceipts: "Send read receipts",
   showTyping: "Show when I’m typing",
 };
+
+/** Settings that are enforced server-side today (mention/tag reserved for later). */
+const enforcedKeys = Object.keys(labels) as (keyof Privacy)[];
 
 const audiences: Audience[] = [
   "EVERYONE",
@@ -177,7 +177,7 @@ export default function PrivacySettingsPage() {
       </Card>
 
       <Card className="mt-6 overflow-hidden rounded-[2rem] p-0">
-        {(Object.keys(labels) as (keyof Privacy)[]).map((key) => (
+        {enforcedKeys.map((key) => (
           <div
             key={key}
             className="flex flex-col gap-3 border-b-2 border-[var(--mist-strong)] p-5 last:border-0 sm:flex-row sm:items-center sm:justify-between"
