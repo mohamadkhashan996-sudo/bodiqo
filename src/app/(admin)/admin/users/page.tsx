@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AdminPageHeader,
   Panel,
@@ -21,10 +22,13 @@ type UserRow = {
   createdAt: string;
 };
 
-export default function AdminUsersPage() {
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
+function UsersPageInner() {
+  const searchParams = useSearchParams();
+  const [q, setQ] = useState(searchParams.get("q") ?? "");
+  const [status, setStatus] = useState(searchParams.get("status") ?? "");
+  const [selected, setSelected] = useState<string | null>(
+    searchParams.get("focus"),
+  );
   const [message, setMessage] = useState<string | null>(null);
   const url = useMemo(() => {
     const p = new URLSearchParams();
@@ -36,8 +40,16 @@ export default function AdminUsersPage() {
   const [detailData, setDetailData] = useState<{
     user: UserRow & { bio?: string; warningCount: number };
     notes: Array<{ body: string; createdAt: string }>;
-    loginHistory: Array<{ success: boolean; ip: string | null; createdAt: string }>;
-    devices: Array<{ deviceLabel: string | null; ip: string | null; lastActiveAt: string }>;
+    loginHistory: Array<{
+      success: boolean;
+      ip: string | null;
+      createdAt: string;
+    }>;
+    devices: Array<{
+      deviceLabel: string | null;
+      ip: string | null;
+      lastActiveAt: string;
+    }>;
   } | null>(null);
 
   async function loadDetail(userId: string) {
@@ -46,10 +58,20 @@ export default function AdminUsersPage() {
     setDetailData(res);
   }
 
+  useEffect(() => {
+    const focus = searchParams.get("focus");
+    if (focus) void loadDetail(focus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate detail from URL focus
+  }, [searchParams]);
+
   async function act(action: string, extra: Record<string, unknown> = {}) {
     if (!selected) return;
     try {
-      await adminPost("/api/admin/users", { userId: selected, action, ...extra });
+      await adminPost("/api/admin/users", {
+        userId: selected,
+        action,
+        ...extra,
+      });
       setMessage(`Action ${action} completed`);
       await reload();
       await loadDetail(selected);
@@ -61,7 +83,7 @@ export default function AdminUsersPage() {
   return (
     <div>
       <AdminPageHeader
-        title="User management"
+        title="Users"
         subtitle="Search, filter, edit, suspend, ban, verify, and review history."
       />
       <div className="mb-4 flex flex-wrap gap-3">
@@ -83,7 +105,9 @@ export default function AdminUsersPage() {
           <option value="BANNED">Banned</option>
         </select>
       </div>
-      {message ? <p className="mb-3 text-sm text-[var(--signal-deep)]">{message}</p> : null}
+      {message ? (
+        <p className="mb-3 text-sm text-[var(--signal-deep)]">{message}</p>
+      ) : null}
       {loading ? <p className="text-sm text-[var(--muted)]">Loading…</p> : null}
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}
 
@@ -103,7 +127,11 @@ export default function AdminUsersPage() {
                 <tr
                   key={u.id}
                   onClick={() => void loadDetail(u.id)}
-                  className={`cursor-pointer border-t-2 border-[var(--mist-strong)] ${selected === u.id ? "bg-[var(--signal)]/15" : "hover:bg-[var(--surface)]"}`}
+                  className={`cursor-pointer border-t-2 border-[var(--mist-strong)] ${
+                    selected === u.id
+                      ? "bg-[var(--signal)]/15"
+                      : "hover:bg-[var(--surface)]"
+                  }`}
                 >
                   <td className="py-3">
                     <div className="font-medium">
@@ -125,7 +153,9 @@ export default function AdminUsersPage() {
 
         <Panel>
           {!selected ? (
-            <p className="text-sm text-[var(--muted)]">Select a user to manage.</p>
+            <p className="text-sm text-[var(--muted)]">
+              Select a user to manage.
+            </p>
           ) : !detailData ? (
             <p className="text-sm text-[var(--muted)]">Loading detail…</p>
           ) : (
@@ -135,7 +165,8 @@ export default function AdminUsersPage() {
                   {detailData.user.displayName || detailData.user.handle}
                 </h2>
                 <p className="text-xs text-[var(--muted)]">
-                  {detailData.user.email} · warnings {detailData.user.warningCount}
+                  {detailData.user.email} · warnings{" "}
+                  {detailData.user.warningCount}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -153,7 +184,12 @@ export default function AdminUsersPage() {
                     key={action}
                     type="button"
                     onClick={() =>
-                      void act(action, action === "ban" ? { permanent: false, reason: "Policy" } : {})
+                      void act(
+                        action,
+                        action === "ban"
+                          ? { permanent: false, reason: "Policy" }
+                          : {},
+                      )
                     }
                     className="rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-1.5 text-xs hover:border-[var(--ink)]"
                   >
@@ -162,7 +198,12 @@ export default function AdminUsersPage() {
                 ))}
                 <button
                   type="button"
-                  onClick={() => void act("ban", { permanent: true, reason: "Permanent ban" })}
+                  onClick={() =>
+                    void act("ban", {
+                      permanent: true,
+                      reason: "Permanent ban",
+                    })
+                  }
                   className="rounded-full bg-[var(--ember)] px-3 py-1.5 text-xs text-white"
                 >
                   Permanent ban
@@ -190,7 +231,9 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    const password = window.prompt("New temporary password (min 8)");
+                    const password = window.prompt(
+                      "New temporary password (min 8)",
+                    );
                     if (password) void act("reset_password", { password });
                   }}
                   className="rounded-full border-2 border-[var(--mist-strong)] px-3 py-1.5 text-xs"
@@ -199,10 +242,15 @@ export default function AdminUsersPage() {
                 </button>
               </div>
               <div>
-                <h3 className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">Notes</h3>
+                <h3 className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+                  Notes
+                </h3>
                 <ul className="mt-2 space-y-2 text-sm">
                   {detailData.notes.map((n, i) => (
-                    <li key={i} className="rounded-xl bg-[var(--surface)] px-3 py-2">
+                    <li
+                      key={i}
+                      className="rounded-xl bg-[var(--surface)] px-3 py-2"
+                    >
                       {n.body}
                     </li>
                   ))}
@@ -239,5 +287,13 @@ export default function AdminUsersPage() {
         </Panel>
       </div>
     </div>
+  );
+}
+
+export default function AdminUsersPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+      <UsersPageInner />
+    </Suspense>
   );
 }

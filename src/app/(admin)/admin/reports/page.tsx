@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   AdminPageHeader,
   Panel,
@@ -31,7 +32,7 @@ function targetHref(type: string, id: string) {
     case "COMMENT":
       return `/admin/content?kind=comments`;
     case "COMMUNITY":
-      return `/communities`;
+      return `/admin/content?kind=communities`;
     case "MESSAGE":
       return `/messages`;
     default:
@@ -39,9 +40,10 @@ function targetHref(type: string, id: string) {
   }
 }
 
-export default function AdminReportsPage() {
-  const [status, setStatus] = useState("OPEN");
-  const [category, setCategory] = useState("");
+function ReportsPageInner() {
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState(searchParams.get("status") ?? "OPEN");
+  const [category, setCategory] = useState(searchParams.get("category") ?? "");
   const [msg, setMsg] = useState<string | null>(null);
   const qs = new URLSearchParams();
   if (status) qs.set("status", status);
@@ -131,14 +133,19 @@ export default function AdminReportsPage() {
                   <p className="mt-1 text-sm text-[var(--muted)]">
                     by @{r.reporter.handle || "user"} ·{" "}
                     {href ? (
-                      <Link href={href} className="text-[var(--signal-deep)] underline">
+                      <Link
+                        href={href}
+                        className="text-[var(--signal-deep)] underline"
+                      >
                         Open target
                       </Link>
                     ) : (
                       <span>target {r.targetId}</span>
                     )}
                   </p>
-                  {r.details ? <p className="mt-2 text-sm">{r.details}</p> : null}
+                  {r.details ? (
+                    <p className="mt-2 text-sm">{r.details}</p>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -187,21 +194,32 @@ export default function AdminReportsPage() {
                       Delete comment
                     </button>
                   ) : null}
-                  {r.targetType === "USER" ? (
-                    <button
-                      type="button"
-                      className="rounded-full border border-[var(--ember)]/40 px-3 py-1.5 text-xs text-[var(--ember)]"
-                      onClick={() => void act(r.id, "ban_user")}
-                    >
-                      Ban user
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className="rounded-full border border-[var(--ember)]/40 px-3 py-1.5 text-xs text-[var(--ember)]"
+                    onClick={() => void act(r.id, "ban_user")}
+                  >
+                    Ban user
+                  </button>
                 </div>
               </div>
             </Panel>
           );
         })}
+        {!loading && !data?.reports.length ? (
+          <p className="text-sm text-[var(--muted)]">
+            No reports in this filter.
+          </p>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+export default function AdminReportsPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+      <ReportsPageInner />
+    </Suspense>
   );
 }

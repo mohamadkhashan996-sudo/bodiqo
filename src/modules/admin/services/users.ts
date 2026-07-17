@@ -47,16 +47,21 @@ const userSelect = {
 
 export async function listUsers(opts: {
   q?: string;
-  status?: AccountStatus;
+  status?: AccountStatus | AccountStatus[];
   role?: Role;
   verified?: boolean;
   take?: number;
   cursor?: string;
 }) {
   const take = Math.min(opts.take ?? 40, 100);
-  const where: Prisma.UserWhereInput = {
-    status: opts.status ?? { not: "DELETED" },
-  };
+  const where: Prisma.UserWhereInput = {};
+  if (Array.isArray(opts.status)) {
+    where.status = { in: opts.status };
+  } else if (opts.status) {
+    where.status = opts.status;
+  } else {
+    where.status = { not: "DELETED" };
+  }
   if (opts.role) where.role = opts.role;
   if (opts.verified !== undefined) where.isVerified = opts.verified;
   if (opts.q) {

@@ -28,11 +28,12 @@ function fmtBytes(n: number) {
 
 const shortcuts = [
   { href: "/admin/users", label: "Users" },
-  { href: "/admin/content", label: "Posts" },
-  { href: "/admin/moderation", label: "Moderation" },
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/analytics", label: "Analytics" },
-  { href: "/admin/settings", label: "Settings" },
+  { href: "/admin/moderation", label: "Moderation" },
+  { href: "/admin/banned", label: "Banned users" },
+  { href: "/admin/content", label: "Content review" },
+  { href: "/admin/settings", label: "System settings" },
 ];
 
 export default function AdminOverviewPage() {
@@ -70,6 +71,14 @@ export default function AdminOverviewPage() {
             <StatCard label="Communities" value={data.totals.communities} />
             <StatCard label="Messages" value={data.totals.messages} />
             <StatCard label="Open reports" value={data.totals.openReports} />
+            <StatCard
+              label="Banned users"
+              value={data.totals.bannedUsers ?? 0}
+            />
+            <StatCard
+              label="Suspended"
+              value={data.totals.suspendedUsers ?? 0}
+            />
             <StatCard
               label="Verification queue"
               value={data.totals.verificationPending}

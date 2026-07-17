@@ -23,9 +23,19 @@ export async function GET(request: Request) {
     await guardApiAbuse(request, "admin:users");
     await requireStaff("users:read");
     const { searchParams } = new URL(request.url);
+    const statusParam = searchParams.get("status");
+    const statuses = statusParam
+      ? (statusParam
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean) as AccountStatus[])
+      : undefined;
     const users = await listUsers({
       q: searchParams.get("q") ?? undefined,
-      status: (searchParams.get("status") as AccountStatus) || undefined,
+      status:
+        statuses && statuses.length > 1
+          ? statuses
+          : statuses?.[0] || undefined,
       role: (searchParams.get("role") as Role) || undefined,
       verified:
         searchParams.get("verified") === null

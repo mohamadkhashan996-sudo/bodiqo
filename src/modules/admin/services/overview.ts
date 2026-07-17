@@ -32,6 +32,8 @@ export async function getDashboardOverview() {
       totalCommunities,
       totalMessages,
       openReports,
+      bannedUsers,
+      suspendedUsers,
       verificationPending,
       mediaBytes,
       dailyPosts,
@@ -65,6 +67,8 @@ export async function getDashboardOverview() {
       prisma.community.count(),
       prisma.message.count({ where: { deletedForAll: false } }),
       prisma.report.count({ where: { status: { in: ["OPEN", "IN_REVIEW"] } } }),
+      prisma.user.count({ where: { status: "BANNED" } }),
+      prisma.user.count({ where: { status: "SUSPENDED" } }),
       prisma.verificationRequest.count({ where: { status: "PENDING" } }),
       prisma.mediaAsset.aggregate({
         _sum: { sizeBytes: true },
@@ -90,6 +94,8 @@ export async function getDashboardOverview() {
         communities: totalCommunities,
         messages: totalMessages,
         openReports,
+        bannedUsers,
+        suspendedUsers,
         verificationPending,
       },
       activity: {

@@ -222,6 +222,42 @@ export async function moderateCommunity(
   return updated;
 }
 
+async function resolveReportTargetUserId(report: {
+  targetType: ReportTarget;
+  targetId: string;
+}) {
+  if (report.targetType === "USER") return report.targetId;
+  if (report.targetType === "POST") {
+    const post = await prisma.post.findUnique({
+      where: { id: report.targetId },
+      select: { authorId: true },
+    });
+    return post?.authorId ?? null;
+  }
+  if (report.targetType === "COMMENT") {
+    const comment = await prisma.comment.findUnique({
+      where: { id: report.targetId },
+      select: { authorId: true },
+    });
+    return comment?.authorId ?? null;
+  }
+  if (report.targetType === "STORY") {
+    const story = await prisma.story.findUnique({
+      where: { id: report.targetId },
+      select: { authorId: true },
+    });
+    return story?.authorId ?? null;
+  }
+  if (report.targetType === "COMMUNITY") {
+    const community = await prisma.community.findUnique({
+      where: { id: report.targetId },
+      select: { ownerId: true },
+    });
+    return community?.ownerId ?? null;
+  }
+  return null;
+}
+
 export async function resolveReportWithAction(
   actorId: string,
   actorRole: import("@prisma/client").Role,
@@ -236,9 +272,13 @@ export async function resolveReportWithAction(
     outcome = await moderatePost(actorId, report.targetId, "delete");
   } else if (action === "delete_comment" && report.targetType === "COMMENT") {
     outcome = await moderateComment(actorId, report.targetId, "delete");
-  } else if (action === "ban_user" && report.targetType === "USER") {
+  } else if (action === "ban_user") {
+    const targetUserId = await resolveReportTargetUserId(report);
+    if (!targetUserId) {
+      throw new AppError("Could not resolve user for this report", 400);
+    }
     const { banUser } = await import("./users");
-    outcome = await banUser(actorId, actorRole, report.targetId, {
+    outcome = await banUser(actorId, actorRole, targetUserId, {
       permanent: false,
       reason: `Banned from report ${reportId}: ${report.reason}`,
     });
@@ -253,6 +293,48 @@ export async function resolveReportWithAction(
   });
 
   return { report: updated, outcome };
+}
+
+export async function getModerationSummary() {
+  const [
+    open,
+    inReview,
+    escalated,
+    bannedUsers,
+    suspendedUsers,
+    deletedPosts,
+    recentReports,
+  ] = await Promise.all([
+    prisma.report.count({ where: { status: "OPEN" } }),
+    prisma.report.count({ where: { status: "IN_REVIEW" } }),
+    prisma.report.count({ where: { status: "ESCALATED" } }),
+    prisma.user.count({ where: { status: "BANNED" } }),
+    prisma.user.count({ where: { status: "SUSPENDED" } }),
+    prisma.post.count({ where: { status: "DELETED" } }),
+    prisma.report.findMany({
+      where: { status: { in: ["OPEN", "IN_REVIEW", "ESCALATED"] } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      include: {
+        reporter: {
+          select: { id: true, handle: true, displayName: true, image: true },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    counts: {
+      open,
+      inReview,
+      escalated,
+      bannedUsers,
+      suspendedUsers,
+      deletedPosts,
+      queue: open + inReview + escalated,
+    },
+    recentReports,
+  };
 }
 
 export async function listHashtags(take = 40) {

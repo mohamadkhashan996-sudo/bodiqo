@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   AdminPageHeader,
   Panel,
@@ -9,9 +10,24 @@ import {
   useAdminJson,
 } from "@/components/admin/admin-ui";
 
-export default function AdminContentPage() {
-  const [kind, setKind] = useState("posts");
-  const [q, setQ] = useState("");
+const KINDS = [
+  "posts",
+  "videos",
+  "stories",
+  "comments",
+  "communities",
+  "deleted",
+] as const;
+
+function ContentPageInner() {
+  const searchParams = useSearchParams();
+  const initialKind = searchParams.get("kind");
+  const [kind, setKind] = useState(
+    KINDS.includes(initialKind as (typeof KINDS)[number])
+      ? (initialKind as string)
+      : "posts",
+  );
+  const [q, setQ] = useState(searchParams.get("q") ?? "");
   const qs = new URLSearchParams({ kind });
   if (q.trim()) qs.set("q", q.trim());
   const { data, loading, error, reload } = useAdminJson<{
@@ -27,26 +43,24 @@ export default function AdminContentPage() {
   return (
     <div>
       <AdminPageHeader
-        title="Posts & content"
+        title="Content review"
         subtitle="Moderate posts, videos, stories, comments, communities, and deleted items."
       />
       <div className="mb-4 flex flex-wrap gap-2">
-        {["posts", "videos", "stories", "comments", "communities", "deleted"].map(
-          (k) => (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setKind(k)}
-              className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide ${
-                kind === k
-                  ? "bg-[var(--ink)] text-[var(--cloud)]"
-                  : "border-2 border-[var(--mist-strong)] bg-[var(--surface)]"
-              }`}
-            >
-              {k}
-            </button>
-          ),
-        )}
+        {KINDS.map((k) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => setKind(k)}
+            className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide ${
+              kind === k
+                ? "bg-[var(--ink)] text-[var(--cloud)]"
+                : "border-2 border-[var(--mist-strong)] bg-[var(--surface)]"
+            }`}
+          >
+            {k}
+          </button>
+        ))}
       </div>
       <div className="mb-4">
         <input
@@ -202,5 +216,13 @@ export default function AdminContentPage() {
         </Panel>
       </div>
     </div>
+  );
+}
+
+export default function AdminContentPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+      <ContentPageInner />
+    </Suspense>
   );
 }
