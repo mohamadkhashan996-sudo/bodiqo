@@ -20,3 +20,9 @@ export function maskPhone(phone: string) {
   if (phone.length < 6) return phone;
   return `${phone.slice(0, 3)}•••${phone.slice(-3)}`;
 }
+
+/** Stable placeholder email for phone-only accounts (email column is required). */
+export function phoneAccountEmail(phone: string) {
+  const digits = normalizePhone(phone).replace(/\D/g, "");
+  return `phone+${digits}@phone.relune.local`;
+}

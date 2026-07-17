@@ -37,6 +37,16 @@ export async function issuePhoneOtp(opts: {
     throw new AppError("Too many SMS requests. Try again shortly.", 429);
   }
 
+  if (opts.purpose === "REGISTER") {
+    const existing = await prisma.user.findFirst({
+      where: { phone, status: { not: "DELETED" } },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new AppError("Phone number already registered", 409);
+    }
+  }
+
   // LOGIN OTPs must target an existing account to reduce toll fraud.
   if (opts.purpose === "LOGIN") {
     const existing = await prisma.user.findFirst({

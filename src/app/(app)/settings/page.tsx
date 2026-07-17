@@ -126,12 +126,16 @@ export default function SettingsPage() {
   }
 
   async function lifecycle(action: "deactivate" | "delete") {
-    const password = window.prompt(
-      action === "delete"
-        ? "Enter your password to permanently delete your account"
-        : "Enter your password to deactivate your account",
-    );
-    if (password === null) return;
+    let password: string | undefined;
+    if (hasPassword) {
+      const entered = window.prompt(
+        action === "delete"
+          ? "Enter your password to permanently delete your account"
+          : "Enter your password to deactivate your account",
+      );
+      if (entered === null) return;
+      password = entered;
+    }
     if (action === "delete") {
       const confirm = window.prompt('Type DELETE to confirm permanent deletion');
       if (confirm !== "DELETE") return;

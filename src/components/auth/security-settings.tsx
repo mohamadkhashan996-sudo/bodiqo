@@ -29,6 +29,7 @@ export function SecuritySettings({
   const [debugCode, setDebugCode] = useState<string | null>(null);
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew] = useState("");
+  const [replacePassword, setReplacePassword] = useState("");
   const [e2eReady, setE2eReady] = useState(false);
   const [e2eBusy, setE2eBusy] = useState(false);
 
@@ -49,10 +50,18 @@ export function SecuritySettings({
 
   async function setup2fa() {
     setMsg(null);
+    const body: { password?: string } = {};
+    if (twoFactorEnabled) {
+      if (!replacePassword) {
+        setMsg("Enter your password to replace the authenticator.");
+        return;
+      }
+      body.password = replacePassword;
+    }
     const res = await fetch("/api/auth/2fa/setup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify(body),
     });
     const d = await res.json();
     if (!res.ok) {
@@ -62,6 +71,7 @@ export function SecuritySettings({
     setSecret(d.secret ?? "");
     setOtpauthUrl(d.otpauthUrl ?? "");
     setQrDataUrl(d.qrDataUrl ?? "");
+    setReplacePassword("");
   }
 
   async function enable2fa() {
@@ -262,6 +272,16 @@ export function SecuritySettings({
           {" · "}Authenticator secrets are encrypted at rest
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
+          {twoFactorEnabled && !secret ? (
+            <input
+              value={replacePassword}
+              onChange={(e) => setReplacePassword(e.target.value)}
+              type="password"
+              placeholder="Password to replace authenticator"
+              autoComplete="current-password"
+              className="min-w-[12rem] flex-1 rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm"
+            />
+          ) : null}
           <Button type="button" onClick={() => void setup2fa()}>
             {twoFactorEnabled ? "Replace authenticator" : "Set up 2FA"}
           </Button>

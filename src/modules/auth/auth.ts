@@ -412,9 +412,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           (user as { sessionVersion?: number }).sessionVersion ?? 0;
         const remember = (user as { remember?: boolean }).remember;
         token.remember = remember !== false;
-        if (remember === false) {
-          token.exp = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
-        }
+        const policy = await getAuthSecurityPolicy();
+        const sessionSeconds =
+          (remember === false ? 1 : policy.sessionDays) * 24 * 60 * 60;
+        token.exp = Math.floor(Date.now() / 1000) + sessionSeconds;
 
         const meta = await requestMeta();
         const provider = account?.provider ?? "credentials";
@@ -431,6 +432,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       } else if (token.remember === false) {
         const max = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
         if (typeof token.exp !== "number" || token.exp > max) {
+          token.exp = max;
+        }
+      } else if (typeof token.exp === "number") {
+        const policy = await getAuthSecurityPolicy();
+        const max = Math.floor(Date.now() / 1000) + policy.sessionDays * 24 * 60 * 60;
+        if (token.exp > max) {
           token.exp = max;
         }
       }

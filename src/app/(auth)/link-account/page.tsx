@@ -64,9 +64,27 @@ function LinkAccountForm() {
       }
 
       if (password) {
-        const result = await signIn("credentials", {
-          email,
-          password,
+        const pre = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const loginData = await pre.json().catch(() => ({}));
+        if (!pre.ok) {
+          setError(loginData.error || "Accounts linked. Please sign in to continue.");
+          setLoading(false);
+          router.push("/sign-in");
+          return;
+        }
+        if (loginData.requires2fa) {
+          setLoading(false);
+          router.push(
+            `/sign-in/2fa?token=${encodeURIComponent(loginData.token)}&callbackUrl=${encodeURIComponent("/settings#accounts")}`,
+          );
+          return;
+        }
+        const result = await signIn("challenge", {
+          token: loginData.token,
           remember: "true",
           redirect: false,
         });
@@ -78,6 +96,7 @@ function LinkAccountForm() {
         }
       }
 
+      setLoading(false);
       router.push("/settings#accounts");
       router.refresh();
     } catch {

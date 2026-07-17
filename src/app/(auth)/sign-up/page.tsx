@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageTransition } from "@/components/motion/primitives";
 import { safeCallbackUrl } from "@/lib/guest/paths";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ type ProviderRow = {
 type Mode = "main" | "email" | "phone";
 
 function SignUpForm() {
+  const router = useRouter();
   const params = useSearchParams();
   const callbackUrl = safeCallbackUrl(params.get("callbackUrl") ?? params.get("next"));
   const [mode, setMode] = useState<Mode>("main");
@@ -35,6 +36,11 @@ function SignUpForm() {
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneName, setPhoneName] = useState("");
+  const [phoneHandle, setPhoneHandle] = useState("");
+  const [phoneStep, setPhoneStep] = useState<"details" | "code">("details");
+  const [phoneCode, setPhoneCode] = useState("");
+  const [phoneDebugCode, setPhoneDebugCode] = useState<string | null>(null);
   const [checkEmail, setCheckEmail] = useState<string | null>(null);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
   const [devVerifyUrl, setDevVerifyUrl] = useState<string | null>(null);
@@ -99,6 +105,73 @@ function SignUpForm() {
       setResendState("idle");
       setError("Could not resend verification email.");
     }
+  }
+
+  async function sendPhoneRegisterCode(e: FormEvent) {
+    e.preventDefault();
+    if (!phoneName.trim() || phoneName.trim().length < 2) {
+      setError("Enter your name.");
+      return;
+    }
+    if (!/^[a-z0-9_.]{3,24}$/.test(phoneHandle.trim().toLowerCase().replace(/^@+/, ""))) {
+      setError("Handle must be 3–24 characters (letters, numbers, _, .).");
+      return;
+    }
+    if (!isValidE164(phone)) {
+      setError("Enter a valid phone number for the selected country.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setPhoneDebugCode(null);
+    const res = await fetch("/api/auth/phone/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, purpose: "REGISTER" }),
+    });
+    const data = await res.json();
+    setLoading(false);
+    if (!res.ok) {
+      setError(data.error || "Could not send code.");
+      return;
+    }
+    if (data.debugCode) setPhoneDebugCode(data.debugCode);
+    setPhoneStep("code");
+  }
+
+  async function completePhoneRegister(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const res = await fetch("/api/auth/phone/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: phoneName.trim(),
+        handle: phoneHandle.trim().toLowerCase().replace(/^@+/, ""),
+        phone,
+        code: phoneCode,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setLoading(false);
+      setError(data.error || "Could not create account.");
+      return;
+    }
+    const result = await signIn("challenge", {
+      token: data.token,
+      remember: "true",
+      redirect: false,
+    });
+    setLoading(false);
+    if (result?.error) {
+      setError("Account created. Please sign in with your phone.");
+      router.push("/sign-in");
+      return;
+    }
+    router.push(callbackUrl || "/onboarding");
+    router.refresh();
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -321,52 +394,103 @@ function SignUpForm() {
             onClick={() => {
               setMode("main");
               setPhone("");
+              setPhoneName("");
+              setPhoneHandle("");
+              setPhoneStep("details");
+              setPhoneCode("");
+              setPhoneDebugCode(null);
               setError(null);
             }}
           >
             ← All sign-up methods
           </button>
-          <label className="block">
-            <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-              Phone number
-            </span>
-            <PhoneInput
-              value={phone}
-              onChange={setPhone}
-              required
-              autoFocus
-              className="mt-2"
-            />
-          </label>
-          <p className="text-sm leading-6 text-[var(--muted)]">
-            Enter your mobile number with country code. SMS verification will be
-            enabled once an SMS provider is configured.
-          </p>
-          {error ? (
-            <StateBanner
-              tone={
-                error.includes("Configure SMS") ? "warning" : "error"
-              }
-            >
-              {error}
-            </StateBanner>
-          ) : null}
-          <Button
-            type="button"
-            disabled={!isValidE164(phone)}
-            className="w-full py-3.5 text-[11px]"
-            onClick={() => {
-              if (!isValidE164(phone)) {
-                setError("Enter a valid phone number for the selected country.");
-                return;
-              }
-              setError(
-                "Phone number looks valid. Configure SMS (Twilio) before OTP sign-up can continue.",
-              );
-            }}
-          >
-            Continue
-          </Button>
+          {phoneStep === "details" ? (
+            <form onSubmit={sendPhoneRegisterCode} className="space-y-4">
+              <label className="block">
+                <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Name
+                </span>
+                <Input
+                  value={phoneName}
+                  onChange={(e) => setPhoneName(e.target.value)}
+                  required
+                  minLength={2}
+                  autoFocus
+                  className="mt-2"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Handle
+                </span>
+                <Input
+                  value={phoneHandle}
+                  onChange={(e) => setPhoneHandle(e.target.value)}
+                  required
+                  minLength={3}
+                  maxLength={24}
+                  placeholder="yourname"
+                  className="mt-2"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Phone number
+                </span>
+                <PhoneInput
+                  value={phone}
+                  onChange={setPhone}
+                  required
+                  className="mt-2"
+                />
+              </label>
+              <p className="text-sm leading-6 text-[var(--muted)]">
+                We&apos;ll text you a one-time code to verify your number.
+              </p>
+              {error ? <StateBanner tone="error">{error}</StateBanner> : null}
+              <Button type="submit" disabled={loading} className="w-full py-3.5 text-[11px]">
+                {loading ? "Sending…" : "Send verification code"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={completePhoneRegister} className="space-y-4">
+              <p className="text-sm text-[var(--muted)]">
+                Enter the code sent to {phone}.
+              </p>
+              {phoneDebugCode ? (
+                <p className="text-xs text-[var(--signal-deep)]">Dev code: {phoneDebugCode}</p>
+              ) : null}
+              <label className="block">
+                <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                  Verification code
+                </span>
+                <Input
+                  value={phoneCode}
+                  onChange={(e) => setPhoneCode(e.target.value)}
+                  required
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  className="mt-2"
+                />
+              </label>
+              {error ? <StateBanner tone="error">{error}</StateBanner> : null}
+              <Button type="submit" disabled={loading} className="w-full py-3.5 text-[11px]">
+                {loading ? "Creating…" : "Create account"}
+              </Button>
+              <button
+                type="button"
+                className="text-xs text-[var(--muted)] hover:underline"
+                onClick={() => {
+                  setPhoneStep("details");
+                  setPhoneCode("");
+                  setError(null);
+                }}
+              >
+                Change phone number
+              </button>
+            </form>
+          )}
         </div>
       ) : null}
 

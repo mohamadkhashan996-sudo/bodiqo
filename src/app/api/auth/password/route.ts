@@ -36,6 +36,10 @@ export async function POST(request: Request) {
       where: { id: user.id },
       data: { passwordHash, passwordChangedAt: new Date() },
     });
+    await prisma.deviceSession.updateMany({
+      where: { userId: user.id },
+      data: { revokedAt: new Date() },
+    });
     await bumpSessionVersion(user.id);
     await sendSecurityAlert(
       user.id,
