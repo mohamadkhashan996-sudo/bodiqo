@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { cached } from "@/lib/cache";
+import { rankPosts } from "@/modules/feed/services/rank";
 
 export async function getSmartRecommendations(userId: string) {
   return cached(`reco:${userId}`, 45, async () => {
@@ -24,6 +25,8 @@ export async function getSmartRecommendations(userId: string) {
     const likedAuthorIds = likes.map((l) => l.post.authorId);
     const interestNames = interests.map((i) => i.interest.name.toLowerCase());
     const exclude = [userId, ...followingIds];
+    const followingSet = new Set(followingIds);
+    const windowStart = new Date(Date.now() - 21 * 24 * 60 * 60_000);
 
     const creators = await prisma.user.findMany({
       where: {
@@ -47,24 +50,28 @@ export async function getSmartRecommendations(userId: string) {
       where: {
         status: "PUBLISHED",
         visibility: "PUBLIC",
-        authorId: { not: userId },
+        publishedAt: { gte: windowStart },
+        authorId: { notIn: exclude },
+        author: { status: "ACTIVE", isPrivate: false },
         ...(interestNames.length
           ? {
               OR: interestNames.map((name) => ({
-                body: { contains: name },
+                body: { contains: name, mode: "insensitive" as const },
               })),
             }
           : {}),
       },
-      take: 20,
-      orderBy: [{ likeCount: "desc" }, { createdAt: "desc" }],
+      take: 40,
+      orderBy: [{ likeCount: "desc" }, { publishedAt: "desc" }],
       include: {
         author: {
           select: {
+            id: true,
             handle: true,
             displayName: true,
             image: true,
             isVerified: true,
+            isOfficial: true,
           },
         },
         media: true,
@@ -78,24 +85,33 @@ export async function getSmartRecommendations(userId: string) {
             where: {
               status: "PUBLISHED",
               visibility: "PUBLIC",
+              publishedAt: { gte: windowStart },
               authorId: { not: userId },
+              author: { status: "ACTIVE", isPrivate: false },
             },
-            take: 20,
-            orderBy: [{ likeCount: "desc" }, { createdAt: "desc" }],
+            take: 40,
+            orderBy: [{ likeCount: "desc" }, { publishedAt: "desc" }],
             include: {
               author: {
                 select: {
+                  id: true,
                   handle: true,
                   displayName: true,
                   image: true,
                   isVerified: true,
+                  isOfficial: true,
                 },
               },
               media: true,
             },
           });
 
-    const videos = fallbackPosts
+    const ranked = rankPosts(fallbackPosts, {
+      followingIds: followingSet,
+      interestTerms: interestNames,
+    }).slice(0, 20);
+
+    const videos = ranked
       .filter((p) => p.type === "VIDEO" || p.type === "SHORT")
       .slice(0, 8);
 
@@ -133,7 +149,7 @@ export async function getSmartRecommendations(userId: string) {
 
     return {
       userId,
-      posts: fallbackPosts,
+      posts: ranked,
       videos,
       creators,
       friends,

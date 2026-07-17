@@ -11,6 +11,7 @@ import {
   getAuthorWorkspacePosts,
   getFeed,
   getPostsByHandle,
+  type FeedMode,
 } from "@/modules/feed/services/posts";
 import { MediaKind, PostStatus, PostType, PostVisibility } from "@prisma/client";
 import { z } from "zod";
@@ -45,6 +46,14 @@ const schema = z.object({
     .optional(),
 });
 
+const feedModes = z.enum([
+  "home",
+  "following",
+  "latest",
+  "trending",
+  "foryou",
+]);
+
 export async function GET(r: Request) {
   try {
     const u = await optionalUser();
@@ -64,11 +73,14 @@ export async function GET(r: Request) {
     if (author) {
       return ok(await getPostsByHandle(author, Number(q.get("limit") ?? 30), u?.id));
     }
+    const mode = (feedModes.safeParse(q.get("mode") ?? "home").data ??
+      "home") as FeedMode;
     return ok(
       await getFeed({
         userId: u?.id,
         cursor: q.get("cursor") ?? undefined,
         limit: Number(q.get("limit") ?? 20),
+        mode,
       }),
     );
   } catch (e) {

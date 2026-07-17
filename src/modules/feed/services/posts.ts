@@ -1,13 +1,17 @@
 import { MediaKind, PostStatus, PostType, PostVisibility } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { cached, cacheDelPrefix } from "@/lib/cache";
 import { extractHashtags, extractMentions } from "@/lib/post-text";
 import { createNotification } from "@/modules/notifications/services/notify";
+import { rankPosts } from "@/modules/feed/services/rank";
 import {
   canViewPostContent,
   filterVisiblePostIds,
   getProfileVisibility,
 } from "@/modules/users/services/visibility";
+
+export type FeedMode = "home" | "following" | "latest" | "trending" | "foryou";
 
 const include = {
   author: {
@@ -176,6 +180,9 @@ export async function createPost(
   if (status === "PUBLISHED" && mentions.length) {
     await notifyMentions(authorId, post.id, mentions);
   }
+  if (status === "PUBLISHED") {
+    await invalidateFeedCaches().catch(() => undefined);
+  }
 
   return post;
 }
@@ -293,28 +300,87 @@ export async function getFeed({
   userId,
   cursor,
   limit = 20,
+  mode = "home",
 }: {
   userId?: string;
   cursor?: string;
   limit?: number;
+  mode?: FeedMode;
 }) {
   const take = Math.min(Math.max(limit, 1), 50);
   const hidden = userId ? await hiddenAuthorIds(userId) : [];
 
   let followingIds: string[] = [];
+  let interestTerms: string[] = [];
   if (userId) {
-    const following = await prisma.follow.findMany({
-      where: { followerId: userId },
-      select: { followingId: true },
-    });
+    const [following, interests] = await Promise.all([
+      prisma.follow.findMany({
+        where: { followerId: userId },
+        select: { followingId: true },
+      }),
+      mode === "home" || mode === "foryou" || mode === "trending"
+        ? prisma.userInterest.findMany({
+            where: { userId },
+            include: { interest: { select: { name: true } } },
+          })
+        : Promise.resolve([]),
+    ]);
     followingIds = following.map((f) => f.followingId);
+    interestTerms = interests.map((row) => row.interest.name.toLowerCase());
   }
 
-  const posts = await prisma.post.findMany({
-    where: {
+  const followingSet = new Set(followingIds);
+  const windowStart = new Date(Date.now() - 14 * 24 * 60 * 60_000);
+
+  // Ranked modes over-fetch a candidate window, then score + page in memory.
+  const ranked = mode === "trending" || mode === "foryou";
+  const candidateTake = ranked ? Math.min(take * 4, 80) : take + 1;
+
+  let where: Record<string, unknown> = {
+    status: "PUBLISHED",
+    deletedAt: null,
+    authorId: hidden.length ? { notIn: hidden } : undefined,
+  };
+
+  if (mode === "following") {
+    if (!userId) {
+      return { posts: [], nextCursor: null, mode };
+    }
+    const blocked = new Set(hidden);
+    const authors = [...followingIds, userId].filter((id) => !blocked.has(id));
+    where = {
+      ...where,
+      authorId: { in: authors.length ? authors : [userId] },
+      visibility: { in: ["PUBLIC", "FOLLOWERS"] },
+      author: { status: "ACTIVE" },
+    };
+  } else if (mode === "latest") {
+    where = {
+      ...where,
+      visibility: "PUBLIC",
+      author: { status: "ACTIVE", isPrivate: false },
+    };
+  } else if (mode === "trending") {
+    where = {
+      ...where,
+      visibility: "PUBLIC",
+      publishedAt: { gte: windowStart },
+      author: { status: "ACTIVE", isPrivate: false },
+    };
+  } else if (mode === "foryou") {
+    const exclude = new Set([...(userId ? [userId] : []), ...hidden]);
+    where = {
       status: "PUBLISHED",
       deletedAt: null,
-      authorId: hidden.length ? { notIn: hidden } : undefined,
+      visibility: "PUBLIC",
+      publishedAt: { gte: windowStart },
+      author: { status: "ACTIVE", isPrivate: false },
+      ...(exclude.size ? { authorId: { notIn: [...exclude] } } : {}),
+    };
+  } else {
+    // home: hybrid of public + self + following
+    where = {
+      ...where,
       ...(userId
         ? {
             OR: [
@@ -330,30 +396,84 @@ export async function getFeed({
                     author: { status: "ACTIVE" },
                   }
                 : undefined,
-            ].filter(Boolean) as never,
+            ].filter(Boolean),
           }
         : {
             visibility: "PUBLIC",
             author: { status: "ACTIVE", isPrivate: false },
           }),
-    },
+    };
+  }
+
+  const posts = await prisma.post.findMany({
+    where: where as never,
     include,
-    orderBy: { publishedAt: "desc" },
-    take: take + 1,
-    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    orderBy:
+      mode === "trending" || mode === "foryou"
+        ? [{ likeCount: "desc" }, { publishedAt: "desc" }]
+        : { publishedAt: "desc" },
+    take: candidateTake,
+    ...(!ranked && cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
 
-  const visible = await filterVisiblePostIds(userId, posts);
-  const page = visible.slice(0, take);
+  let visible = await filterVisiblePostIds(userId, posts);
 
+  if (ranked) {
+    const ordered = rankPosts(visible as Parameters<typeof rankPosts>[0], {
+      followingIds: followingSet,
+      interestTerms,
+    });
+    const byId = new Map(visible.map((post) => [post.id, post]));
+    visible = ordered
+      .map((post) => byId.get(post.id))
+      .filter((post): post is (typeof visible)[number] => Boolean(post));
+    if (cursor) {
+      const idx = visible.findIndex((p) => p.id === cursor);
+      visible = idx >= 0 ? visible.slice(idx + 1) : visible;
+    }
+  }
+
+  const page = visible.slice(0, take);
   return {
     posts: await serializePosts(page, userId),
     nextCursor: visible.length > take ? visible[take].id : null,
+    mode,
   };
 }
 
 export async function getExplore(cursor?: string, limit = 20, viewerId?: string) {
-  return getFeed({ userId: viewerId, cursor, limit });
+  const cacheKey = `feed:explore:${viewerId ?? "guest"}:${cursor ?? "start"}:${limit}`;
+  return cached(cacheKey, 30, () =>
+    getFeed({ userId: viewerId, cursor, limit, mode: "trending" }),
+  );
+}
+
+export async function getTrendingFeed(
+  cursor?: string,
+  limit = 20,
+  viewerId?: string,
+) {
+  const cacheKey = `feed:trending:${viewerId ?? "guest"}:${cursor ?? "start"}:${limit}`;
+  return cached(cacheKey, 45, async () => {
+    const feed = await getFeed({
+      userId: viewerId,
+      cursor,
+      limit,
+      mode: "trending",
+    });
+    const hashtags = await prisma.hashtag.findMany({
+      orderBy: { postCount: "desc" },
+      take: Math.min(Math.max(limit, 1), 30),
+    });
+    return { ...feed, hashtags };
+  });
+}
+
+export async function invalidateFeedCaches() {
+  await Promise.all([
+    cacheDelPrefix("feed:"),
+    cacheDelPrefix("reco:"),
+  ]);
 }
 
 export async function getPostsByHandle(
@@ -676,6 +796,9 @@ export async function publishScheduledPosts(now = new Date()) {
     if (mentions.length) {
       await notifyMentions(post.authorId, post.id, mentions);
     }
+  }
+  if (published > 0) {
+    await invalidateFeedCaches().catch(() => undefined);
   }
   return { published };
 }
