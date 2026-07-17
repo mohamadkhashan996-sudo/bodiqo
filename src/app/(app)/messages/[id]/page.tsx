@@ -25,7 +25,7 @@ export default function ConversationPage() {
 
   return (
     <PageTransition className="page-shell">
-      <div className="surface-panel-strong flex min-h-[calc(100dvh-10rem)] overflow-hidden rounded-[var(--radius-2xl)]">
+      <div className="surface-panel-strong flex min-h-[calc(100dvh-8rem)] overflow-hidden rounded-none sm:rounded-[var(--radius-2xl)] md:min-h-[calc(100dvh-10rem)]">
         <div className="hidden md:block">
           <ConversationList conversations={rows} activeId={id} query={query} onQuery={setQuery} currentUserId={session?.user?.id} />
         </div>

@@ -179,14 +179,14 @@ export function StoriesRail() {
 
   return (
     <>
-      <div className="flex gap-4 overflow-x-auto pb-2">
+      <div className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button
           type="button"
           onClick={() => {
             if (!requireAuth()) return;
             setComposeOpen(true);
           }}
-          className="w-16 shrink-0 text-center"
+          className="w-16 shrink-0 snap-start touch-manipulation text-center"
         >
           <span className="grid size-[3.75rem] place-items-center rounded-[1.25rem] border-2 border-dashed border-[var(--mist-strong)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
             <Plus className="size-5 text-[var(--signal-deep)]" />
@@ -203,7 +203,7 @@ export function StoriesRail() {
               key={story.id}
               type="button"
               onClick={() => void openStory(story)}
-              className="w-16 shrink-0 text-center"
+              className="w-16 shrink-0 snap-start touch-manipulation text-center"
             >
               <span
                 className={`block rounded-[1.25rem] p-0.5 ${

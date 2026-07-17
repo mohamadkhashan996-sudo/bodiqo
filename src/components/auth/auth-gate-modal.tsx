@@ -91,7 +91,7 @@ export function AuthGateModal({ open, onClose, callbackUrl }: AuthGateModalProps
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
-        className="surface-panel-strong premium-ring relative w-full max-w-md overflow-hidden rounded-[var(--radius-2xl)] p-8 shadow-[var(--shadow-xl)]"
+        className="surface-panel-strong premium-ring relative w-full max-w-md max-h-[min(90dvh,36rem)] overflow-y-auto rounded-[var(--radius-2xl)] p-5 shadow-[var(--shadow-xl)] sm:p-8"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

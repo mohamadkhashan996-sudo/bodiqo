@@ -105,7 +105,7 @@ export default function PrivacySettingsPage() {
 
   if (!privacy) {
     return (
-      <div className="section-shell max-w-3xl space-y-4 px-5 md:px-8">
+      <div className="section-shell max-w-3xl space-y-4">
         <Skeleton className="h-20 rounded-[var(--radius-xl)]" />
         <Skeleton className="h-96 rounded-[var(--radius-2xl)]" />
       </div>
@@ -113,7 +113,7 @@ export default function PrivacySettingsPage() {
   }
 
   return (
-    <PageTransition className="section-shell max-w-3xl px-5 md:px-8">
+    <PageTransition className="section-shell max-w-3xl">
       <div className="mb-6">
         <Link href="/settings" className="text-sm text-[var(--muted)] hover:text-[var(--ink)]">
           ← Back to settings

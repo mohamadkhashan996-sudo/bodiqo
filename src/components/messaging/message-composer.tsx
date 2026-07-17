@@ -5,6 +5,7 @@ import {
   FileUp,
   ImagePlus,
   Mic,
+  MoreHorizontal,
   Pause,
   Play,
   Send,
@@ -44,6 +45,7 @@ export function MessageComposer({
   const [recording, setRecording] = useState(false);
   const [paused, setPaused] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [attachOpen, setAttachOpen] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const imageRef = useRef<HTMLInputElement>(null);
@@ -74,6 +76,7 @@ export function MessageComposer({
   async function attach(file: File, kind: PendingMedia["kind"]) {
     setUploading(true);
     setError(null);
+    setAttachOpen(false);
     try {
       const result = await uploadFile(file, { private: true });
       setMedia({ url: result.url, kind, name: file.name });
@@ -149,7 +152,7 @@ export function MessageComposer({
   return (
     <form
       onSubmit={submit}
-      className="border-t-2 border-[var(--mist-strong)] bg-[var(--surface)] p-3 md:p-4"
+      className="border-t-2 border-[var(--mist-strong)] bg-[var(--surface)] p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3 md:p-4"
     >
       <div className="mx-auto max-w-4xl">
         {reply ? (
@@ -158,7 +161,7 @@ export function MessageComposer({
             <button
               type="button"
               onClick={onCancelReply}
-              className="font-semibold text-[var(--ink)]"
+              className="min-h-10 shrink-0 px-2 font-semibold text-[var(--ink)] touch-manipulation"
             >
               Cancel
             </button>
@@ -173,7 +176,7 @@ export function MessageComposer({
             <button
               type="button"
               onClick={() => setMedia(null)}
-              className="icon-button size-8"
+              className="icon-button size-10 touch-manipulation"
             >
               <X className="size-3.5" />
             </button>
@@ -184,12 +187,54 @@ export function MessageComposer({
           <p className="mb-2 text-xs text-[var(--danger)]">{error}</p>
         ) : null}
 
-        <div className="surface-panel flex items-end gap-2 rounded-[var(--radius-xl)] p-2 shadow-[var(--shadow-sm)]">
+        {attachOpen ? (
+          <div className="mb-2 flex gap-2 sm:hidden">
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => imageRef.current?.click()}
+              className="icon-button size-11 flex-1 touch-manipulation"
+              aria-label="Attach image"
+            >
+              <ImagePlus className="size-5" />
+            </button>
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => videoRef.current?.click()}
+              className="icon-button size-11 flex-1 touch-manipulation"
+              aria-label="Attach video"
+            >
+              <Video className="size-5" />
+            </button>
+            <button
+              type="button"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              className="icon-button size-11 flex-1 touch-manipulation"
+              aria-label="Attach file"
+            >
+              <FileUp className="size-5" />
+            </button>
+          </div>
+        ) : null}
+
+        <div className="surface-panel flex items-end gap-1.5 rounded-[var(--radius-xl)] p-1.5 shadow-[var(--shadow-sm)] sm:gap-2 sm:p-2">
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => setAttachOpen((v) => !v)}
+            className="icon-button size-11 shrink-0 touch-manipulation sm:hidden"
+            aria-label="More attachments"
+            aria-expanded={attachOpen}
+          >
+            <MoreHorizontal className="size-5" />
+          </button>
           <button
             type="button"
             disabled={uploading}
             onClick={() => imageRef.current?.click()}
-            className="icon-button size-10 shrink-0"
+            className="icon-button hidden size-10 shrink-0 sm:inline-flex"
             aria-label="Attach image"
           >
             <ImagePlus className="size-5" />
@@ -198,7 +243,7 @@ export function MessageComposer({
             type="button"
             disabled={uploading}
             onClick={() => videoRef.current?.click()}
-            className="icon-button size-10 shrink-0"
+            className="icon-button hidden size-10 shrink-0 sm:inline-flex"
             aria-label="Attach video"
           >
             <Video className="size-5" />
@@ -207,7 +252,7 @@ export function MessageComposer({
             type="button"
             disabled={uploading}
             onClick={() => fileRef.current?.click()}
-            className="icon-button size-10 shrink-0"
+            className="icon-button hidden size-10 shrink-0 sm:inline-flex"
             aria-label="Attach file"
           >
             <FileUp className="size-5" />
@@ -246,7 +291,7 @@ export function MessageComposer({
             }}
           />
 
-          <div className="flex-1 rounded-[var(--radius-lg)] border-2 border-[var(--mist-strong)] bg-[var(--cloud-elevated)] px-3 py-2 shadow-[var(--shadow-sm)]">
+          <div className="min-w-0 flex-1 rounded-[var(--radius-lg)] border-2 border-[var(--mist-strong)] bg-[var(--cloud-elevated)] px-3 py-2 shadow-[var(--shadow-sm)]">
             <textarea
               value={body}
               onChange={(event) => {
@@ -256,7 +301,7 @@ export function MessageComposer({
               }}
               placeholder={uploading ? "Uploading…" : "Share a thought…"}
               rows={1}
-              className="max-h-28 w-full resize-none bg-transparent text-sm leading-6 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)]"
+              className="max-h-28 w-full resize-none bg-transparent text-base leading-6 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)] sm:text-sm"
             />
           </div>
 
@@ -276,7 +321,7 @@ export function MessageComposer({
                   else recorder.current?.pause();
                   setPaused(!paused);
                 }}
-                className="p-1"
+                className="min-h-10 min-w-10 touch-manipulation p-1"
               >
                 {paused ? (
                   <Play className="size-4" />
@@ -284,7 +329,11 @@ export function MessageComposer({
                   <Pause className="size-4" />
                 )}
               </button>
-              <button type="button" onClick={stop} className="p-1">
+              <button
+                type="button"
+                onClick={stop}
+                className="min-h-10 min-w-10 touch-manipulation p-1"
+              >
                 <Square className="size-4" />
               </button>
             </div>
@@ -293,13 +342,17 @@ export function MessageComposer({
               type="button"
               disabled={uploading}
               onClick={() => void record()}
-              className="icon-button size-10 shrink-0"
+              className="icon-button size-11 shrink-0 touch-manipulation sm:size-10"
               aria-label="Record voice note"
             >
               <Mic className="size-5" />
             </button>
           )}
-          <Button type="submit" disabled={uploading} className="min-h-10 px-3">
+          <Button
+            type="submit"
+            disabled={uploading}
+            className="min-h-11 min-w-11 touch-manipulation px-3 sm:min-h-10"
+          >
             <Send className="size-4" />
           </Button>
         </div>

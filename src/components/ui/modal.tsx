@@ -84,7 +84,7 @@ export function Modal({
                 : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }
             }
             onMouseDown={(e) => e.stopPropagation()}
-            className="surface-panel-strong w-full max-w-lg rounded-[var(--radius-2xl)] p-5 backdrop-blur-2xl md:p-6"
+            className="surface-panel-strong relative w-full max-w-lg max-h-[min(90dvh,40rem)] overflow-y-auto rounded-[var(--radius-2xl)] p-5 backdrop-blur-2xl md:p-6"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}

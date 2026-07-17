@@ -1,5 +1,4 @@
-"use client";
-
+import type { ComponentType } from "react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -19,6 +18,7 @@ import {
   Flame,
   Sparkles,
   Ellipsis,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLockup } from "@/components/brand/logo";
@@ -54,16 +54,24 @@ const memberDesktop = [
   { href: "/settings", key: "settings", icon: Settings },
 ] as const;
 
-const memberMobile = [
+const memberMobilePrimary = [
   { href: "/home", key: "home", icon: House },
-  { href: "/explore", key: "explore", icon: Compass },
+  { href: "/shorts", key: "shorts", icon: Clapperboard },
   { href: "/messages", key: "messages", icon: MessageCircle },
   { href: "/notifications", key: "notifications", icon: Bell },
-  { href: "/settings", key: "more", icon: Ellipsis },
+] as const;
+
+const memberMoreLinks = [
+  { href: "/explore", key: "explore", icon: Compass },
+  { href: "/search", key: "search", icon: Search },
+  { href: "/communities", key: "communities", icon: UsersRound },
+  { href: "/calls", key: "calls", icon: Phone },
+  { href: "/trending", key: "trending", icon: Flame },
+  { href: "/settings", key: "settings", icon: Settings },
 ] as const;
 
 const navItemClass =
-  "min-w-0 flex-col items-center justify-center gap-1 px-2 py-2.5 text-center text-xs font-semibold tracking-tight lg:min-w-0 lg:flex-row lg:items-center lg:justify-start lg:gap-3 lg:px-4 lg:py-3 lg:text-left lg:text-sm lg:font-medium";
+  "min-w-0 flex-col items-center justify-center gap-0.5 px-1 py-2 text-center text-[10px] font-semibold tracking-tight touch-manipulation sm:gap-1 sm:px-2 sm:text-xs lg:min-w-0 lg:flex-row lg:items-center lg:justify-start lg:gap-3 lg:px-4 lg:py-3 lg:text-left lg:text-sm lg:font-medium";
 
 function NavItem({
   href,
@@ -72,17 +80,20 @@ function NavItem({
   active,
   className,
   badge,
+  onClick,
 }: {
   href: string;
   label: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
   active: boolean;
   className?: string;
   badge?: number;
+  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={cn("app-nav-item relative", active && "app-nav-item-active", className)}
       aria-current={active ? "page" : undefined}
     >
@@ -113,6 +124,7 @@ export function AppNavigation({
   const { openAuthGate } = useGuest();
   const { socket } = useSocket();
   const [unread, setUnread] = useState(0);
+  const [moreOpen, setMoreOpen] = useState(false);
   const staff =
     role === "SUPPORT" ||
     role === "MODERATOR" ||
@@ -139,6 +151,10 @@ export function AppNavigation({
   }, [isGuest, socket]);
 
   useEffect(() => {
+    setMoreOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
     if (pathname.startsWith("/notifications")) {
       setUnread(0);
       if (!isGuest) {
@@ -152,7 +168,11 @@ export function AppNavigation({
   }, [pathname, isGuest]);
 
   const desktopItems = isGuest ? guestDesktop : memberDesktop;
-  const mobileItems = isGuest ? guestMobile : memberMobile;
+  const moreActive = memberMoreLinks.some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
+  const hideMobileTopChrome =
+    pathname.startsWith("/shorts") || pathname.startsWith("/messages/");
 
   function labelFor(key: string) {
     if (key === "more") return locale === "ar" ? "المزيد" : "More";
@@ -160,120 +180,236 @@ export function AppNavigation({
   }
 
   return (
-    <aside className="sticky bottom-0 z-[var(--z-nav)] border-t-2 border-[var(--mist-strong)] bg-[var(--surface)] px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[var(--shadow-md)] lg:top-0 lg:h-screen lg:w-[17.5rem] lg:shrink-0 lg:border-t-0 lg:bg-transparent lg:px-4 lg:py-5 lg:pb-5 lg:shadow-none">
-      <div className="flex h-auto w-full flex-col gap-2 lg:h-full lg:gap-2.5">
-        <div className="hidden shrink-0 px-1 pt-1 lg:block">
-          <BrandLockup href="/home" />
-        </div>
-
-        <div className="flex items-center justify-between gap-2 px-1 lg:hidden">
-          <BrandLockup href="/home" />
-          {isGuest ? (
-            <button
-              type="button"
-              onClick={() => openAuthGate()}
-              className="app-nav-item app-nav-item-cta !w-auto min-h-11 px-4"
-            >
-              <Sparkles className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
-              <span>Join</span>
-            </button>
-          ) : handle ? (
-            <Link
-              href={`/u/${handle}`}
-              className="app-nav-item !w-auto !gap-0 min-h-11 min-w-11 px-3"
-              aria-label={t("nav", "profile")}
-            >
-              <UserRound className="size-5" strokeWidth={1.75} aria-hidden />
-            </Link>
-          ) : null}
-        </div>
-
-        {/* Mobile primary tabs */}
-        <nav
-          className="grid grid-cols-4 gap-1.5 sm:gap-2 lg:hidden"
-          aria-label="Primary"
-        >
-          {mobileItems.map(({ href, key, icon }) => {
-            const active =
-              key === "more"
-                ? pathname.startsWith("/settings") ||
-                  pathname.startsWith("/communities") ||
-                  pathname.startsWith("/calls") ||
-                  pathname.startsWith("/trending") ||
-                  pathname.startsWith("/search")
-                : pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <NavItem
-                key={`m-${href}-${key}`}
-                href={href}
-                label={labelFor(key)}
-                icon={icon}
-                active={active}
-                badge={key === "notifications" ? unread : undefined}
-                className={navItemClass}
-              />
-            );
-          })}
-        </nav>
-
-        {/* Desktop full nav */}
-        <nav
-          className="hidden lg:flex lg:flex-1 lg:flex-col lg:content-start lg:gap-2.5"
-          aria-label="Primary"
-        >
-          {desktopItems.map(({ href, key, icon }) => {
-            const active = pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <NavItem
-                key={href}
-                href={href}
-                label={t("nav", key)}
-                icon={icon}
-                active={active}
-                badge={key === "notifications" ? unread : undefined}
-                className={navItemClass}
-              />
-            );
-          })}
-
-          {handle ? (
-            <NavItem
-              href={`/u/${handle}`}
-              label={t("nav", "profile")}
-              icon={UserRound}
-              active={pathname.startsWith("/u/")}
-              className={navItemClass}
-            />
-          ) : null}
-
-          {staff ? (
-            <NavItem
-              href="/admin"
-              label={t("nav", "admin")}
-              icon={Shield}
-              active={pathname.startsWith("/admin")}
-              className={navItemClass}
-            />
-          ) : null}
-        </nav>
-
-        {isGuest ? (
-          <div className="mt-auto hidden flex-col gap-2.5 lg:flex">
-            <Link href="/sign-in" className="app-nav-item">
-              <LogIn className="size-[1.125rem] shrink-0" strokeWidth={1.75} aria-hidden />
-              <span>Sign In</span>
-            </Link>
-            <button
-              type="button"
-              onClick={() => openAuthGate()}
-              className="app-nav-item app-nav-item-cta"
-            >
-              <Sparkles className="size-[1.125rem] shrink-0" strokeWidth={1.75} aria-hidden />
-              <span>Join RELUNE</span>
-            </button>
+    <>
+      <aside className="fixed inset-x-0 bottom-0 z-[var(--z-nav)] border-t-2 border-[var(--mist-strong)] bg-[var(--surface)] px-1.5 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[var(--shadow-md)] lg:sticky lg:top-0 lg:h-screen lg:w-[17.5rem] lg:shrink-0 lg:border-t-0 lg:bg-transparent lg:px-4 lg:py-5 lg:pb-5 lg:shadow-none">
+        <div className="flex h-auto w-full flex-col gap-1.5 lg:h-full lg:gap-2.5">
+          <div className="hidden shrink-0 px-1 pt-1 lg:block">
+            <BrandLockup href="/home" />
           </div>
-        ) : null}
-      </div>
-    </aside>
+
+          {/* Mobile primary tabs */}
+          {isGuest ? (
+            <nav
+              className="grid grid-cols-4 gap-1 sm:gap-1.5 lg:hidden"
+              aria-label="Primary"
+            >
+              {guestMobile.map(({ href, key, icon }) => {
+                const active =
+                  pathname === href || pathname.startsWith(`${href}/`);
+                return (
+                  <NavItem
+                    key={`m-${href}-${key}`}
+                    href={href}
+                    label={labelFor(key)}
+                    icon={icon}
+                    active={active}
+                    className={navItemClass}
+                  />
+                );
+              })}
+            </nav>
+          ) : (
+            <nav
+              className="grid grid-cols-5 gap-0.5 sm:gap-1 lg:hidden"
+              aria-label="Primary"
+            >
+              {memberMobilePrimary.map(({ href, key, icon }) => {
+                const active =
+                  pathname === href || pathname.startsWith(`${href}/`);
+                return (
+                  <NavItem
+                    key={`m-${href}-${key}`}
+                    href={href}
+                    label={labelFor(key)}
+                    icon={icon}
+                    active={active}
+                    badge={key === "notifications" ? unread : undefined}
+                    className={navItemClass}
+                  />
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setMoreOpen(true)}
+                className={cn(
+                  "app-nav-item relative",
+                  moreActive && "app-nav-item-active",
+                  navItemClass,
+                )}
+                aria-expanded={moreOpen}
+                aria-haspopup="dialog"
+              >
+                <Ellipsis className="size-5" strokeWidth={1.75} aria-hidden />
+                <span className="max-w-full truncate">{labelFor("more")}</span>
+              </button>
+            </nav>
+          )}
+
+          {/* Desktop full nav */}
+          <nav
+            className="hidden lg:flex lg:flex-1 lg:flex-col lg:content-start lg:gap-2.5"
+            aria-label="Primary"
+          >
+            {desktopItems.map(({ href, key, icon }) => {
+              const active = pathname === href || pathname.startsWith(`${href}/`);
+              return (
+                <NavItem
+                  key={href}
+                  href={href}
+                  label={t("nav", key)}
+                  icon={icon}
+                  active={active}
+                  badge={key === "notifications" ? unread : undefined}
+                  className={navItemClass}
+                />
+              );
+            })}
+
+            {handle ? (
+              <NavItem
+                href={`/u/${handle}`}
+                label={t("nav", "profile")}
+                icon={UserRound}
+                active={pathname.startsWith("/u/")}
+                className={navItemClass}
+              />
+            ) : null}
+
+            {staff ? (
+              <NavItem
+                href="/admin"
+                label={t("nav", "admin")}
+                icon={Shield}
+                active={pathname.startsWith("/admin")}
+                className={navItemClass}
+              />
+            ) : null}
+          </nav>
+
+          {isGuest ? (
+            <div className="mt-auto hidden flex-col gap-2.5 lg:flex">
+              <Link href="/sign-in" className="app-nav-item">
+                <LogIn className="size-[1.125rem] shrink-0" strokeWidth={1.75} aria-hidden />
+                <span>Sign In</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => openAuthGate()}
+                className="app-nav-item app-nav-item-cta"
+              >
+                <Sparkles className="size-[1.125rem] shrink-0" strokeWidth={1.75} aria-hidden />
+                <span>Join RELUNE</span>
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </aside>
+
+      {/* Compact mobile top chrome — hidden on immersive surfaces */}
+      {!hideMobileTopChrome ? (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-[calc(var(--z-nav)+1)] flex items-start justify-between gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] lg:hidden">
+          <div className="pointer-events-auto">
+            <BrandLockup
+              href="/home"
+              className="rounded-2xl bg-[var(--surface)]/90 px-2.5 py-1.5 shadow-[var(--shadow-sm)] backdrop-blur-md [&_span]:text-base [&_span]:tracking-[0.2em]"
+            />
+          </div>
+          <div className="pointer-events-auto">
+            {isGuest ? (
+              <button
+                type="button"
+                onClick={() => openAuthGate()}
+                className="app-nav-item app-nav-item-cta !w-auto min-h-11 touch-manipulation px-4 shadow-[var(--shadow-md)]"
+              >
+                <Sparkles className="size-4 shrink-0" strokeWidth={1.75} aria-hidden />
+                <span>Join</span>
+              </button>
+            ) : handle ? (
+              <Link
+                href={`/u/${handle}`}
+                className="app-nav-item !w-auto !gap-0 min-h-11 min-w-11 touch-manipulation px-3 shadow-[var(--shadow-md)]"
+                aria-label={t("nav", "profile")}
+              >
+                <UserRound className="size-5" strokeWidth={1.75} aria-hidden />
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {moreOpen ? (
+        <div
+          className="fixed inset-0 z-[calc(var(--z-nav)+5)] lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label={labelFor("more")}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-[var(--ink)]/45 backdrop-blur-sm"
+            aria-label="Close"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[var(--shadow-xl)]">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--mist-strong)]" />
+            <div className="mb-3 flex items-center justify-between">
+              <p className="font-[family-name:var(--font-display)] text-lg">
+                {labelFor("more")}
+              </p>
+              <button
+                type="button"
+                className="grid size-11 place-items-center rounded-2xl border-2 border-[var(--mist-strong)] touch-manipulation"
+                onClick={() => setMoreOpen(false)}
+                aria-label="Close"
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2 pb-2">
+              {memberMoreLinks.map(({ href, key, icon: Icon }) => {
+                const active =
+                  pathname === href || pathname.startsWith(`${href}/`);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setMoreOpen(false)}
+                    className={cn(
+                      "flex min-h-[4.5rem] flex-col items-center justify-center gap-2 rounded-2xl border-2 px-2 py-3 text-center text-xs font-semibold touch-manipulation",
+                      active
+                        ? "border-[var(--signal)] bg-[var(--signal)]/15 text-[var(--ink)]"
+                        : "border-[var(--mist-strong)] bg-[var(--cloud)] text-[var(--ink)]",
+                    )}
+                  >
+                    <Icon className="size-5" strokeWidth={1.75} />
+                    <span>{labelFor(key)}</span>
+                  </Link>
+                );
+              })}
+              {handle ? (
+                <Link
+                  href={`/u/${handle}`}
+                  onClick={() => setMoreOpen(false)}
+                  className="flex min-h-[4.5rem] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--cloud)] px-2 py-3 text-center text-xs font-semibold touch-manipulation"
+                >
+                  <UserRound className="size-5" strokeWidth={1.75} />
+                  <span>{t("nav", "profile")}</span>
+                </Link>
+              ) : null}
+              {staff ? (
+                <Link
+                  href="/admin"
+                  onClick={() => setMoreOpen(false)}
+                  className="flex min-h-[4.5rem] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--cloud)] px-2 py-3 text-center text-xs font-semibold touch-manipulation"
+                >
+                  <Shield className="size-5" strokeWidth={1.75} />
+                  <span>{t("nav", "admin")}</span>
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }

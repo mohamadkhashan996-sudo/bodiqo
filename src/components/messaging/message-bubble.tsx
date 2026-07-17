@@ -92,7 +92,7 @@ export function MessageBubble({
   return (
     <div className={`group flex ${mine ? "justify-end" : "justify-start"}`}>
       <div
-        className={`relative max-w-[85%] rounded-[1.4rem] px-4 py-3 shadow-[var(--shadow-sm)] ${
+        className={`relative max-w-[min(85%,24rem)] rounded-[1.4rem] px-3 py-2.5 shadow-[var(--shadow-sm)] sm:px-4 sm:py-3 ${
           mine
             ? "rounded-br-md bg-[var(--ink)] text-[var(--cloud)]"
             : "rounded-bl-md border border-[color:color-mix(in_srgb,var(--mist)_70%,transparent)] bg-[var(--surface)] text-[var(--ink)]"
@@ -133,7 +133,7 @@ export function MessageBubble({
               />
             ) : null}
             {message.mediaUrl && message.type === "AUDIO" ? (
-              <audio src={message.mediaUrl} controls className="mb-2 w-full min-w-[14rem]" />
+              <audio src={message.mediaUrl} controls className="mb-2 w-full min-w-0 max-w-[16rem] sm:min-w-[14rem]" />
             ) : null}
             {message.mediaUrl && (message.type === "FILE" || message.type === "DOCUMENT") ? (
               <a
@@ -189,7 +189,7 @@ export function MessageBubble({
           </div>
         ) : null}
         <div
-          className={`surface-panel absolute -top-3 hidden gap-1 rounded-full p-1 shadow-[var(--shadow-md)] group-hover:flex ${
+          className={`surface-panel absolute -top-3 hidden gap-1 rounded-full p-1 shadow-[var(--shadow-md)] group-hover:flex max-md:!flex ${
             mine ? "right-0" : "left-0"
           }`}
         >

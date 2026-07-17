@@ -119,6 +119,7 @@ select:focus-visible {
 
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   color: var(--ink);
 }
 
@@ -510,6 +511,8 @@ html:not([data-theme="dark"]) .landing-cta-secondary:hover {
   font-weight: 600;
   letter-spacing: -0.01em;
   color: #f3f1ec;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   background:
     linear-gradient(
       160deg,

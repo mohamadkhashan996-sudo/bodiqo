@@ -158,7 +158,7 @@ export default function MessagesPage() {
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="kicker">Private circle</p>
-            <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl tracking-tight md:text-5xl">
+            <h1 className="mt-3 font-[family-name:var(--font-display)] text-3xl tracking-tight sm:text-4xl md:text-5xl">
               Messages with softer edges.
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted)]">
@@ -182,7 +182,7 @@ export default function MessagesPage() {
           </div>
         </div>
       </section>
-      <div className="surface-panel-strong flex min-h-[calc(100vh-14rem)] overflow-hidden rounded-[var(--radius-2xl)]">
+      <div className="surface-panel-strong flex min-h-[calc(100dvh-12rem)] overflow-hidden rounded-[var(--radius-2xl)] sm:min-h-[calc(100vh-14rem)]">
         <ConversationList
           conversations={rows}
           query={query}

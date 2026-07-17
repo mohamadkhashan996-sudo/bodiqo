@@ -168,8 +168,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <PageTransition className="section-shell max-w-5xl px-5 md:px-8">
-      <div className="glass-strong premium-ring rounded-[2rem] p-6 md:p-8">
+    <PageTransition className="section-shell max-w-5xl">
+      <div className="glass-strong premium-ring rounded-[1.5rem] p-4 sm:rounded-[2rem] sm:p-6 md:p-8">
       <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--signal)]">
         Control
       </p>

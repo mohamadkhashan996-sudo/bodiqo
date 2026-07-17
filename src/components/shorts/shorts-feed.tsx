@@ -238,7 +238,7 @@ export function ShortsFeed() {
   }
 
   return (
-    <div className="fixed inset-0 z-[35] bg-black lg:left-[17.5rem]">
+    <div className="fixed inset-0 z-[25] bg-black lg:left-[17.5rem] lg:z-[35]">
       <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent px-4 pb-8 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <div className="flex items-center gap-2 rounded-full bg-black/35 p-1 backdrop-blur-md">
           {(
@@ -288,7 +288,7 @@ export function ShortsFeed() {
 
       <div
         ref={containerRef}
-        className="h-full snap-y snap-mandatory overflow-y-auto overscroll-y-contain scroll-smooth pb-[max(4.75rem,env(safe-area-inset-bottom))] lg:pb-0"
+        className="h-full snap-y snap-mandatory overflow-y-auto overscroll-y-contain scroll-smooth pb-[max(5.5rem,calc(4.5rem+env(safe-area-inset-bottom)))] lg:pb-0"
         style={{ scrollbarWidth: "none" }}
       >
         {!ready ? (
@@ -332,7 +332,7 @@ export function ShortsFeed() {
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/25" />
 
-              <div className="absolute inset-x-0 bottom-0 flex items-end gap-4 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-16 text-white lg:pb-6">
+              <div className="absolute inset-x-0 bottom-0 flex items-end gap-4 px-4 pb-[max(5.25rem,calc(4.25rem+env(safe-area-inset-bottom)))] pt-16 text-white lg:pb-6">
                 <div className="min-w-0 flex-1">
                   <Link
                     href={`/u/${post.author?.handle}`}

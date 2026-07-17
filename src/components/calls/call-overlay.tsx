@@ -565,7 +565,7 @@ export function CallOverlay() {
 
   if (incoming) {
     return (
-      <div className="fixed inset-x-4 bottom-5 z-50 mx-auto max-w-sm rounded-[2rem] border-2 border-white/75 bg-[var(--ink)] p-5 text-[var(--cloud-elevated)] shadow-2xl backdrop-blur-xl">
+      <div className="fixed inset-x-3 bottom-[max(1rem,calc(4.5rem+env(safe-area-inset-bottom)))] z-50 mx-auto w-[min(24rem,calc(100vw-1.5rem))] max-w-sm rounded-[2rem] border-2 border-white/75 bg-[var(--ink)] p-5 text-[var(--cloud-elevated)] shadow-2xl backdrop-blur-xl lg:bottom-5">
         <p className="text-xs uppercase tracking-[.2em] text-[var(--ember)]">
           Incoming {incoming.type.toLowerCase()} call
         </p>
@@ -606,7 +606,7 @@ export function CallOverlay() {
   if (!call) {
     if (error) {
       return (
-        <div className="fixed bottom-5 right-5 z-50 max-w-xs rounded-2xl bg-[var(--ink)] px-4 py-3 text-sm text-white shadow-xl">
+        <div className="fixed inset-x-3 bottom-[max(1rem,calc(4.5rem+env(safe-area-inset-bottom)))] z-50 mx-auto w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl bg-[var(--ink)] px-4 py-3 text-sm text-white shadow-xl sm:inset-x-auto sm:right-5 sm:mx-0 lg:bottom-5">
           <p>{error}</p>
           <button
             type="button"
@@ -628,7 +628,7 @@ export function CallOverlay() {
     "Call";
 
   return (
-    <div className="fixed bottom-5 right-5 z-50 w-[22rem] overflow-hidden rounded-[2rem] border-2 border-white/75 bg-[var(--ink)] p-3 text-white shadow-2xl">
+    <div className="fixed bottom-[max(1rem,calc(4.5rem+env(safe-area-inset-bottom)))] left-3 right-3 z-50 mx-auto w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-[2rem] border-2 border-white/75 bg-[var(--ink)] p-3 text-white shadow-2xl sm:left-auto sm:right-5 sm:mx-0 lg:bottom-5">
       <div className="relative aspect-video overflow-hidden rounded-[1.35rem] bg-[var(--night-elevated)]">
         <video
           ref={remoteVideo}

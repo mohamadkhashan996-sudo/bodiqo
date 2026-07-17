@@ -58,7 +58,7 @@ export default function TrendingPage() {
     <PageTransition className="page-shell page-stack">
       <section className="glass-strong premium-ring hero-panel">
         <p className="kicker">Trending now</p>
-        <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl tracking-tight md:text-5xl">
+        <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl tracking-tight sm:text-4xl md:text-5xl">
           What RELUNE is talking about.
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted)]">

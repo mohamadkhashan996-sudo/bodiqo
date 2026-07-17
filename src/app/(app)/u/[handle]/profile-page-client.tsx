@@ -215,7 +215,7 @@ export default function ProfilePageClient() {
 
   if (notFound) {
     return (
-      <PageTransition className="section-shell max-w-3xl px-5 md:px-8">
+      <PageTransition className="section-shell max-w-3xl">
         <EmptyState
           title="Profile not found"
           description="That username doesn’t exist or isn’t available."
@@ -231,7 +231,7 @@ export default function ProfilePageClient() {
 
   if (!user) {
     return (
-      <div className="mx-auto max-w-4xl space-y-4 px-5">
+      <div className="mx-auto max-w-4xl space-y-4">
         <Skeleton className="h-52 w-full rounded-[2rem]" />
         <Skeleton className="h-40 w-full rounded-[2rem]" />
       </div>
@@ -253,7 +253,7 @@ export default function ProfilePageClient() {
     .join(", ");
 
   return (
-    <PageTransition className="section-shell max-w-5xl px-5 md:px-8">
+    <PageTransition className="section-shell max-w-5xl">
       <div className="glass-strong premium-ring overflow-hidden rounded-[2rem]">
         {user.isOfficial ? (
           <div className="border-b border-[var(--signal)]/20 bg-gradient-to-r from-[var(--signal)]/10 via-transparent to-[var(--ember)]/10 px-6 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--signal)]">

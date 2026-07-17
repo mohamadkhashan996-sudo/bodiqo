@@ -81,12 +81,12 @@ export function ConversationList({
   const showMessageHits = query.trim().length >= 2;
 
   return (
-    <aside className="surface-subtle flex h-full min-h-[560px] w-full flex-col rounded-[var(--radius-2xl)] border-2 border-[var(--mist-strong)] md:max-w-[22rem]">
-      <div className="border-b-2 border-[var(--mist-strong)] p-5">
+    <aside className="surface-subtle flex h-full min-h-[min(70dvh,28rem)] w-full flex-col rounded-[var(--radius-2xl)] border-2 border-[var(--mist-strong)] md:min-h-[560px] md:max-w-[22rem]">
+      <div className="border-b-2 border-[var(--mist-strong)] p-4 sm:p-5">
         <p className="text-[11px] font-bold uppercase tracking-[.22em] text-[var(--signal-deep)]">
           Private circle
         </p>
-        <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl">
+        <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl sm:text-3xl">
           Messages
         </h1>
         <label className="mt-5 block">

@@ -119,7 +119,7 @@ export function HomeFeed() {
             <p className="text-[11px] font-semibold tracking-[.22em] text-[var(--signal)] uppercase">
               {session?.user ? "Your circle" : "Discover"}
             </p>
-            <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl tracking-tight md:text-5xl">
+            <h1 className="mt-3 font-[family-name:var(--font-display)] text-3xl tracking-tight sm:text-4xl md:text-5xl">
               {session?.user ? "Good to see you." : "Explore Relune."}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted)]">

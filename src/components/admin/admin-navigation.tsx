@@ -58,15 +58,15 @@ export function AdminNavigation({ role }: { role?: string | null }) {
   );
 
   return (
-    <aside className="sticky top-0 z-30 flex h-auto w-full flex-col border-b-2 border-white/35 bg-[var(--ink)] px-5 py-5 text-[var(--cloud-elevated)] lg:h-screen lg:w-64 lg:border-r-2 lg:border-b-0 lg:px-6 lg:py-8">
+    <aside className="sticky top-0 z-30 flex h-auto w-full flex-col border-b-2 border-white/35 bg-[var(--ink)] px-3 py-4 text-[var(--cloud-elevated)] sm:px-5 sm:py-5 lg:h-screen lg:w-64 lg:border-r-2 lg:border-b-0 lg:px-6 lg:py-8">
       <div className="flex items-center justify-between gap-3">
-        <BrandLockup href="/admin" />
-        <Shield className="size-4 text-[var(--signal)]" />
+        <BrandLockup href="/admin" className="[&_span]:text-base [&_span]:tracking-[0.2em] sm:[&_span]:text-xl" />
+        <Shield className="size-4 shrink-0 text-[var(--signal)]" />
       </div>
       <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-white/80">
         Control center
       </p>
-      <nav className="mt-6 flex gap-1 overflow-x-auto lg:mt-8 lg:block lg:space-y-1">
+      <nav className="mt-4 flex gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:mt-8 lg:block lg:space-y-1 lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
         {items.map(({ href, label, icon: Icon }) => {
           const active =
             href === "/admin"
@@ -77,7 +77,7 @@ export function AdminNavigation({ role }: { role?: string | null }) {
               key={href}
               href={href}
               className={cn(
-                "inline-flex items-center gap-3 rounded-2xl border-2 px-3 py-2.5 text-sm font-semibold transition",
+                "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-2xl border-2 px-3 py-2.5 text-xs font-semibold transition touch-manipulation sm:gap-3 sm:text-sm lg:w-full",
                 active
                   ? "border-[var(--signal)] bg-[var(--signal)] text-[var(--ink)]"
                   : "border-transparent text-white/90 hover:border-white/35 hover:bg-white/12 hover:text-white",

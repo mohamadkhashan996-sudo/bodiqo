@@ -69,9 +69,10 @@ export function MarketingHeader() {
             </Link>
             <Link
               href="/sign-up"
-              className="landing-cta-primary inline-flex min-h-11 items-center justify-center rounded-[1.15rem] border-2 border-[var(--ink)] px-5 text-[12px] font-semibold tracking-[0.03em] text-white"
+              className="landing-cta-primary inline-flex min-h-11 items-center justify-center rounded-[1.15rem] border-2 border-[var(--ink)] px-3 text-[11px] font-semibold tracking-[0.03em] text-white sm:px-5 sm:text-[12px]"
             >
-              Create Account
+              <span className="sm:hidden">Join</span>
+              <span className="hidden sm:inline">Create Account</span>
             </Link>
           </div>
         </div>
@@ -87,7 +88,7 @@ export function MarketingHeader() {
                 key={href}
                 href={href}
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-1.5 rounded-[1.05rem] border-2 px-3.5 py-2 text-xs font-semibold shadow-[var(--shadow-sm)] transition",
+                  "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-[1.05rem] border-2 px-3.5 py-2 text-xs font-semibold shadow-[var(--shadow-sm)] transition touch-manipulation",
                   active
                     ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--cloud-elevated)]"
                     : "border-[var(--mist-strong)] bg-[var(--surface)] text-[var(--muted-strong)] hover:text-[var(--ink)]",

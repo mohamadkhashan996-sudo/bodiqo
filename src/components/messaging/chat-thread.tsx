@@ -495,13 +495,13 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-2xl)] bg-[radial-gradient(circle_at_80%_0%,color-mix(in_srgb,var(--ember)_22%,transparent),transparent_34%),transparent] max-md:min-h-[min(100dvh,100%)] md:min-h-[min(560px,70dvh)]">
-      <header className="surface-subtle flex items-center justify-between border-b border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] px-5 py-4 backdrop-blur-xl">
-        <div>
-          <h2 className="flex items-center gap-2 font-[family-name:var(--font-display)] text-xl tracking-tight">
-            {isGroup ? <Users className="size-4 text-[var(--signal)]" /> : null}
-            {name}
+      <header className="surface-subtle flex items-center justify-between gap-2 border-b border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] px-3 py-3 backdrop-blur-xl sm:px-5 sm:py-4">
+        <div className="min-w-0">
+          <h2 className="flex items-center gap-2 truncate font-[family-name:var(--font-display)] text-lg tracking-tight sm:text-xl">
+            {isGroup ? <Users className="size-4 shrink-0 text-[var(--signal)]" /> : null}
+            <span className="truncate">{name}</span>
           </h2>
-          <p className="mt-1 flex items-center gap-2 text-xs text-[var(--muted)]">
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
             {isGroup
               ? `${conversation.members.length} members${onlineCount ? ` · ${onlineCount} online` : ""}`
               : peerOnline
@@ -515,11 +515,11 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
             ) : null}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-1 sm:gap-2">
           <button
             type="button"
             onClick={() => setSearchOpen((v) => !v)}
-            className="icon-button size-10"
+            className="icon-button size-11 touch-manipulation sm:size-10"
             aria-label="Search messages"
           >
             <Search className="size-4" />
@@ -528,7 +528,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
             <button
               type="button"
               onClick={() => setMembersOpen((v) => !v)}
-              className="icon-button size-10"
+              className="icon-button size-11 touch-manipulation sm:size-10"
               aria-label="Manage members"
             >
               <UserPlus className="size-4" />
@@ -537,7 +537,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
           <button
             type="button"
             onClick={() => invite("AUDIO")}
-            className="icon-button size-10"
+            className="icon-button size-11 touch-manipulation sm:size-10"
             aria-label="Voice call"
           >
             <Phone className="size-4" />
@@ -545,7 +545,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
           <button
             type="button"
             onClick={() => invite("VIDEO")}
-            className="icon-button size-10"
+            className="icon-button size-11 touch-manipulation sm:size-10"
             aria-label="Video call"
           >
             <Video className="size-4" />
@@ -690,7 +690,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
         </div>
       ) : null}
 
-      <div className="flex-1 space-y-5 overflow-y-auto px-5 py-6">
+      <div className="flex-1 space-y-5 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6">
         {messages.map((message) => (
           <div key={message.id} id={`msg-${message.id}`}>
             <MessageBubble
