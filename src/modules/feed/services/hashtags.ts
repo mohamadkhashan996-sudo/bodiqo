@@ -1,7 +1,7 @@
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { filterVisiblePostIds } from "@/modules/users/services/visibility";
-import { serializePost } from "@/modules/feed/services/posts";
+import { serializePosts } from "@/modules/feed/services/posts";
 
 const include = {
   author: {
@@ -16,7 +16,18 @@ const include = {
       isPrivate: true,
     },
   },
-  media: { orderBy: { sortOrder: "asc" as const } },
+  media: {
+    orderBy: { sortOrder: "asc" as const },
+    select: {
+      id: true,
+      url: true,
+      kind: true,
+      width: true,
+      height: true,
+      duration: true,
+      sortOrder: true,
+    },
+  },
   hashtags: { include: { hashtag: true } },
 };
 
@@ -51,7 +62,7 @@ export async function getHashtagFeed(
 
   return {
     hashtag,
-    posts: await Promise.all(page.map((post) => serializePost(post, viewerId))),
+    posts: await serializePosts(page, viewerId),
     nextCursor,
   };
 }

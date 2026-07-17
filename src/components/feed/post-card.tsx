@@ -13,14 +13,20 @@ import {
   Share2,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import { Avatar } from "@/components/ui/avatar";
 import { MediaImage } from "@/components/ui/media-image";
-import { CommentsPanel } from "@/components/feed/comments-panel";
 import { useGuest } from "@/components/auth/guest-provider";
 import { VerificationBadge } from "@/components/brand/official-badge";
 import { ReportDialog } from "@/components/social/report-dialog";
 import { linkifyPostBody } from "@/lib/post-body";
 import type { FeedPoll, FeedPost } from "@/types/feed";
+
+const CommentsPanel = dynamic(
+  () =>
+    import("@/components/feed/comments-panel").then((m) => m.CommentsPanel),
+  { ssr: false },
+);
 
 function MediaCarousel({
   media,

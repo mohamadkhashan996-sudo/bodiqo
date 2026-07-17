@@ -123,6 +123,90 @@ export function canSeeStories(viewerId: string | undefined, authorId: string) {
   return audienceSetting(viewerId, authorId, "whoCanSeeStories", "EVERYONE");
 }
 
+/**
+ * Batch story visibility for a rail of authors (avoids N+1 privacy/follow lookups).
+ * Returns the set of author IDs the viewer may see stories from.
+ */
+export async function filterVisibleStoryAuthors(
+  viewerId: string | undefined,
+  authorIds: string[],
+) {
+  const unique = [...new Set(authorIds)];
+  if (!unique.length) return new Set<string>();
+
+  if (!viewerId) {
+    const settings = await prisma.privacySettings.findMany({
+      where: { userId: { in: unique } },
+      select: { userId: true, whoCanSeeStories: true },
+    });
+    const byUser = new Map(
+      settings.map((row) => [row.userId, row.whoCanSeeStories]),
+    );
+    return new Set(
+      unique.filter(
+        (id) => (byUser.get(id) ?? "EVERYONE") === "EVERYONE",
+      ),
+    );
+  }
+
+  const [settings, blocks, followsOut, followsIn] = await Promise.all([
+    prisma.privacySettings.findMany({
+      where: { userId: { in: unique } },
+      select: { userId: true, whoCanSeeStories: true },
+    }),
+    prisma.block.findMany({
+      where: {
+        OR: [
+          { blockerId: viewerId, blockedId: { in: unique } },
+          { blockedId: viewerId, blockerId: { in: unique } },
+        ],
+      },
+      select: { blockerId: true, blockedId: true },
+    }),
+    prisma.follow.findMany({
+      where: { followerId: viewerId, followingId: { in: unique } },
+      select: { followingId: true },
+    }),
+    prisma.follow.findMany({
+      where: { followingId: viewerId, followerId: { in: unique } },
+      select: { followerId: true },
+    }),
+  ]);
+
+  const audience = new Map(
+    settings.map((row) => [row.userId, row.whoCanSeeStories]),
+  );
+  const blocked = new Set(
+    blocks.flatMap((row) =>
+      row.blockerId === viewerId ? [row.blockedId] : [row.blockerId],
+    ),
+  );
+  const following = new Set(followsOut.map((row) => row.followingId));
+  const followers = new Set(followsIn.map((row) => row.followerId));
+
+  const allowed = new Set<string>();
+  for (const id of unique) {
+    if (id === viewerId) {
+      allowed.add(id);
+      continue;
+    }
+    if (blocked.has(id)) continue;
+    const rule = audience.get(id) ?? "EVERYONE";
+    if (rule === "EVERYONE") {
+      allowed.add(id);
+    } else if (rule === "NOBODY") {
+      continue;
+    } else if (rule === "FOLLOWERS" && following.has(id)) {
+      allowed.add(id);
+    } else if (rule === "FOLLOWING" && followers.has(id)) {
+      allowed.add(id);
+    } else if (rule === "MUTUAL" && following.has(id) && followers.has(id)) {
+      allowed.add(id);
+    }
+  }
+  return allowed;
+}
+
 /** Whether viewer may see target author's activity (likes, etc.). */
 export function canSeeActivity(viewerId: string, authorId: string) {
   return audienceSetting(viewerId, authorId, "whoCanSeeActivity", "FOLLOWERS");

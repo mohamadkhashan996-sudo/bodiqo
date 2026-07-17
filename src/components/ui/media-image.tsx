@@ -3,12 +3,28 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
+const OPTIMIZABLE_HOSTS = new Set([
+  "res.cloudinary.com",
+  "utfs.io",
+  "images.unsplash.com",
+  "lh3.googleusercontent.com",
+]);
+
 function isLocalPath(src: string) {
   return src.startsWith("/") && !src.startsWith("//");
 }
 
+function shouldOptimize(src: string) {
+  if (isLocalPath(src)) return true;
+  try {
+    return OPTIMIZABLE_HOSTS.has(new URL(src).hostname);
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Feed/media image that optimizes local uploads and safely renders remote URLs.
+ * Feed/media image that optimizes local uploads and known remote CDNs.
  */
 export function MediaImage({
   src,
@@ -29,7 +45,7 @@ export function MediaImage({
   width?: number;
   height?: number;
 }) {
-  const local = isLocalPath(src);
+  const optimize = shouldOptimize(src);
   const imageClassName = cn(className);
 
   if (fill) {
@@ -41,7 +57,8 @@ export function MediaImage({
         className={imageClassName}
         priority={priority}
         sizes={sizes}
-        unoptimized={!local}
+        unoptimized={!optimize}
+        loading={priority ? undefined : "lazy"}
       />
     );
   }
@@ -55,7 +72,8 @@ export function MediaImage({
       className={imageClassName}
       priority={priority}
       sizes={sizes}
-      unoptimized={!local}
+      unoptimized={!optimize}
+      loading={priority ? undefined : "lazy"}
     />
   );
 }

@@ -30,7 +30,18 @@ const include = {
       isPrivate: true,
     },
   },
-  media: { orderBy: { sortOrder: "asc" as const } },
+  media: {
+    orderBy: { sortOrder: "asc" as const },
+    select: {
+      id: true,
+      url: true,
+      kind: true,
+      width: true,
+      height: true,
+      duration: true,
+      sortOrder: true,
+    },
+  },
   hashtags: { include: { hashtag: true } },
   poll: {
     include: {
@@ -303,14 +314,16 @@ export async function recordPostView(postId: string) {
 }
 
 async function hiddenAuthorIds(userId: string) {
-  const muted = await prisma.mute.findMany({
-    where: { muterId: userId },
-    select: { mutedId: true },
-  });
-  const blocked = await prisma.block.findMany({
-    where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
-    select: { blockerId: true, blockedId: true },
-  });
+  const [muted, blocked] = await Promise.all([
+    prisma.mute.findMany({
+      where: { muterId: userId },
+      select: { mutedId: true },
+    }),
+    prisma.block.findMany({
+      where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+      select: { blockerId: true, blockedId: true },
+    }),
+  ]);
   return [
     ...muted.map((x) => x.mutedId),
     ...blocked.flatMap((x) => [x.blockerId, x.blockedId]),
@@ -541,6 +554,18 @@ export async function getPostsByHandle(
 }
 
 export async function getShorts(
+  viewerId?: string,
+  cursor?: string,
+  limit = 20,
+  mode: "latest" | "forYou" = "forYou",
+) {
+  const cacheKey = `feed:shorts:${viewerId ?? "guest"}:${mode}:${cursor ?? "start"}:${limit}`;
+  return cached(cacheKey, 30, () =>
+    loadShorts(viewerId, cursor, limit, mode),
+  );
+}
+
+async function loadShorts(
   viewerId?: string,
   cursor?: string,
   limit = 20,

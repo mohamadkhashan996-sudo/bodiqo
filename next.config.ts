@@ -23,7 +23,11 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
   experimental: {
-    optimizePackageImports: ["lucide-react", "framer-motion"],
+    optimizePackageImports: [
+      "lucide-react",
+      "framer-motion",
+      "react-international-phone",
+    ],
   },
   headers: async () => {
     const isProd = process.env.NODE_ENV === "production";

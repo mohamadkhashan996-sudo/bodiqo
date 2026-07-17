@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { cached } from "@/lib/cache";
 import { smartSearchExpand } from "@/modules/ai/services/intelligence";
 
 export type SearchType =
@@ -307,6 +308,7 @@ export async function searchAll(
   const limit = Math.min(Math.max(options?.limit ?? 20, 1), 40);
 
   if (!q) {
+    const recent = userId ? await listSearchHistory(userId) : [];
     return {
       query: "",
       type,
@@ -315,7 +317,7 @@ export async function searchAll(
       videos: [],
       communities: [],
       hashtags: [],
-      recent: userId ? await listSearchHistory(userId) : [],
+      recent,
     };
   }
 
@@ -397,8 +399,11 @@ export async function clearSearchHistory(userId: string) {
 }
 
 export async function trendingHashtags(limit = 10) {
-  return prisma.hashtag.findMany({
-    orderBy: { postCount: "desc" },
-    take: Math.min(Math.max(limit, 1), 50),
-  });
+  const take = Math.min(Math.max(limit, 1), 50);
+  return cached(`search:trending-tags:${take}`, 60, () =>
+    prisma.hashtag.findMany({
+      orderBy: { postCount: "desc" },
+      take,
+    }),
+  );
 }

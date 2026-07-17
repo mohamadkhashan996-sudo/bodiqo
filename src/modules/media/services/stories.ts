@@ -1,7 +1,10 @@
 import { MediaKind } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { canSeeStories } from "@/modules/messaging/services/privacy-gate";
+import {
+  canSeeStories,
+  filterVisibleStoryAuthors,
+} from "@/modules/messaging/services/privacy-gate";
 import { createNotification } from "@/modules/notifications/services/notify";
 
 const authorSelect = {
@@ -60,28 +63,38 @@ export async function listActiveStories(userId?: string) {
 export async function listPublicStories(viewerId?: string) {
   const stories = await listActiveStories(viewerId);
   const authorIds = [...new Set(stories.map((s) => s.authorId))];
-  const authors = await prisma.user.findMany({
-    where: { id: { in: authorIds } },
-    select: { id: true, isPrivate: true },
-  });
+  const [authors, storyAllowed] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { in: authorIds } },
+      select: { id: true, isPrivate: true },
+    }),
+    filterVisibleStoryAuthors(viewerId, authorIds),
+  ]);
   const authorMap = new Map(authors.map((a) => [a.id, a]));
+
+  const privateAuthorIds = authors
+    .filter((a) => a.isPrivate && a.id !== viewerId)
+    .map((a) => a.id);
+
+  const followingPrivate = new Set<string>();
+  if (viewerId && privateAuthorIds.length) {
+    const follows = await prisma.follow.findMany({
+      where: {
+        followerId: viewerId,
+        followingId: { in: privateAuthorIds },
+      },
+      select: { followingId: true },
+    });
+    for (const row of follows) followingPrivate.add(row.followingId);
+  }
 
   const filtered = [];
   for (const story of stories) {
     const author = authorMap.get(story.authorId);
     if (!author) continue;
-    if (!(await canSeeStories(viewerId, story.authorId))) continue;
+    if (!storyAllowed.has(story.authorId)) continue;
     if (author.isPrivate && viewerId !== story.authorId) {
-      if (!viewerId) continue;
-      const following = await prisma.follow.findUnique({
-        where: {
-          followerId_followingId: {
-            followerId: viewerId,
-            followingId: story.authorId,
-          },
-        },
-      });
-      if (!following) continue;
+      if (!viewerId || !followingPrivate.has(story.authorId)) continue;
     }
     const reactionCounts: Record<string, number> = {};
     for (const reaction of story.reactions) {

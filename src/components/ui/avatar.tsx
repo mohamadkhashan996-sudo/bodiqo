@@ -3,8 +3,24 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
+const OPTIMIZABLE_HOSTS = new Set([
+  "res.cloudinary.com",
+  "utfs.io",
+  "images.unsplash.com",
+  "lh3.googleusercontent.com",
+]);
+
 function isLocalPath(src: string) {
   return src.startsWith("/") && !src.startsWith("//");
+}
+
+function shouldOptimize(src: string) {
+  if (isLocalPath(src)) return true;
+  try {
+    return OPTIMIZABLE_HOSTS.has(new URL(src).hostname);
+  } catch {
+    return false;
+  }
 }
 
 export function Avatar({
@@ -37,19 +53,6 @@ export function Avatar({
     className,
   );
 
-  if (isLocalPath(src)) {
-    return (
-      <Image
-        src={src}
-        alt={label}
-        width={80}
-        height={80}
-        className={shared}
-        sizes="80px"
-      />
-    );
-  }
-
   return (
     <Image
       src={src}
@@ -58,7 +61,8 @@ export function Avatar({
       height={80}
       className={shared}
       sizes="80px"
-      unoptimized
+      unoptimized={!shouldOptimize(src)}
+      loading="lazy"
     />
   );
 }

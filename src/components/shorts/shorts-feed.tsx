@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   Bookmark,
   Heart,
@@ -14,9 +15,14 @@ import {
 import { useGuest } from "@/components/auth/guest-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState, Skeleton } from "@/components/ui/card";
-import { CommentsPanel } from "@/components/feed/comments-panel";
 import { ShortsUpload } from "@/components/shorts/shorts-upload";
 import { saveBrowseState } from "@/lib/guest/browse-state";
+
+const CommentsPanel = dynamic(
+  () =>
+    import("@/components/feed/comments-panel").then((m) => m.CommentsPanel),
+  { ssr: false },
+);
 
 type ShortPost = {
   id: string;
@@ -291,9 +297,13 @@ export function ShortsFeed() {
           </div>
         ) : null}
 
-        {posts.map((post) => {
+        {posts.map((post, index) => {
           const media = post.media?.[0];
           const liked = Boolean(post.liked);
+          const activeIndex = activeId
+            ? posts.findIndex((p) => p.id === activeId)
+            : 0;
+          const nearActive = Math.abs(index - Math.max(activeIndex, 0)) <= 1;
           return (
             <article
               key={post.id}
@@ -311,7 +321,7 @@ export function ShortsFeed() {
                 muted={muted}
                 loop
                 playsInline
-                preload="metadata"
+                preload={nearActive ? "auto" : "none"}
                 className="absolute inset-0 h-full w-full object-cover"
                 onClick={() => {
                   const video = videoRefs.current.get(post.id);

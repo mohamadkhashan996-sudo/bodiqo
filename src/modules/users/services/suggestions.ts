@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { cached } from "@/lib/cache";
 import { blockedIdsFor } from "@/modules/users/services/visibility";
 
 const userSelect = {
@@ -17,6 +18,12 @@ const userSelect = {
 /** People worth following: friends-of-friends, shared interests, then popular accounts. */
 export async function getSuggestedUsers(limit = 8, viewerId?: string) {
   const take = Math.min(Math.max(limit, 1), 24);
+  return cached(`suggest:users:${viewerId ?? "guest"}:${take}`, 60, () =>
+    loadSuggestedUsers(take, viewerId),
+  );
+}
+
+async function loadSuggestedUsers(take: number, viewerId?: string) {
   const exclude = new Set<string>();
   if (viewerId) exclude.add(viewerId);
 

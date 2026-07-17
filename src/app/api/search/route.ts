@@ -30,6 +30,10 @@ export async function GET(request: Request) {
     const limit = clampInt(params.get("limit"), 20, 1, 40);
 
     if (!q) {
+      const [trending, recent] = await Promise.all([
+        trendingHashtags(12),
+        user?.id ? listSearchHistory(user.id) : Promise.resolve([]),
+      ]);
       return ok({
         query: "",
         type,
@@ -38,14 +42,18 @@ export async function GET(request: Request) {
         videos: [],
         communities: [],
         hashtags: [],
-        trending: await trendingHashtags(12),
-        recent: user?.id ? await listSearchHistory(user.id) : [],
+        trending,
+        recent,
       });
     }
 
+    const [results, trending] = await Promise.all([
+      searchAll(q, user?.id, { type, limit }),
+      trendingHashtags(8),
+    ]);
     return ok({
-      ...(await searchAll(q, user?.id, { type, limit })),
-      trending: await trendingHashtags(8),
+      ...results,
+      trending,
     });
   } catch (e) {
     return fail(e);

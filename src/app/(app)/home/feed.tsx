@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
 import { PostCard } from "@/components/feed/post-card";
-import { PostComposer } from "@/components/feed/post-composer";
 import { StoriesRail } from "@/components/feed/stories-rail";
 import { PageTransition } from "@/components/motion/primitives";
 import { Avatar } from "@/components/ui/avatar";
@@ -13,6 +13,15 @@ import { Tabs } from "@/components/ui/tabs";
 import { FollowButton } from "@/components/social/follow-button";
 
 import type { FeedPost, SuggestedUser } from "@/types/feed";
+
+const PostComposer = dynamic(
+  () =>
+    import("@/components/feed/post-composer").then((m) => m.PostComposer),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="mb-4 h-36 w-full rounded-3xl" />,
+  },
+);
 
 type FeedTab = "Home" | "Following" | "Latest" | "For you";
 

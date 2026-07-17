@@ -569,6 +569,10 @@ model Post {
   @@index([type, createdAt])
   @@index([isPinned])
   @@index([deletedAt])
+  @@index([status, deletedAt, publishedAt])
+  @@index([status, deletedAt, visibility, publishedAt])
+  @@index([status, deletedAt, type, publishedAt])
+  @@index([status, deletedAt, likeCount])
 }
 
 model PostMedia {
