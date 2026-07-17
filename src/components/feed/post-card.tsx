@@ -19,7 +19,8 @@ import { CommentsPanel } from "@/components/feed/comments-panel";
 import { useGuest } from "@/components/auth/guest-provider";
 import { VerificationBadge } from "@/components/brand/official-badge";
 import { ReportDialog } from "@/components/social/report-dialog";
-import type { FeedPost } from "@/types/feed";
+import { linkifyPostBody } from "@/lib/post-body";
+import type { FeedPoll, FeedPost } from "@/types/feed";
 
 function MediaCarousel({
   media,
@@ -121,6 +122,8 @@ export function PostCard({ post }: { post: FeedPost }) {
   const [comments, setComments] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [shareNote, setShareNote] = useState<string | null>(null);
+  const [poll, setPoll] = useState<FeedPoll | null | undefined>(post.poll);
+  const [voting, setVoting] = useState(false);
 
   async function action(kind: "like" | "bookmark") {
     if (!requireAuth()) return;
@@ -154,8 +157,22 @@ export function PostCard({ post }: { post: FeedPost }) {
     window.setTimeout(() => setShareNote(null), 2000);
   }
 
+  async function vote(optionId: string) {
+    if (!requireAuth() || voting) return;
+    setVoting(true);
+    const res = await fetch(`/api/posts/${post.id}/poll/vote`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ optionId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setVoting(false);
+    if (res.ok && data.post?.poll) setPoll(data.post.poll);
+  }
+
   const author = post.author ?? {};
   const media = Array.isArray(post.media) ? post.media : [];
+  const totalVotes = poll?.totalVotes ?? 0;
 
   return (
     <motion.article
@@ -206,8 +223,51 @@ export function PostCard({ post }: { post: FeedPost }) {
       </div>
       {post.body ? (
         <p className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-[var(--ink)]">
-          {post.body}
+          {linkifyPostBody(post.body)}
         </p>
+      ) : null}
+      {poll?.options?.length ? (
+        <div className="mt-4 space-y-2">
+          {poll.options.map((option) => {
+            const pct =
+              totalVotes > 0
+                ? Math.round((option.voteCount / totalVotes) * 100)
+                : 0;
+            const selected = poll.votedOptionId === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                disabled={voting}
+                onClick={() => void vote(option.id)}
+                className={`relative w-full overflow-hidden rounded-[var(--radius-xl)] border-2 px-4 py-3 text-start text-sm transition ${
+                  selected
+                    ? "border-[var(--signal-deep)] bg-[var(--signal-soft)]"
+                    : "border-[var(--mist-strong)] bg-[var(--surface)] hover:border-[var(--signal)]"
+                }`}
+              >
+                {poll.votedOptionId ? (
+                  <span
+                    className="absolute inset-y-0 start-0 bg-[var(--signal)]/15"
+                    style={{ width: `${pct}%` }}
+                  />
+                ) : null}
+                <span className="relative flex items-center justify-between gap-3">
+                  <span className="font-medium">{option.label}</span>
+                  {poll.votedOptionId ? (
+                    <span className="tabular-nums text-[var(--muted)]">{pct}%</span>
+                  ) : null}
+                </span>
+              </button>
+            );
+          })}
+          <p className="text-xs text-[var(--muted)]">
+            {totalVotes} vote{totalVotes === 1 ? "" : "s"}
+            {poll.endsAt
+              ? ` · ends ${new Date(poll.endsAt).toLocaleString()}`
+              : ""}
+          </p>
+        </div>
       ) : null}
       {media.length ? <MediaCarousel media={media} /> : null}
       <div className="mt-5 flex flex-wrap items-center gap-2 border-t-2 border-[var(--mist-strong)] pt-4 text-[var(--muted-strong)]">

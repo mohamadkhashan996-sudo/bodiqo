@@ -262,6 +262,11 @@ void app.prepare().then(async () => {
       .then(({ runAutomaticCleanup }) => runAutomaticCleanup())
       .catch(() => undefined);
     setInterval(() => {
+      void import("./src/modules/feed/services/posts")
+        .then(({ publishScheduledPosts }) => publishScheduledPosts())
+        .catch(() => undefined);
+    }, 60_000);
+    setInterval(() => {
       void import("./src/modules/admin/services/cleanup")
         .then(({ runAutomaticCleanup }) => runAutomaticCleanup())
         .catch(() => undefined);

@@ -1,26 +1,37 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
-import { ImagePlus, Sparkles, Hash, Send, X } from "lucide-react";
+import {
+  CalendarClock,
+  FilePenLine,
+  Hash,
+  ImagePlus,
+  Send,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { MediaKind, PostType } from "@prisma/client";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/input";
+import { Input, Textarea } from "@/components/ui/input";
 import { Tabs } from "@/components/ui/tabs";
 import { useExperience } from "@/components/experience-provider";
 import { uploadFile } from "@/lib/upload-client";
+import type { FeedPost } from "@/types/feed";
 
 type MediaItem = { url: string; kind: MediaKind; name: string };
-
-import type { FeedPost } from "@/types/feed";
 
 export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => void }) {
   const { t } = useExperience();
   const [body, setBody] = useState("");
-  const [kind, setKind] = useState<"Post" | "Photo" | "Video" | "Reel">("Post");
+  const [kind, setKind] = useState<"Post" | "Photo" | "Video" | "Reel" | "Poll">(
+    "Post",
+  );
   const [sending, setSending] = useState(false);
   const [hints, setHints] = useState<string[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [scheduleAt, setScheduleAt] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function onPickFiles(files: FileList | File[]) {
@@ -46,23 +57,35 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
     }
   }
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!body.trim() && media.length === 0) return;
-    setSending(true);
-    const spam = await fetch("/api/ai", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "spam", text: body }),
-    }).then((r) => r.json());
-    if (spam.spamLikely) {
-      setSending(false);
-      setHints([spam.assistance || "This may look like spam. Please revise."]);
+  async function publish(
+    status: "PUBLISHED" | "DRAFT" | "SCHEDULED" = "PUBLISHED",
+  ) {
+    const filledPoll = pollOptions.map((o) => o.trim()).filter(Boolean);
+    if (kind === "Poll" && filledPoll.length < 2) {
+      setHints(["Add at least two poll options."]);
       return;
+    }
+    if (!body.trim() && media.length === 0 && filledPoll.length < 2) return;
+
+    setSending(true);
+    setHints([]);
+
+    if (status === "PUBLISHED" && body.trim()) {
+      const spam = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "spam", text: body }),
+      }).then((r) => r.json());
+      if (spam.spamLikely) {
+        setSending(false);
+        setHints([spam.assistance || "This may look like spam. Please revise."]);
+        return;
+      }
     }
 
     let type: PostType = "TEXT";
-    if (kind === "Reel") type = "SHORT";
+    if (kind === "Poll") type = "POLL";
+    else if (kind === "Reel") type = "SHORT";
     else if (kind === "Video") type = "VIDEO";
     else if (kind === "Photo" || media.some((m) => m.kind === "IMAGE" || m.kind === "GIF")) {
       type = media.some((m) => m.kind === "VIDEO") ? "VIDEO" : "IMAGE";
@@ -70,14 +93,28 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
       type = "VIDEO";
     }
 
+    const payload: Record<string, unknown> = {
+      body,
+      type,
+      status,
+      media: media.map((m) => ({ url: m.url, kind: m.kind })),
+    };
+    if (kind === "Poll") {
+      payload.poll = { options: filledPoll };
+    }
+    if (status === "SCHEDULED") {
+      if (!scheduleAt) {
+        setSending(false);
+        setHints(["Pick a schedule time."]);
+        return;
+      }
+      payload.scheduledAt = new Date(scheduleAt).toISOString();
+    }
+
     const response = await fetch("/api/posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        body,
-        type,
-        media: media.map((m) => ({ url: m.url, kind: m.kind })),
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await response.json();
     setSending(false);
@@ -85,10 +122,24 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
       setBody("");
       setHints([]);
       setMedia([]);
-      onCreated?.(data.post);
+      setPollOptions(["", ""]);
+      setScheduleAt("");
+      if (status === "PUBLISHED") onCreated?.(data.post);
+      else {
+        setHints([
+          status === "DRAFT"
+            ? "Draft saved."
+            : `Scheduled for ${new Date(scheduleAt).toLocaleString()}.`,
+        ]);
+      }
     } else {
-      setHints([data.error || "Could not publish post"]);
+      setHints([data.error || "Could not save post"]);
     }
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    await publish(scheduleAt ? "SCHEDULED" : "PUBLISHED");
   }
 
   async function suggest(action: "caption" | "hashtags") {
@@ -108,10 +159,10 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
     kind === "Reel"
       ? "video/mp4,video/webm"
       : kind === "Video"
-        ? "video/mp4,video/webm,image/*"
+        ? "video/mp4,video/webm,image/*,image/gif"
         : kind === "Photo"
-          ? "image/*"
-          : "image/*,video/mp4,video/webm";
+          ? "image/*,image/gif"
+          : "image/*,image/gif,video/mp4,video/webm";
 
   return (
     <form
@@ -119,18 +170,60 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
       className="rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-4 shadow-[var(--shadow-lg)] backdrop-blur-xl"
     >
       <Tabs
-        items={["Post", "Photo", "Video", "Reel"]}
+        items={["Post", "Photo", "Video", "Reel", "Poll"]}
         value={kind}
         onChange={(value) => setKind(value as typeof kind)}
       />
       <Textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder={t("home", "composerPlaceholder")}
+        placeholder={
+          kind === "Poll"
+            ? "Ask a question… use @mentions and #hashtags"
+            : t("home", "composerPlaceholder")
+        }
         className="min-h-28 border-0 bg-transparent px-2 text-lg text-[var(--ink)] shadow-none placeholder:text-[var(--placeholder)]"
         maxLength={10000}
         aria-label={t("home", "composerPlaceholder")}
       />
+      {kind === "Poll" ? (
+        <div className="mt-3 space-y-2 px-2">
+          {pollOptions.map((option, index) => (
+            <div key={index} className="flex gap-2">
+              <Input
+                value={option}
+                onChange={(e) =>
+                  setPollOptions((prev) =>
+                    prev.map((item, i) => (i === index ? e.target.value : item)),
+                  )
+                }
+                placeholder={`Option ${index + 1}`}
+                maxLength={80}
+              />
+              {pollOptions.length > 2 ? (
+                <button
+                  type="button"
+                  className="rounded-xl border-2 border-[var(--mist-strong)] px-3 text-[var(--muted)]"
+                  onClick={() =>
+                    setPollOptions((prev) => prev.filter((_, i) => i !== index))
+                  }
+                >
+                  <X className="size-4" />
+                </button>
+              ) : null}
+            </div>
+          ))}
+          {pollOptions.length < 6 ? (
+            <button
+              type="button"
+              className="text-sm text-[var(--signal-deep)] hover:underline"
+              onClick={() => setPollOptions((prev) => [...prev, ""])}
+            >
+              Add option
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {hints.length ? (
         <ul className="mt-2 space-y-1 px-2 text-sm text-[var(--signal-deep)]">
           {hints.map((h) => (
@@ -138,7 +231,10 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
               <button
                 type="button"
                 className="text-start underline-offset-2 hover:underline"
-                onClick={() => setBody(h)}
+                onClick={() => {
+                  if (h === "Draft saved." || h.startsWith("Scheduled")) return;
+                  setBody(h);
+                }}
               >
                 {h}
               </button>
@@ -178,6 +274,24 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
           ) : null}
         </div>
       ) : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t-2 border-[var(--mist-strong)] px-2 pt-3">
+        <CalendarClock className="size-4 text-[var(--muted)]" />
+        <Input
+          type="datetime-local"
+          value={scheduleAt}
+          onChange={(e) => setScheduleAt(e.target.value)}
+          className="max-w-xs"
+        />
+        {scheduleAt ? (
+          <button
+            type="button"
+            className="text-xs text-[var(--muted)] hover:underline"
+            onClick={() => setScheduleAt("")}
+          >
+            Clear schedule
+          </button>
+        ) : null}
+      </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t-2 border-[var(--mist-strong)] pt-3">
         <div className="flex flex-wrap gap-2 text-xs text-[var(--muted-strong)]">
           <input
@@ -191,21 +305,23 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
               e.currentTarget.value = "";
             }}
           />
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-full px-2 py-1 hover:bg-[var(--mist)]"
-            disabled={uploading || media.length >= 10}
-            onClick={() => fileRef.current?.click()}
-          >
-            <ImagePlus className="size-4" aria-hidden />
-            {uploading
-              ? "Uploading…"
-              : kind === "Photo"
-                ? "Add photos"
-                : kind === "Reel" || kind === "Video"
-                  ? "Add video"
-                  : "Media"}
-          </button>
+          {kind !== "Poll" ? (
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-full px-2 py-1 hover:bg-[var(--mist)]"
+              disabled={uploading || media.length >= 10}
+              onClick={() => fileRef.current?.click()}
+            >
+              <ImagePlus className="size-4" aria-hidden />
+              {uploading
+                ? "Uploading…"
+                : kind === "Photo"
+                  ? "Add photos / GIFs"
+                  : kind === "Reel" || kind === "Video"
+                    ? "Add video"
+                    : "Media / GIFs"}
+            </button>
+          ) : null}
           <button
             type="button"
             className="inline-flex items-center gap-1 rounded-full px-2 py-1 hover:bg-[var(--mist)]"
@@ -220,13 +336,31 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
           >
             <Hash className="size-3.5" aria-hidden /> {t("ai", "hashtags")}
           </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 rounded-full px-2 py-1 hover:bg-[var(--mist)]"
+            disabled={sending || uploading}
+            onClick={() => void publish("DRAFT")}
+          >
+            <FilePenLine className="size-3.5" aria-hidden /> Draft
+          </button>
         </div>
         <Button
-          disabled={sending || uploading || (!body.trim() && !media.length)}
+          disabled={
+            sending ||
+            uploading ||
+            (!body.trim() &&
+              !media.length &&
+              pollOptions.map((o) => o.trim()).filter(Boolean).length < 2)
+          }
           type="submit"
         >
           <Send className="size-3.5" aria-hidden />
-          {sending ? t("common", "loading") : t("home", "compose")}
+          {sending
+            ? t("common", "loading")
+            : scheduleAt
+              ? "Schedule"
+              : t("home", "compose")}
         </Button>
       </div>
     </form>

@@ -1,6 +1,8 @@
-import { MediaKind, PostType, PostVisibility } from "@prisma/client";
+import { MediaKind, PostStatus, PostType, PostVisibility } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { extractHashtags, extractMentions } from "@/lib/post-text";
+import { createNotification } from "@/modules/notifications/services/notify";
 import {
   canViewPostContent,
   filterVisiblePostIds,
@@ -22,6 +24,11 @@ const include = {
   },
   media: { orderBy: { sortOrder: "asc" as const } },
   hashtags: { include: { hashtag: true } },
+  poll: {
+    include: {
+      options: { orderBy: { sortOrder: "asc" as const } },
+    },
+  },
 };
 
 type MediaInput = {
@@ -32,6 +39,11 @@ type MediaInput = {
   duration?: number;
 };
 
+type PollInput = {
+  options: string[];
+  endsAt?: Date | string | null;
+};
+
 export async function createPost(
   authorId: string,
   data: {
@@ -40,13 +52,43 @@ export async function createPost(
     visibility?: PostVisibility;
     linkUrl?: string;
     media?: MediaInput[];
+    poll?: PollInput;
+    status?: Extract<PostStatus, "PUBLISHED" | "DRAFT" | "SCHEDULED">;
+    scheduledAt?: Date | string | null;
   },
 ) {
-  if (!data.body?.trim() && !data.media?.length)
+  const pollOptions = (data.poll?.options ?? [])
+    .map((label) => label.trim())
+    .filter(Boolean);
+  if (data.poll && (pollOptions.length < 2 || pollOptions.length > 6)) {
+    throw new AppError("Polls need 2–6 options", 400);
+  }
+  if (!data.body?.trim() && !data.media?.length && !pollOptions.length) {
     throw new AppError("A post needs content", 400);
+  }
+
+  let status: PostStatus = data.status ?? "PUBLISHED";
+  let scheduledAt: Date | null = data.scheduledAt
+    ? new Date(data.scheduledAt)
+    : null;
+
+  if (status === "SCHEDULED") {
+    if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+      throw new AppError("Scheduled posts need a future date", 400);
+    }
+    if (scheduledAt.getTime() <= Date.now() + 60_000) {
+      throw new AppError("Schedule at least one minute ahead", 400);
+    }
+  } else if (status === "DRAFT") {
+    scheduledAt = null;
+  } else {
+    status = "PUBLISHED";
+    scheduledAt = null;
+  }
 
   let type = data.type ?? "TEXT";
-  if (!data.type && data.media?.length) {
+  if (pollOptions.length) type = "POLL";
+  else if (!data.type && data.media?.length) {
     const hasVideo = data.media.some((item) => item.kind === "VIDEO");
     const hasImage = data.media.some(
       (item) => item.kind === "IMAGE" || item.kind === "GIF",
@@ -62,51 +104,105 @@ export async function createPost(
     type = "IMAGE";
   }
 
-  const tags = [
-    ...new Set(
-      (data.body?.match(/#([\p{L}\p{N}_]{1,50})/gu) ?? []).map((tag) =>
-        tag.slice(1).toLowerCase(),
-      ),
-    ),
-  ];
-  return prisma.$transaction(async (tx) => {
-    const post = await tx.post.create({
+  const tags = extractHashtags(data.body);
+  const mentions = extractMentions(data.body);
+  const publishedAt = status === "PUBLISHED" ? new Date() : null;
+
+  const post = await prisma.$transaction(async (tx) => {
+    const created = await tx.post.create({
       data: {
         authorId,
         body: data.body?.trim() ?? "",
-        type: type ?? "TEXT",
+        type,
+        status,
         visibility: data.visibility ?? "PUBLIC",
         linkUrl: data.linkUrl,
-        publishedAt: new Date(),
+        scheduledAt,
+        publishedAt,
         media: {
           create: data.media?.map((m, sortOrder) => ({ ...m, sortOrder })),
         },
         hashtags: {
           create: await Promise.all(
             tags.map(async (tag) => ({
-              hashtag: { connectOrCreate: { where: { tag }, create: { tag } } },
+              hashtag: {
+                connectOrCreate: { where: { tag }, create: { tag } },
+              },
             })),
           ),
         },
+        ...(pollOptions.length
+          ? {
+              poll: {
+                create: {
+                  endsAt: data.poll?.endsAt
+                    ? new Date(data.poll.endsAt)
+                    : null,
+                  options: {
+                    create: pollOptions.map((label, sortOrder) => ({
+                      label,
+                      sortOrder,
+                    })),
+                  },
+                },
+              },
+            }
+          : {}),
       },
       include,
     });
-    await tx.user.update({
-      where: { id: authorId },
-      data: {
-        postsCount: { increment: 1 },
-        ...(post.type === "VIDEO" || post.type === "SHORT"
-          ? { videosCount: { increment: 1 } }
-          : {}),
-      },
-    });
-    for (const tag of tags)
-      await tx.hashtag.update({
-        where: { tag },
-        data: { postCount: { increment: 1 } },
+
+    if (status === "PUBLISHED") {
+      await tx.user.update({
+        where: { id: authorId },
+        data: {
+          postsCount: { increment: 1 },
+          ...(created.type === "VIDEO" || created.type === "SHORT"
+            ? { videosCount: { increment: 1 } }
+            : {}),
+        },
       });
-    return post;
+      for (const tag of tags) {
+        await tx.hashtag.update({
+          where: { tag },
+          data: { postCount: { increment: 1 } },
+        });
+      }
+    }
+
+    return created;
   });
+
+  if (status === "PUBLISHED" && mentions.length) {
+    await notifyMentions(authorId, post.id, mentions);
+  }
+
+  return post;
+}
+
+async function notifyMentions(
+  actorId: string,
+  postId: string,
+  handles: string[],
+) {
+  const users = await prisma.user.findMany({
+    where: {
+      handle: { in: handles },
+      status: "ACTIVE",
+      NOT: { id: actorId },
+    },
+    select: { id: true },
+  });
+  await Promise.all(
+    users.map((user) =>
+      createNotification({
+        userId: user.id,
+        actorId,
+        type: "MENTION",
+        postId,
+      }),
+    ),
+  );
 }
 
 export async function updatePost(
@@ -371,15 +467,32 @@ export async function getPostById(id: string, viewerId?: string) {
 }
 
 export async function serializePosts<
-  T extends { id: string; hashtags?: { hashtag: unknown }[] },
+  T extends {
+    id: string;
+    hashtags?: { hashtag: unknown }[];
+    poll?: {
+      id: string;
+      endsAt: Date | null;
+      options: Array<{
+        id: string;
+        label: string;
+        voteCount: number;
+        sortOrder: number;
+      }>;
+    } | null;
+  },
 >(posts: T[], viewerId?: string) {
   if (!posts.length) return [];
 
   const liked = new Set<string>();
   const bookmarked = new Set<string>();
+  const votedOption = new Map<string, string>();
   if (viewerId) {
     const ids = posts.map((p) => p.id);
-    const [likeRows, bookmarkRows] = await Promise.all([
+    const pollIds = posts
+      .map((p) => p.poll?.id)
+      .filter((id): id is string => Boolean(id));
+    const [likeRows, bookmarkRows, voteRows] = await Promise.all([
       prisma.postLike.findMany({
         where: { userId: viewerId, postId: { in: ids } },
         select: { postId: true },
@@ -388,22 +501,181 @@ export async function serializePosts<
         where: { userId: viewerId, postId: { in: ids } },
         select: { postId: true },
       }),
+      pollIds.length
+        ? prisma.pollVote.findMany({
+            where: {
+              userId: viewerId,
+              option: { pollId: { in: pollIds } },
+            },
+            select: { optionId: true, option: { select: { pollId: true } } },
+          })
+        : Promise.resolve([]),
     ]);
     for (const row of likeRows) liked.add(row.postId);
     for (const row of bookmarkRows) bookmarked.add(row.postId);
+    for (const row of voteRows) {
+      votedOption.set(row.option.pollId, row.optionId);
+    }
   }
 
-  return posts.map((post) => ({
-    ...post,
-    hashtags: post.hashtags?.map((entry) => entry.hashtag) ?? [],
-    liked: liked.has(post.id),
-    bookmarked: bookmarked.has(post.id),
-  }));
+  return posts.map((post) => {
+    const poll = post.poll
+      ? {
+          id: post.poll.id,
+          endsAt: post.poll.endsAt,
+          totalVotes: post.poll.options.reduce(
+            (sum, option) => sum + option.voteCount,
+            0,
+          ),
+          votedOptionId: post.poll.id
+            ? votedOption.get(post.poll.id) ?? null
+            : null,
+          options: post.poll.options.map((option) => ({
+            id: option.id,
+            label: option.label,
+            voteCount: option.voteCount,
+            sortOrder: option.sortOrder,
+          })),
+        }
+      : null;
+
+    return {
+      ...post,
+      hashtags: post.hashtags?.map((entry) => entry.hashtag) ?? [],
+      poll,
+      liked: liked.has(post.id),
+      bookmarked: bookmarked.has(post.id),
+    };
+  });
 }
 
 export async function serializePost<
-  T extends { id: string; hashtags?: { hashtag: unknown }[] },
+  T extends {
+    id: string;
+    hashtags?: { hashtag: unknown }[];
+    poll?: {
+      id: string;
+      endsAt: Date | null;
+      options: Array<{
+        id: string;
+        label: string;
+        voteCount: number;
+        sortOrder: number;
+      }>;
+    } | null;
+  },
 >(post: T, viewerId?: string) {
   const [serialized] = await serializePosts([post], viewerId);
   return serialized!;
+}
+
+export async function votePoll(
+  userId: string,
+  postId: string,
+  optionId: string,
+) {
+  const post = await prisma.post.findFirst({
+    where: { id: postId, deletedAt: null, status: "PUBLISHED" },
+    include: {
+      poll: { include: { options: true } },
+    },
+  });
+  if (!post?.poll) throw new AppError("Poll not found", 404);
+  if (post.poll.endsAt && post.poll.endsAt.getTime() < Date.now()) {
+    throw new AppError("This poll has ended", 400);
+  }
+  const option = post.poll.options.find((row) => row.id === optionId);
+  if (!option) throw new AppError("Invalid poll option", 400);
+
+  await prisma.$transaction(async (tx) => {
+    const previous = await tx.pollVote.findMany({
+      where: {
+        userId,
+        option: { pollId: post.poll!.id },
+      },
+      select: { id: true, optionId: true },
+    });
+    for (const vote of previous) {
+      await tx.pollVote.delete({ where: { id: vote.id } });
+      await tx.pollOption.update({
+        where: { id: vote.optionId },
+        data: { voteCount: { decrement: 1 } },
+      });
+    }
+    await tx.pollVote.create({ data: { userId, optionId } });
+    await tx.pollOption.update({
+      where: { id: optionId },
+      data: { voteCount: { increment: 1 } },
+    });
+  });
+
+  return getPostById(postId, userId);
+}
+
+export async function getAuthorWorkspacePosts(
+  authorId: string,
+  status: Extract<PostStatus, "DRAFT" | "SCHEDULED">,
+  limit = 30,
+) {
+  const posts = await prisma.post.findMany({
+    where: { authorId, status, deletedAt: null },
+    include,
+    orderBy:
+      status === "SCHEDULED"
+        ? { scheduledAt: "asc" }
+        : { updatedAt: "desc" },
+    take: Math.min(Math.max(limit, 1), 50),
+  });
+  return { posts: await serializePosts(posts, authorId) };
+}
+
+export async function publishScheduledPosts(now = new Date()) {
+  const due = await prisma.post.findMany({
+    where: {
+      status: "SCHEDULED",
+      deletedAt: null,
+      scheduledAt: { lte: now },
+    },
+    select: {
+      id: true,
+      authorId: true,
+      type: true,
+      body: true,
+      hashtags: { include: { hashtag: { select: { tag: true } } } },
+    },
+    take: 50,
+  });
+  if (!due.length) return { published: 0 };
+
+  let published = 0;
+  for (const post of due) {
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.post.updateMany({
+        where: { id: post.id, status: "SCHEDULED" },
+        data: { status: "PUBLISHED", publishedAt: now },
+      });
+      if (!updated.count) return;
+      await tx.user.update({
+        where: { id: post.authorId },
+        data: {
+          postsCount: { increment: 1 },
+          ...(post.type === "VIDEO" || post.type === "SHORT"
+            ? { videosCount: { increment: 1 } }
+            : {}),
+        },
+      });
+      for (const row of post.hashtags) {
+        await tx.hashtag.update({
+          where: { tag: row.hashtag.tag },
+          data: { postCount: { increment: 1 } },
+        });
+      }
+      published += 1;
+    });
+    const mentions = extractMentions(post.body);
+    if (mentions.length) {
+      await notifyMentions(post.authorId, post.id, mentions);
+    }
+  }
+  return { published };
 }

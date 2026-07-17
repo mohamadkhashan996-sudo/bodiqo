@@ -14,20 +14,39 @@ export type FeedMedia = {
   kind?: string;
 };
 
+export type FeedPollOption = {
+  id: string;
+  label: string;
+  voteCount: number;
+  sortOrder?: number;
+};
+
+export type FeedPoll = {
+  id: string;
+  endsAt?: string | Date | null;
+  totalVotes?: number;
+  votedOptionId?: string | null;
+  options: FeedPollOption[];
+};
+
 /** Client-side post shape returned by serializePost / feed APIs. */
 export type FeedPost = {
   id: string;
   body?: string | null;
   type?: string;
+  status?: string;
   likeCount?: number;
   commentCount?: number;
   liked?: boolean;
   bookmarked?: boolean;
   isPinned?: boolean;
   publishedAt?: string | Date;
+  scheduledAt?: string | Date | null;
   createdAt?: string | Date;
   media?: FeedMedia[];
   author?: FeedAuthor;
+  poll?: FeedPoll | null;
+  hashtags?: HashtagSummary[];
 };
 
 export type FeedComment = {

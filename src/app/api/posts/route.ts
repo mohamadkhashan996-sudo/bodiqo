@@ -8,10 +8,11 @@ import {
 } from "@/lib/api";
 import {
   createPost,
+  getAuthorWorkspacePosts,
   getFeed,
   getPostsByHandle,
 } from "@/modules/feed/services/posts";
-import { MediaKind, PostType, PostVisibility } from "@prisma/client";
+import { MediaKind, PostStatus, PostType, PostVisibility } from "@prisma/client";
 import { z } from "zod";
 import { mediaUrlSchema } from "@/lib/media-url";
 
@@ -20,6 +21,10 @@ const schema = z.object({
   type: z.nativeEnum(PostType).optional(),
   visibility: z.nativeEnum(PostVisibility).optional(),
   linkUrl: z.string().url().optional(),
+  status: z
+    .enum([PostStatus.PUBLISHED, PostStatus.DRAFT, PostStatus.SCHEDULED])
+    .optional(),
+  scheduledAt: z.string().datetime().optional().nullable(),
   media: z
     .array(
       z.object({
@@ -32,6 +37,12 @@ const schema = z.object({
     )
     .max(10)
     .optional(),
+  poll: z
+    .object({
+      options: z.array(z.string().trim().min(1).max(80)).min(2).max(6),
+      endsAt: z.string().datetime().optional().nullable(),
+    })
+    .optional(),
 });
 
 export async function GET(r: Request) {
@@ -39,6 +50,17 @@ export async function GET(r: Request) {
     const u = await optionalUser();
     const q = new URL(r.url).searchParams;
     const author = q.get("author");
+    const mine = q.get("mine");
+    if (mine === "drafts" || mine === "scheduled") {
+      const me = await requireUser();
+      return ok(
+        await getAuthorWorkspacePosts(
+          me.id,
+          mine === "drafts" ? "DRAFT" : "SCHEDULED",
+          Number(q.get("limit") ?? 30),
+        ),
+      );
+    }
     if (author) {
       return ok(await getPostsByHandle(author, Number(q.get("limit") ?? 30), u?.id));
     }
