@@ -24,7 +24,7 @@ Used by Docker `HEALTHCHECK`, Fly, and Render.
 - `GET /api/metrics?format=json` — counters + recent errors
 
 Auth:
-1. `Authorization: Bearer $METRICS_TOKEN`, or
+1. `Authorization: Bearer $METRICS_TOKEN` only (query-string tokens are not accepted), or
 2. Staff session with `monitoring:read`
 
 Example scrape:

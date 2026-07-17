@@ -10,7 +10,7 @@ import { absoluteUrl } from "@/lib/url";
 import { getSetting } from "@/modules/admin/services/settings";
 import { hashPassword } from "@/modules/auth/password";
 import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
-import { assertHoneypotEmpty } from "@/lib/anti-spam";
+import { assertHoneypotEmpty } from "@/lib/ai-content-gate";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80),

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { AppError } from "@/lib/errors";
 
 /** Escape text for safe HTML embedding (XSS). */
 export function escapeHtml(value: string) {
@@ -52,16 +51,4 @@ export function clampInt(
   const n = Number(raw);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.trunc(n)));
-}
-
-export function requireClampInt(
-  raw: string | null | undefined,
-  fallback: number,
-  min: number,
-  max: number,
-) {
-  if (raw !== null && raw !== undefined && raw !== "" && !Number.isFinite(Number(raw))) {
-    throw new AppError("Invalid numeric parameter", 400, "VALIDATION_ERROR");
-  }
-  return clampInt(raw, fallback, min, max);
 }

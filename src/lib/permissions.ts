@@ -103,16 +103,6 @@ export function isStaff(role: string | undefined | null): boolean {
   return Boolean(role && STAFF_ROLES.includes(role as Role));
 }
 
-export function hasMinRole(
-  role: string | undefined | null,
-  minimum: Role,
-): boolean {
-  if (!role) return false;
-  const current = ROLE_RANK[role as Role];
-  if (current === undefined) return false;
-  return current >= ROLE_RANK[minimum];
-}
-
 export function can(role: string | undefined | null, permission: Permission): boolean {
   if (!role) return false;
   const list = ROLE_PERMISSIONS[role as Role];

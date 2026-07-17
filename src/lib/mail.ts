@@ -142,16 +142,3 @@ export function securityAlertEmail(detail: string) {
     ),
   };
 }
-
-export function notificationDigestEmail(summary: string) {
-  const safeSummary = escapeHtml(summary);
-  const safeSite = escapeHtml(site.url);
-  return {
-    subject: "Your Relune activity",
-    text: summary,
-    html: layout(
-      "Activity",
-      `<p>${safeSummary}</p><p><a href="${safeSite}/notifications">Open notifications</a></p>`,
-    ),
-  };
-}

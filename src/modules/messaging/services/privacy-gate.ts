@@ -238,6 +238,85 @@ export async function canSeeOnlineStatus(viewerId: string, targetId: string) {
   return audienceAllows(viewerId, targetId, privacy?.whoCanSeeOnline ?? "FOLLOWERS");
 }
 
+/**
+ * Which of `candidateViewerIds` may see `targetId`'s online status (batched).
+ */
+export async function filterOnlineStatusViewers(
+  targetId: string,
+  candidateViewerIds: string[],
+) {
+  const unique = [...new Set(candidateViewerIds)].filter((id) => id !== targetId);
+  if (!unique.length) return [] as string[];
+
+  const privacy = await prisma.privacySettings.findUnique({
+    where: { userId: targetId },
+    select: { whoCanSeeOnline: true },
+  });
+  const rule = privacy?.whoCanSeeOnline ?? "FOLLOWERS";
+  if (rule === "NOBODY") return [];
+  if (rule === "EVERYONE") return unique;
+
+  const [blocks, followsOut, followsIn] = await Promise.all([
+    prisma.block.findMany({
+      where: {
+        OR: [
+          { blockerId: targetId, blockedId: { in: unique } },
+          { blockedId: targetId, blockerId: { in: unique } },
+        ],
+      },
+      select: { blockerId: true, blockedId: true },
+    }),
+    prisma.follow.findMany({
+      where: { followingId: targetId, followerId: { in: unique } },
+      select: { followerId: true },
+    }),
+    prisma.follow.findMany({
+      where: { followerId: targetId, followingId: { in: unique } },
+      select: { followingId: true },
+    }),
+  ]);
+
+  const blocked = new Set(
+    blocks.flatMap((row) =>
+      row.blockerId === targetId ? [row.blockedId] : [row.blockerId],
+    ),
+  );
+  const followersOfTarget = new Set(followsOut.map((r) => r.followerId));
+  const targetFollows = new Set(followsIn.map((r) => r.followingId));
+
+  return unique.filter((viewerId) => {
+    if (blocked.has(viewerId)) return false;
+    if (rule === "FOLLOWERS") return followersOfTarget.has(viewerId);
+    if (rule === "FOLLOWING") return targetFollows.has(viewerId);
+    if (rule === "MUTUAL") {
+      return followersOfTarget.has(viewerId) && targetFollows.has(viewerId);
+    }
+    return false;
+  });
+}
+
+/** Whether actor may @mention target (batched-friendly single check). */
+export async function canMention(actorId: string, targetId: string) {
+  if (actorId === targetId) return false;
+  const [privacy, blocked] = await Promise.all([
+    prisma.privacySettings.findUnique({
+      where: { userId: targetId },
+      select: { whoCanMention: true },
+    }),
+    prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: actorId, blockedId: targetId },
+          { blockerId: targetId, blockedId: actorId },
+        ],
+      },
+      select: { id: true },
+    }),
+  ]);
+  if (blocked) return false;
+  return audienceAllows(actorId, targetId, privacy?.whoCanMention ?? "EVERYONE");
+}
+
 export async function shouldShowTyping(userId: string) {
   const privacy = await getMessagingPrivacy(userId);
   return privacy.showTyping;

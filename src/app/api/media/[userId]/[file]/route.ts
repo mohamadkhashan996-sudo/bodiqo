@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import { access, constants, stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { fail, optionalUser, requireUser, guardApiAbuse } from "@/lib/api";
+import { fail, requireUser, guardApiAbuse } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
@@ -12,6 +12,11 @@ function safeSegment(value: string) {
   return /^[a-zA-Z0-9._-]+$/.test(value);
 }
 
+/**
+ * Serves files from private storage. Always authenticated.
+ * Allowed: owner path userId, asset owner, or conversation member with that mediaUrl.
+ * Missing MediaAsset rows default to private (deny unless conversation share).
+ */
 export async function GET(_request: Request, context: Ctx) {
   try {
     await guardApiAbuse(_request, "media:userId:file:get", 180, 60000);
@@ -20,31 +25,24 @@ export async function GET(_request: Request, context: Ctx) {
       throw new AppError("Not found", 404);
     }
 
+    const user = await requireUser();
     const url = `/api/media/${userId}/${file}`;
     const asset = await prisma.mediaAsset.findFirst({
       where: { originalUrl: url },
-      select: { id: true, ownerId: true, mimeType: true, meta: true },
+      select: { id: true, ownerId: true, mimeType: true },
     });
 
-    const meta = (asset?.meta ?? {}) as { private?: boolean };
-    const isPrivate = Boolean(meta.private);
-
-    if (isPrivate) {
-      const user = await requireUser();
-      if (user.id !== userId) {
-        // Allow if the file appears in a conversation the viewer belongs to.
-        const allowed = await prisma.message.findFirst({
-          where: {
-            mediaUrl: url,
-            conversation: { members: { some: { userId: user.id } } },
+    if (user.id !== userId && asset?.ownerId !== user.id) {
+      const shared = await prisma.message.findFirst({
+        where: {
+          mediaUrl: url,
+          conversation: {
+            members: { some: { userId: user.id, leftAt: null } },
           },
-          select: { id: true },
-        });
-        if (!allowed) throw new AppError("Forbidden", 403);
-      }
-    } else {
-      // Public post media may still be served via this path for consistency.
-      await optionalUser();
+        },
+        select: { id: true },
+      });
+      if (!shared) throw new AppError("Forbidden", 403);
     }
 
     const absolute = path.join(
@@ -69,9 +67,7 @@ export async function GET(_request: Request, context: Ctx) {
       headers: {
         "Content-Type": asset?.mimeType || "application/octet-stream",
         "Content-Length": String(info.size),
-        "Cache-Control": isPrivate
-          ? "private, no-store"
-          : "public, max-age=86400",
+        "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },
     });

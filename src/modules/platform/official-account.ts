@@ -1,4 +1,4 @@
-import { Role, PostType } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { followUser } from "@/modules/users/services/social";
@@ -49,19 +49,4 @@ export async function officialFollowNewUser(newUserId: string) {
   } catch {
     /* already following or blocked — ignore */
   }
-}
-
-export async function sendOfficialAnnouncement(body: string, type: PostType = "TEXT") {
-  const officialId = await getOfficialUserId();
-  if (!officialId) throw new AppError("Official account not provisioned", 500);
-  return prisma.post.create({
-    data: {
-      authorId: officialId,
-      body,
-      type,
-      visibility: "PUBLIC",
-      publishedAt: new Date(),
-      status: "PUBLISHED",
-    },
-  });
 }

@@ -351,6 +351,8 @@ export async function getFeed({
       prisma.follow.findMany({
         where: { followerId: userId },
         select: { followingId: true },
+        orderBy: { createdAt: "desc" },
+        take: 2000,
       }),
       mode === "home" || mode === "foryou" || mode === "trending"
         ? prisma.userInterest.findMany({
@@ -584,6 +586,8 @@ async function loadShorts(
       prisma.follow.findMany({
         where: { followerId: viewerId },
         select: { followingId: true },
+        orderBy: { createdAt: "desc" },
+        take: 2000,
       }),
       prisma.userInterest.findMany({
         where: { userId: viewerId },

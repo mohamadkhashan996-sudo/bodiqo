@@ -47,8 +47,37 @@ async function resolveToken(req: { headers: Record<string, string> }) {
   return null;
 }
 
-function emitPresence(io: Server, userId: string, status: PresenceStatus) {
-  io.emit("presence:changed", { userId, status, at: new Date().toISOString() });
+function emitPresence(
+  io: Server,
+  userId: string,
+  status: PresenceStatus,
+  viewerIds: string[],
+) {
+  const payload = { userId, status, at: new Date().toISOString() };
+  // Never global-broadcast — only notify viewers allowed by privacy settings.
+  for (const viewerId of viewerIds) {
+    io.to(`user:${viewerId}`).emit("presence:changed", payload);
+  }
+  io.to(`user:${userId}`).emit("presence:changed", payload);
+}
+
+async function presenceViewers(userId: string) {
+  const { filterOnlineStatusViewers } = await import(
+    "./src/modules/messaging/services/privacy-gate"
+  );
+  const peers = await prisma.conversationMember.findMany({
+    where: {
+      leftAt: null,
+      userId: { not: userId },
+      conversation: { members: { some: { userId, leftAt: null } } },
+    },
+    select: { userId: true },
+    distinct: ["userId"],
+  });
+  return filterOnlineStatusViewers(
+    userId,
+    peers.map((p) => p.userId),
+  );
 }
 
 void app.prepare().then(async () => {
@@ -106,7 +135,10 @@ void app.prepare().then(async () => {
     set.add(socket.id);
     presenceSockets.set(userId, set);
     await prisma.user.update({ where: { id: userId }, data: { presence: "ONLINE" } }).catch(() => undefined);
-    if (wasOffline) emitPresence(io, userId, "ONLINE");
+    if (wasOffline) {
+      const viewers = await presenceViewers(userId).catch(() => [] as string[]);
+      emitPresence(io, userId, "ONLINE", viewers);
+    }
     const memberships = await prisma.conversationMember.findMany({ where: { userId, leftAt: null }, select: { conversationId: true } }).catch(() => []);
     memberships.forEach(({ conversationId }) => socket.join(`conversation:${conversationId}`));
 
@@ -114,7 +146,8 @@ void app.prepare().then(async () => {
       const status = input?.status;
       if (!status || !Object.values(PresenceStatus).includes(status)) throw new Error("Invalid presence status");
       await prisma.user.update({ where: { id: userId }, data: { presence: status, ...(status === "OFFLINE" ? { lastSeenAt: new Date() } : {}) } });
-      emitPresence(io, userId, status);
+      const viewers = await presenceViewers(userId);
+      emitPresence(io, userId, status, viewers);
       return { status };
     }));
     socket.on("conversation:join", (input: { conversationId: string }, callback?: Ack) => ack(callback, async () => {
@@ -252,7 +285,9 @@ void app.prepare().then(async () => {
       if (sockets.size) return;
       presenceSockets.delete(userId);
       void prisma.user.update({ where: { id: userId }, data: { presence: "OFFLINE", lastSeenAt: new Date() } }).catch(() => undefined);
-      emitPresence(io, userId, "OFFLINE");
+      void presenceViewers(userId)
+        .then((viewers) => emitPresence(io, userId, "OFFLINE", viewers))
+        .catch(() => undefined);
     });
   });
   server.listen(Number(process.env.PORT) || 3000, () => {
@@ -270,16 +305,6 @@ void app.prepare().then(async () => {
     void import("./src/modules/admin/services/cleanup")
       .then(({ runAutomaticCleanup }) => runAutomaticCleanup())
       .catch(() => undefined);
-    setInterval(() => {
-      void import("./src/modules/feed/services/posts")
-        .then(({ publishScheduledPosts }) => publishScheduledPosts())
-        .catch(() => undefined);
-    }, 60_000);
-    setInterval(() => {
-      void import("./src/modules/admin/services/cleanup")
-        .then(({ runAutomaticCleanup }) => runAutomaticCleanup())
-        .catch(() => undefined);
-    }, 6 * 60 * 60_000);
     // Daily backup tick (also checks weekly) — every 6 hours
     setInterval(() => {
       void import("./src/modules/admin/services/backups")
@@ -289,6 +314,16 @@ void app.prepare().then(async () => {
             error: error instanceof Error ? error.message : String(error),
           }),
         );
+    }, 6 * 60 * 60_000);
+    setInterval(() => {
+      void import("./src/modules/feed/services/posts")
+        .then(({ publishScheduledPosts }) => publishScheduledPosts())
+        .catch(() => undefined);
+    }, 60_000);
+    setInterval(() => {
+      void import("./src/modules/admin/services/cleanup")
+        .then(({ runAutomaticCleanup }) => runAutomaticCleanup())
+        .catch(() => undefined);
     }, 6 * 60 * 60_000);
   });
 });

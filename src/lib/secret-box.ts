@@ -57,10 +57,6 @@ export function openSecret(stored: string | null | undefined) {
   }
 }
 
-export function isSealedSecret(value: string | null | undefined) {
-  return Boolean(value?.startsWith(PREFIX));
-}
-
 /** Time-limited TURN REST credentials (coturn shared-secret style). */
 export function issueTurnCredentials(userId: string, ttlSeconds = 3600) {
   const secret = process.env.TURN_CREDENTIAL;

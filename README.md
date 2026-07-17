@@ -52,6 +52,7 @@ npm run mobile:add && npm run mobile:sync
 | [API](docs/API.md) | HTTP surface |
 | [MAINTENANCE](docs/MAINTENANCE.md) | Ops cadence |
 | [runbooks](docs/runbooks/) | Incident, restore, deploy, secrets |
+| [AUDIT-FINAL](docs/AUDIT-FINAL.md) | Final readiness scores |
 | [CHANGELOG](CHANGELOG.md) | 1.0.0 notes |
 | [PHASE-12](docs/PHASE-12.md) | Deployment phase |
 | [FUTURE](docs/FUTURE.md) | Roadmap hooks |

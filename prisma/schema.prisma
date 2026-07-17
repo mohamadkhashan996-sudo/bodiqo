@@ -1127,6 +1127,7 @@ model MediaAsset {
   @@index([ownerId, createdAt])
   @@index([kind, createdAt])
   @@index([status])
+  @@index([originalUrl])
 }
 
 enum MediaStatus {

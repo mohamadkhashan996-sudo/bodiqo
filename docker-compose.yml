@@ -1,3 +1,5 @@
+# Development stack (weak defaults — DO NOT use as production).
+# Production: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 name: relune
 
 services:

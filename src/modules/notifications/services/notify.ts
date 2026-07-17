@@ -197,16 +197,20 @@ export async function notifyMentions(input: {
     },
     select: { id: true },
   });
+  const { canMention } = await import(
+    "@/modules/messaging/services/privacy-gate"
+  );
   await Promise.all(
-    users.map((user) =>
-      createNotification({
+    users.map(async (user) => {
+      if (!(await canMention(input.actorId, user.id))) return;
+      return createNotification({
         userId: user.id,
         actorId: input.actorId,
         type: "MENTION",
         postId: input.postId,
         href: input.href ?? (input.postId ? `/post/${input.postId}` : undefined),
-      }),
-    ),
+      });
+    }),
   );
 }
 

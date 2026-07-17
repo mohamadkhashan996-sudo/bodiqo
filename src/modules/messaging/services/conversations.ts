@@ -1,7 +1,7 @@
 import { ConversationType } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { canMessage, canSeeOnlineStatus } from "./privacy-gate";
+import { canMessage } from "./privacy-gate";
 
 const memberSelect = {
   id: true, userId: true, role: true, isPinned: true, isMuted: true, isArchived: true,
@@ -30,21 +30,74 @@ async function maskPresenceForViewer<T extends MemberWithUser>(
   viewerId: string,
   members: T[],
 ): Promise<T[]> {
-  return Promise.all(
-    members.map(async (member) => {
-      if (member.userId === viewerId) return member;
-      const allowed = await canSeeOnlineStatus(viewerId, member.userId);
-      if (allowed) return member;
+  const others = members.filter((m) => m.userId !== viewerId).map((m) => m.userId);
+  // Invert: for each peer, check if viewer may see THAT peer's status.
+  // filterOnlineStatusViewers(target, candidates) answers who may see target —
+  // here viewer is fixed, so batch per unique peer via privacy of each peer.
+  const [settings, blocks, followsOut, followsIn] = await Promise.all([
+    prisma.privacySettings.findMany({
+      where: { userId: { in: others } },
+      select: { userId: true, whoCanSeeOnline: true },
+    }),
+    others.length
+      ? prisma.block.findMany({
+          where: {
+            OR: [
+              { blockerId: viewerId, blockedId: { in: others } },
+              { blockedId: viewerId, blockerId: { in: others } },
+            ],
+          },
+          select: { blockerId: true, blockedId: true },
+        })
+      : Promise.resolve([]),
+    others.length
+      ? prisma.follow.findMany({
+          where: { followerId: viewerId, followingId: { in: others } },
+          select: { followingId: true },
+        })
+      : Promise.resolve([]),
+    others.length
+      ? prisma.follow.findMany({
+          where: { followingId: viewerId, followerId: { in: others } },
+          select: { followerId: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const audience = new Map(
+    settings.map((row) => [row.userId, row.whoCanSeeOnline]),
+  );
+  const blocked = new Set(
+    blocks.flatMap((row) =>
+      row.blockerId === viewerId ? [row.blockedId] : [row.blockerId],
+    ),
+  );
+  const following = new Set(followsOut.map((r) => r.followingId));
+  const followers = new Set(followsIn.map((r) => r.followerId));
+
+  return members.map((member) => {
+    if (member.userId === viewerId) return member;
+    if (blocked.has(member.userId)) {
       return {
         ...member,
-        user: {
-          ...member.user,
-          presence: "OFFLINE",
-          lastSeenAt: null,
-        },
+        user: { ...member.user, presence: "OFFLINE", lastSeenAt: null },
       };
-    }),
-  );
+    }
+    const rule = audience.get(member.userId) ?? "FOLLOWERS";
+    let allowed = false;
+    if (rule === "EVERYONE") allowed = true;
+    else if (rule === "NOBODY") allowed = false;
+    else if (rule === "FOLLOWERS") allowed = following.has(member.userId);
+    else if (rule === "FOLLOWING") allowed = followers.has(member.userId);
+    else if (rule === "MUTUAL") {
+      allowed = following.has(member.userId) && followers.has(member.userId);
+    }
+    if (allowed) return member;
+    return {
+      ...member,
+      user: { ...member.user, presence: "OFFLINE", lastSeenAt: null },
+    };
+  });
 }
 
 export async function assertConversationMember(userId: string, conversationId: string) {
@@ -192,16 +245,4 @@ export async function removeConversationMember(actorId: string, conversationId: 
     where: { conversationId_userId: { conversationId, userId: memberId } },
     data: { leftAt: new Date(), isArchived: true },
   });
-}
-
-export async function searchConversations(userId: string, query: string) {
-  const { conversations } = await listConversations(userId, undefined, 50);
-  const q = query.trim().toLowerCase();
-  return conversations.filter(({ conversation }) =>
-    conversation.title?.toLowerCase().includes(q) ||
-    conversation.members.some((member) =>
-      member.userId !== userId &&
-      [member.user.handle, member.user.name, member.user.displayName].some((value) => value?.toLowerCase().includes(q)),
-    ),
-  );
 }

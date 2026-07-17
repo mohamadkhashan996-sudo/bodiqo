@@ -31,6 +31,23 @@ export function ProfileHighlights({
   const [active, setActive] = useState<Highlight | null>(null);
   const [itemIndex, setItemIndex] = useState(0);
 
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(`/api/highlights?handle=${encodeURIComponent(handle)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        setLocked(Boolean(d.locked));
+        setHighlights(d.highlights ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setHighlights([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [handle]);
+
   async function load() {
     const d = await fetch(`/api/highlights?handle=${encodeURIComponent(handle)}`).then(
       (r) => r.json(),
@@ -38,11 +55,6 @@ export function ProfileHighlights({
     setLocked(Boolean(d.locked));
     setHighlights(d.highlights ?? []);
   }
-
-  useEffect(() => {
-    void load().catch(() => setHighlights([]));
-  }, [handle]);
-
   async function removeHighlight(id: string) {
     const res = await fetch(`/api/highlights?id=${encodeURIComponent(id)}`, {
       method: "DELETE",

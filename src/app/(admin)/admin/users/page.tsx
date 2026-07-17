@@ -61,7 +61,6 @@ function UsersPageInner() {
   useEffect(() => {
     const focus = searchParams.get("focus");
     if (focus) void loadDetail(focus);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate detail from URL focus
   }, [searchParams]);
 
   async function act(action: string, extra: Record<string, unknown> = {}) {

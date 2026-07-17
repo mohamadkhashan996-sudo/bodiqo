@@ -125,9 +125,15 @@ export async function POST(request: Request) {
       return ok(translateAssist(data.text ?? "", data.targetLocale ?? "en"));
     }
     if (data.action === "fake") {
-      if (!data.userId) throw new AppError("userId required", 400);
+      const targetId = data.userId ?? user.id;
+      if (targetId !== user.id) {
+        const { isStaff } = await import("@/lib/permissions");
+        if (!isStaff(user.role)) {
+          throw new AppError("Forbidden", 403, "FORBIDDEN");
+        }
+      }
       const target = await prisma.user.findUnique({
-        where: { id: data.userId },
+        where: { id: targetId },
       });
       if (!target) throw new AppError("not found", 404);
       return ok(

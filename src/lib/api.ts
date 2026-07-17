@@ -7,7 +7,6 @@ import { can, isStaff, type Permission } from "@/lib/permissions";
 import { rateLimit } from "@/lib/rate-limit";
 import { writeSecurityEvent } from "@/modules/admin/services/audit";
 import { site } from "@/config/site";
-import { clampInt } from "@/lib/security";
 
 export async function requireUser() {
   const session = await auth();
@@ -27,10 +26,6 @@ export async function requireStaff(permission: Permission = "admin:access") {
     throw new AppError("Forbidden", 403, "FORBIDDEN");
   }
   return user as typeof user & { role: Role };
-}
-
-export async function requirePermission(permission: Permission) {
-  return requireStaff(permission);
 }
 
 export async function body<T extends z.ZodTypeAny>(
@@ -61,10 +56,6 @@ export function fail(error: unknown) {
     );
   }
   return NextResponse.json(result.body, { status: result.status });
-}
-
-export function paramsId(context: { params: Promise<Record<string, string>> }) {
-  return context.params;
 }
 
 /**
@@ -182,20 +173,4 @@ export async function guardApiAbuse(
     throw new AppError("Too many requests", 429, "RATE_LIMITED");
   }
   return result;
-}
-
-/** Parse a bounded integer query param. */
-export function queryInt(
-  request: Request,
-  name: string,
-  fallback: number,
-  min: number,
-  max: number,
-) {
-  return clampInt(
-    new URL(request.url).searchParams.get(name),
-    fallback,
-    min,
-    max,
-  );
 }

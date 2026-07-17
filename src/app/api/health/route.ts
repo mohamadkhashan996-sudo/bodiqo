@@ -9,7 +9,7 @@ import { guardApiAbuse } from "@/lib/api";
 export async function GET(request: Request) {
   try {
     await guardApiAbuse(request, "health:get", 120, 60000);
-  } catch (error) {
+  } catch {
     // Health probes should degrade gracefully under abuse rather than throw.
     return NextResponse.json(
       { ok: false, error: "rate_limited" },

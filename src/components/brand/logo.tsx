@@ -21,9 +21,6 @@ export function ReluneMark({
   );
 }
 
-/** @deprecated alias */
-export const CirquaMark = ReluneMark;
-
 export function BrandLockup({
   href = "/",
   className,
