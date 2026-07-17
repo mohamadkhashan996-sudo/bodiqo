@@ -137,7 +137,8 @@ export function ConversationList({
         ) : null}
         {rows.map((row) => {
           const member = row.conversation.members.find(
-            (item) => item.user.presence === "ONLINE",
+            (item) =>
+              item.userId !== currentUserId && item.user.presence === "ONLINE",
           )?.user;
           const latest = row.conversation.messages[0];
           return (

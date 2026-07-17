@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   FileUp,
   ImagePlus,
@@ -20,6 +20,8 @@ type PendingMedia = {
   kind: "IMAGE" | "VIDEO" | "AUDIO" | "FILE";
   name: string;
 };
+
+const TYPING_IDLE_MS = 1800;
 
 export function MessageComposer({
   onSend,
@@ -47,6 +49,27 @@ export function MessageComposer({
   const imageRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typingActive = useRef(false);
+
+  function setTyping(active: boolean) {
+    if (typingActive.current === active) return;
+    typingActive.current = active;
+    onTyping(active);
+  }
+
+  function bumpTyping() {
+    setTyping(true);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => setTyping(false), TYPING_IDLE_MS);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+      if (typingActive.current) onTyping(false);
+    };
+  }, [onTyping]);
 
   async function attach(file: File, kind: PendingMedia["kind"]) {
     setUploading(true);
@@ -69,7 +92,9 @@ export function MessageComposer({
       next.ondataavailable = (event) => chunks.current.push(event.data);
       next.onstop = () => {
         void (async () => {
-          const audio = new Blob(chunks.current, { type: next.mimeType || "audio/webm" });
+          const audio = new Blob(chunks.current, {
+            type: next.mimeType || "audio/webm",
+          });
           stream.getTracks().forEach((track) => track.stop());
           if (!audio.size) return;
           setUploading(true);
@@ -84,7 +109,9 @@ export function MessageComposer({
               mediaUrl: result.url,
             });
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Voice upload failed");
+            setError(
+              err instanceof Error ? err.message : "Voice upload failed",
+            );
           } finally {
             setUploading(false);
           }
@@ -115,7 +142,8 @@ export function MessageComposer({
     });
     setBody("");
     setMedia(null);
-    onTyping(false);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    setTyping(false);
   }
 
   return (
@@ -142,7 +170,11 @@ export function MessageComposer({
             <span className="truncate text-[var(--muted)]">
               {media.kind}: {media.name}
             </span>
-            <button type="button" onClick={() => setMedia(null)} className="icon-button size-8">
+            <button
+              type="button"
+              onClick={() => setMedia(null)}
+              className="icon-button size-8"
+            >
               <X className="size-3.5" />
             </button>
           </div>
@@ -219,7 +251,8 @@ export function MessageComposer({
               value={body}
               onChange={(event) => {
                 setBody(event.target.value);
-                onTyping(Boolean(event.target.value));
+                if (event.target.value) bumpTyping();
+                else setTyping(false);
               }}
               placeholder={uploading ? "Uploading…" : "Share a thought…"}
               rows={1}
@@ -245,7 +278,11 @@ export function MessageComposer({
                 }}
                 className="p-1"
               >
-                {paused ? <Play className="size-4" /> : <Pause className="size-4" />}
+                {paused ? (
+                  <Play className="size-4" />
+                ) : (
+                  <Pause className="size-4" />
+                )}
               </button>
               <button type="button" onClick={stop} className="p-1">
                 <Square className="size-4" />

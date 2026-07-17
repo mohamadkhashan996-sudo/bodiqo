@@ -18,7 +18,7 @@ async function ensureMembersInRoom(conversationId: string, userIds: string[]) {
 export async function broadcastMessageNew(
   conversationId: string,
   senderId: string,
-  message: { body?: string | null; id: string },
+  message: { body?: string | null; id: string; [key: string]: unknown },
 ) {
   const io = getIo();
   if (!io) return;
@@ -31,6 +31,14 @@ export async function broadcastMessageNew(
     members.map((m) => m.userId),
   );
   io.to(`conversation:${conversationId}`).emit("message:new", message);
+  // Also nudge each member's personal room so inbox screens update.
+  for (const member of members) {
+    io.to(`user:${member.userId}`).emit("conversation:updated", {
+      conversationId,
+      message,
+      senderId,
+    });
+  }
   const preview = (message.body || "New message").slice(0, 180);
   await Promise.all(
     members

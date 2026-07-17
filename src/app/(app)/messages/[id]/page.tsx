@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { ChatThread } from "@/components/messaging/chat-thread";
 import { ConversationList, type ConversationRow } from "@/components/messaging/conversation-list";
 import { PageTransition } from "@/components/motion/primitives";
+import { useInboxRealtime } from "@/hooks/use-inbox-realtime";
 
 export default function ConversationPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,8 @@ export default function ConversationPage() {
       .then((response) => response.json())
       .then((data: { conversations?: ConversationRow[] }) => setRows(data.conversations ?? []));
   }, []);
+
+  useInboxRealtime(setRows, session?.user?.id, id);
 
   return (
     <PageTransition className="page-shell">

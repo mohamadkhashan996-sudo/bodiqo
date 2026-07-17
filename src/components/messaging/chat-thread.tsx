@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Lock, Phone, Search, UserPlus, Users, Video, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Lock,
+  LogOut,
+  Phone,
+  Search,
+  UserPlus,
+  Users,
+  Video,
+  X,
+} from "lucide-react";
 import { useSocket } from "@/hooks/use-socket";
 import { MessageBubble, type ChatMessage } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
@@ -21,6 +31,7 @@ type Conversation = {
   type: string;
   members: {
     userId: string;
+    role?: string;
     user: {
       id: string;
       name: string | null;
@@ -28,6 +39,7 @@ type Conversation = {
       handle: string | null;
       image: string | null;
       presence: string;
+      lastSeenAt?: string | null;
     };
   }[];
 };
@@ -37,6 +49,7 @@ type SearchHit = ChatMessage & {
 };
 
 export function ChatThread({ conversationId }: { conversationId: string }) {
+  const router = useRouter();
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
   const { socket } = useSocket();
@@ -52,7 +65,12 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
   const [membersOpen, setMembersOpen] = useState(false);
   const [memberQuery, setMemberQuery] = useState("");
   const [memberResults, setMemberResults] = useState<
-    { id: string; handle: string; displayName?: string | null; name?: string | null }[]
+    {
+      id: string;
+      handle: string;
+      displayName?: string | null;
+      name?: string | null;
+    }[]
   >([]);
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -66,7 +84,9 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     socket?.emit("conversation:join", { conversationId });
     void Promise.all([
       fetch(`/api/conversations/${conversationId}`).then((r) => r.json()),
-      fetch(`/api/conversations/${conversationId}/messages`).then((r) => r.json()),
+      fetch(`/api/conversations/${conversationId}/messages`).then((r) =>
+        r.json(),
+      ),
     ]).then(([thread, history]) => {
       setConversation(thread.conversation ?? null);
       setMessages(history.messages ?? []);
@@ -75,6 +95,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     });
     return () => {
       socket?.emit("conversation:leave", { conversationId });
+      socket?.emit("typing:stop", { conversationId });
     };
   }, [conversationId, socket]);
 
@@ -84,6 +105,16 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
       setMessages((old) =>
         old.some((item) => item.id === message.id) ? old : [...old, message],
       );
+      if (message.senderId !== currentUserId) {
+        socket?.emit("message:delivered", {
+          conversationId,
+          messageId: message.id,
+        });
+        socket?.emit("message:seen", {
+          conversationId,
+          messageId: message.id,
+        });
+      }
     };
     const update = (message: ChatMessage) =>
       setMessages((old) =>
@@ -141,7 +172,9 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
               ...item,
               reactions: item.reactions.filter(
                 (r) =>
-                  !(r.userId === reaction.userId && r.emoji === reaction.emoji),
+                  !(
+                    r.userId === reaction.userId && r.emoji === reaction.emoji
+                  ),
               ),
             };
           }
@@ -192,6 +225,25 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
         ),
       );
     };
+    const presence = ({
+      userId,
+      status,
+    }: {
+      userId: string;
+      status: string;
+    }) => {
+      setConversation((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          members: prev.members.map((member) =>
+            member.userId === userId
+              ? { ...member, user: { ...member.user, presence: status } }
+              : member,
+          ),
+        };
+      });
+    };
     socket?.on("message:new", append);
     socket?.on("message:updated", update);
     socket?.on("message:deleted", removed);
@@ -200,6 +252,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     socket?.on("message:delivered", delivered);
     socket?.on("typing:start", type);
     socket?.on("typing:stop", stop);
+    socket?.on("presence:changed", presence);
     return () => {
       socket?.off("message:new", append);
       socket?.off("message:updated", update);
@@ -209,6 +262,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
       socket?.off("message:delivered", delivered);
       socket?.off("typing:start", type);
       socket?.off("typing:stop", stop);
+      socket?.off("presence:changed", presence);
     };
   }, [conversationId, currentUserId, socket]);
 
@@ -313,9 +367,12 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     setReply(null);
   }
 
-  function typing(active: boolean) {
-    socket?.emit(active ? "typing:start" : "typing:stop", { conversationId });
-  }
+  const typing = useCallback(
+    (active: boolean) => {
+      socket?.emit(active ? "typing:start" : "typing:stop", { conversationId });
+    },
+    [socket, conversationId],
+  );
 
   function invite(type: "AUDIO" | "VIDEO") {
     const callees =
@@ -329,7 +386,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     if (!callees.length) return;
     socket?.emit(
       "call:invite",
-      { conversationId, calleeIds: callees.slice(0, 1), type },
+      { conversationId, calleeIds: callees, type },
       (result: { ok: boolean; data?: unknown }) => {
         if (result.ok && result.data) {
           window.dispatchEvent(
@@ -389,10 +446,9 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
       }
       return old.filter((item) => item.id !== message.id);
     });
-    await fetch(
-      `/api/messages/${message.id}?forEveryone=${forEveryone}`,
-      { method: "DELETE" },
-    );
+    await fetch(`/api/messages/${message.id}?forEveryone=${forEveryone}`, {
+      method: "DELETE",
+    });
   }
 
   async function addMember(userId: string) {
@@ -407,6 +463,14 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     setConversation(thread.conversation ?? null);
     setMemberQuery("");
     setMemberResults([]);
+  }
+
+  async function leaveGroup() {
+    if (!window.confirm("Leave this group?")) return;
+    const res = await fetch(`/api/conversations/${conversationId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) router.push("/messages");
   }
 
   if (!conversation) {
@@ -424,6 +488,10 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     peer?.handle ??
     "Conversation";
   const isGroup = conversation.type === "GROUP";
+  const peerOnline = !isGroup && peer?.presence === "ONLINE";
+  const onlineCount = conversation.members.filter(
+    (m) => m.userId !== currentUserId && m.user.presence === "ONLINE",
+  ).length;
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-2xl)] bg-[radial-gradient(circle_at_80%_0%,color-mix(in_srgb,var(--ember)_22%,transparent),transparent_34%),transparent] max-md:min-h-[min(100dvh,100%)] md:min-h-[min(560px,70dvh)]">
@@ -435,8 +503,8 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
           </h2>
           <p className="mt-1 flex items-center gap-2 text-xs text-[var(--muted)]">
             {isGroup
-              ? `${conversation.members.length} members`
-              : peer?.presence === "ONLINE"
+              ? `${conversation.members.length} members${onlineCount ? ` · ${onlineCount} online` : ""}`
+              : peerOnline
                 ? "Online"
                 : "Offline"}
             {e2eReady && !isGroup ? (
@@ -517,15 +585,20 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
                   <button
                     key={hit.id}
                     type="button"
-                    className="block w-full rounded-[var(--radius-lg)] px-3 py-2 text-left text-xs hover:bg-[var(--mist)]/40"
+                    className="block w-full rounded-[var(--radius-lg)] px-3 py-2 text-left text-sm hover:bg-[var(--mist)]/40"
                     onClick={() => {
                       document
                         .getElementById(`msg-${hit.id}`)
-                        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "center",
+                        });
                     }}
                   >
-                    <span className="font-semibold text-[var(--signal)]">
-                      {hit.sender.displayName ?? hit.sender.name ?? hit.sender.handle}
+                    <span className="font-medium">
+                      {hit.sender.displayName ??
+                        hit.sender.name ??
+                        hit.sender.handle}
                     </span>
                     <span className="mt-0.5 block truncate text-[var(--muted)]">
                       {hit.body || "Media message"}
@@ -545,8 +618,18 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
           <p className="text-xs font-semibold text-[var(--muted)]">Members</p>
           <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto text-sm">
             {conversation.members.map((m) => (
-              <li key={m.userId} className="flex justify-between gap-2">
-                <span>
+              <li
+                key={m.userId}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <span
+                    className={`size-2 rounded-full ${
+                      m.user.presence === "ONLINE"
+                        ? "bg-[var(--signal)]"
+                        : "bg-[var(--mist-strong)]"
+                    }`}
+                  />
                   {m.user.displayName ?? m.user.name ?? m.user.handle}
                 </span>
                 <span className="text-xs text-[var(--muted)]">
@@ -565,8 +648,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
             <div className="mt-2 max-h-28 space-y-1 overflow-y-auto">
               {memberResults
                 .filter(
-                  (u) =>
-                    !conversation.members.some((m) => m.userId === u.id),
+                  (u) => !conversation.members.some((m) => m.userId === u.id),
                 )
                 .map((user) => (
                   <button
@@ -577,21 +659,34 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
                   >
                     <span>
                       {user.displayName ?? user.name}{" "}
-                      <span className="text-[var(--muted)]">@{user.handle}</span>
+                      <span className="text-[var(--muted)]">
+                        @{user.handle}
+                      </span>
                     </span>
                     <UserPlus className="size-4" />
                   </button>
                 ))}
             </div>
           ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-3 w-full"
-            onClick={() => setMembersOpen(false)}
-          >
-            Done
-          </Button>
+          <div className="mt-3 flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setMembersOpen(false)}
+            >
+              Done
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              className="flex-1"
+              onClick={() => void leaveGroup()}
+            >
+              <LogOut className="size-4" />
+              Leave
+            </Button>
+          </div>
         </div>
       ) : null}
 

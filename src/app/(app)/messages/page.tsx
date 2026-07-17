@@ -13,6 +13,7 @@ import { PageTransition } from "@/components/motion/primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
+import { useInboxRealtime } from "@/hooks/use-inbox-realtime";
 
 type SearchUser = {
   id: string;
@@ -59,6 +60,8 @@ export default function MessagesPage() {
         setRows(data.conversations ?? []),
       );
   }, []);
+
+  useInboxRealtime(setRows, session?.user?.id);
 
   useEffect(() => {
     if (!memberQuery.trim()) {

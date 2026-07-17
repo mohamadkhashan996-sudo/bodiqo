@@ -7,6 +7,7 @@ import {
   sendMessage,
   type SendMessageInput,
 } from "@/modules/messaging/services/messages";
+import { broadcastMessageNew } from "@/modules/messaging/services/broadcast";
 
 export async function GET(
   request: Request,
@@ -35,6 +36,7 @@ export async function POST(
   try {
     await guardApiAbuse(request, "conversations:id:messages:post");
     const user = await requireUser();
+    const conversationId = (await params).id;
     const input = await body(
       request,
       z.object({
@@ -50,16 +52,13 @@ export async function POST(
         senderEphemeralKey: z.string().max(4000).optional(),
       }),
     );
-    return ok(
-      {
-        message: await sendMessage(
-          user.id,
-          (await params).id,
-          input as unknown as SendMessageInput,
-        ),
-      },
-      201,
+    const message = await sendMessage(
+      user.id,
+      conversationId,
+      input as unknown as SendMessageInput,
     );
+    await broadcastMessageNew(conversationId, user.id, message);
+    return ok({ message }, 201);
   } catch (error) {
     return fail(error);
   }

@@ -10,6 +10,7 @@ import { prisma } from "./src/lib/prisma";
 import { setIo } from "./src/lib/socket";
 import { assertConversationMember } from "./src/modules/messaging/services/conversations";
 import { deleteMessage, editMessage, markDelivered, markSeen, reactMessage, sendMessage } from "./src/modules/messaging/services/messages";
+import { broadcastMessageNew } from "./src/modules/messaging/services/broadcast";
 import { addParticipant, createCall, listCallParticipants, updateCallStatus, updateParticipantMedia } from "./src/modules/media/services/calls";
 import { createNotification } from "./src/modules/notifications/services/notify";
 import { shouldShowTyping } from "./src/modules/messaging/services/privacy-gate";
@@ -38,10 +39,6 @@ async function resolveToken(req: { headers: Record<string, string> }) {
 
 function emitPresence(io: Server, userId: string, status: PresenceStatus) {
   io.emit("presence:changed", { userId, status, at: new Date().toISOString() });
-}
-
-async function members(conversationId: string) {
-  return prisma.conversationMember.findMany({ where: { conversationId, leftAt: null }, select: { userId: true } });
 }
 
 void app.prepare().then(async () => {
@@ -126,15 +123,7 @@ void app.prepare().then(async () => {
     }
     socket.on("message:send", (input: { conversationId: string } & Parameters<typeof sendMessage>[2], callback?: Ack) => ack(callback, async () => {
       const message = await sendMessage(userId, input.conversationId, input);
-      const roomMembers = await members(input.conversationId);
-      await Promise.all(roomMembers.map(async (member) => {
-        const sockets = await io.in(`user:${member.userId}`).fetchSockets();
-        for (const s of sockets) s.join(`conversation:${input.conversationId}`);
-      }));
-      io.to(`conversation:${input.conversationId}`).emit("message:new", message);
-      for (const member of roomMembers) {
-        if (member.userId !== userId) await createNotification({ userId: member.userId, actorId: userId, type: "MESSAGE", body: (message.body || "New message").slice(0, 180) });
-      }
+      await broadcastMessageNew(input.conversationId, userId, message);
       return message;
     }));
     socket.on("message:edit", (input: { messageId: string; body: string }, callback?: Ack) => ack(callback, async () => {
