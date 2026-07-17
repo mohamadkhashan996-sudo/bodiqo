@@ -107,6 +107,14 @@ export async function createPost(
   ) {
     type = "IMAGE";
   }
+  if (type === "SHORT") {
+    const hasVideo = Boolean(
+      data.media?.some((item) => item.kind === "VIDEO"),
+    );
+    if (!hasVideo) {
+      throw new AppError("Shorts need a video", 400);
+    }
+  }
 
   const tags = extractHashtags(data.body);
   const mentions = extractMentions(data.body);
@@ -278,6 +286,32 @@ export async function bookmarkPost(userId: string, postId: string) {
     where: { postId_userId: { postId, userId } },
     create: { postId, userId },
     update: {},
+  });
+}
+
+export async function sharePost(postId: string) {
+  const post = await prisma.post.findFirst({
+    where: { id: postId, deletedAt: null, status: "PUBLISHED" },
+    select: { id: true },
+  });
+  if (!post) throw new AppError("Post not found", 404);
+  return prisma.post.update({
+    where: { id: postId },
+    data: { shareCount: { increment: 1 } },
+    select: { id: true, shareCount: true },
+  });
+}
+
+export async function recordPostView(postId: string) {
+  const post = await prisma.post.findFirst({
+    where: { id: postId, deletedAt: null, status: "PUBLISHED" },
+    select: { id: true },
+  });
+  if (!post) throw new AppError("Post not found", 404);
+  return prisma.post.update({
+    where: { id: postId },
+    data: { viewCount: { increment: 1 } },
+    select: { id: true, viewCount: true },
   });
 }
 
@@ -519,14 +553,44 @@ export async function getPostsByHandle(
   };
 }
 
-export async function getShorts(viewerId?: string, cursor?: string, limit = 20) {
+export async function getShorts(
+  viewerId?: string,
+  cursor?: string,
+  limit = 20,
+  mode: "latest" | "forYou" = "forYou",
+) {
   const take = Math.min(Math.max(limit, 1), 50);
+  const ranked = mode === "forYou";
+  const candidateTake = ranked ? Math.min(take * 5, 100) : take + 1;
+  const hidden = viewerId ? await hiddenAuthorIds(viewerId) : [];
+  const windowStart = new Date(Date.now() - 21 * 24 * 60 * 60_000);
+
+  let followingIds: string[] = [];
+  let interestTerms: string[] = [];
+  if (viewerId && ranked) {
+    const [following, interests] = await Promise.all([
+      prisma.follow.findMany({
+        where: { followerId: viewerId },
+        select: { followingId: true },
+      }),
+      prisma.userInterest.findMany({
+        where: { userId: viewerId },
+        include: { interest: { select: { name: true } } },
+      }),
+    ]);
+    followingIds = following.map((f) => f.followingId);
+    interestTerms = interests.map((row) => row.interest.name.toLowerCase());
+  }
+  const followingSet = new Set(followingIds);
+
   const posts = await prisma.post.findMany({
     where: {
       status: "PUBLISHED",
       deletedAt: null,
       visibility: "PUBLIC",
       author: { status: "ACTIVE" },
+      ...(hidden.length ? { authorId: { notIn: hidden } } : {}),
+      ...(ranked ? { publishedAt: { gte: windowStart } } : {}),
       OR: [
         { type: "SHORT" },
         {
@@ -536,15 +600,35 @@ export async function getShorts(viewerId?: string, cursor?: string, limit = 20) 
       ],
     },
     include,
-    orderBy: { publishedAt: "desc" },
-    take: take + 1,
-    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    orderBy: ranked
+      ? [{ likeCount: "desc" }, { publishedAt: "desc" }]
+      : { publishedAt: "desc" },
+    take: candidateTake,
+    ...(!ranked && cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
-  const visible = await filterVisiblePostIds(viewerId, posts);
+
+  let visible = await filterVisiblePostIds(viewerId, posts);
+
+  if (ranked) {
+    const ordered = rankPosts(visible as Parameters<typeof rankPosts>[0], {
+      followingIds: followingSet,
+      interestTerms,
+    });
+    const byId = new Map(visible.map((post) => [post.id, post]));
+    visible = ordered
+      .map((post) => byId.get(post.id))
+      .filter((post): post is (typeof visible)[number] => Boolean(post));
+    if (cursor) {
+      const idx = visible.findIndex((p) => p.id === cursor);
+      visible = idx >= 0 ? visible.slice(idx + 1) : visible;
+    }
+  }
+
   const page = visible.slice(0, take);
   return {
     posts: await serializePosts(page, viewerId),
     nextCursor: visible.length > take ? visible[take].id : null,
+    mode,
   };
 }
 

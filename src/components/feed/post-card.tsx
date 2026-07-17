@@ -148,13 +148,22 @@ export function PostCard({ post }: { post: FeedPost }) {
 
   async function share() {
     const url = `${location.origin}/post/${post.id}`;
-    if (navigator.share) {
-      await navigator.share({ title: "RELUNE", text: post.body ?? undefined, url }).catch(() => {});
-      return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "RELUNE",
+          text: post.body ?? undefined,
+          url,
+        });
+      } else {
+        await navigator.clipboard?.writeText(url);
+        setShareNote("Link copied");
+        window.setTimeout(() => setShareNote(null), 2000);
+      }
+    } catch {
+      /* cancelled */
     }
-    await navigator.clipboard?.writeText(url);
-    setShareNote("Link copied");
-    window.setTimeout(() => setShareNote(null), 2000);
+    void fetch(`/api/posts/${post.id}/share`, { method: "POST" }).catch(() => {});
   }
 
   async function vote(optionId: string) {
