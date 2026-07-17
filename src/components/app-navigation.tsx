@@ -1,3 +1,5 @@
+"use client";
+
 import type { ComponentType } from "react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
