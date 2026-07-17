@@ -3,7 +3,7 @@ import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { cached, cacheDelPrefix } from "@/lib/cache";
 import { extractHashtags, extractMentions } from "@/lib/post-text";
-import { createNotification } from "@/modules/notifications/services/notify";
+import { notifyMentions } from "@/modules/notifications/services/notify";
 import { rankPosts } from "@/modules/feed/services/rank";
 import {
   canViewPostContent,
@@ -117,7 +117,6 @@ export async function createPost(
   }
 
   const tags = extractHashtags(data.body);
-  const mentions = extractMentions(data.body);
   const publishedAt = status === "PUBLISHED" ? new Date() : null;
 
   const post = await prisma.$transaction(async (tx) => {
@@ -185,39 +184,16 @@ export async function createPost(
     return created;
   });
 
-  if (status === "PUBLISHED" && mentions.length) {
-    await notifyMentions(authorId, post.id, mentions);
-  }
   if (status === "PUBLISHED") {
+    await notifyMentions({
+      actorId: authorId,
+      text: data.body ?? "",
+      postId: post.id,
+    });
     await invalidateFeedCaches().catch(() => undefined);
   }
 
   return post;
-}
-
-async function notifyMentions(
-  actorId: string,
-  postId: string,
-  handles: string[],
-) {
-  const users = await prisma.user.findMany({
-    where: {
-      handle: { in: handles },
-      status: "ACTIVE",
-      NOT: { id: actorId },
-    },
-    select: { id: true },
-  });
-  await Promise.all(
-    users.map((user) =>
-      createNotification({
-        userId: user.id,
-        actorId,
-        type: "MENTION",
-        postId,
-      }),
-    ),
-  );
 }
 
 export async function updatePost(
@@ -878,7 +854,11 @@ export async function publishScheduledPosts(now = new Date()) {
     });
     const mentions = extractMentions(post.body);
     if (mentions.length) {
-      await notifyMentions(post.authorId, post.id, mentions);
+      await notifyMentions({
+        actorId: post.authorId,
+        text: post.body,
+        postId: post.id,
+      });
     }
   }
   if (published > 0) {

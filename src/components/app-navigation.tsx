@@ -141,8 +141,15 @@ export function AppNavigation({
   useEffect(() => {
     if (pathname.startsWith("/notifications")) {
       setUnread(0);
+      if (!isGuest) {
+        void fetch("/api/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        }).catch(() => undefined);
+      }
     }
-  }, [pathname]);
+  }, [pathname, isGuest]);
 
   const desktopItems = isGuest ? guestDesktop : memberDesktop;
   const mobileItems = isGuest ? guestMobile : memberMobile;

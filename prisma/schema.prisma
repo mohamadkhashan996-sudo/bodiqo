@@ -699,6 +699,7 @@ model Notification {
   actorId   String?
   type      NotificationType
   postId    String?
+  href      String?
   body      String?
   readAt    DateTime?
   user      User             @relation("NotifyUser", fields: [userId], references: [id], onDelete: Cascade)

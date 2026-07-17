@@ -49,6 +49,7 @@ export async function broadcastMessageNew(
           actorId: senderId,
           type: "MESSAGE",
           body: preview,
+          href: `/messages/${conversationId}`,
         }),
       ),
   );

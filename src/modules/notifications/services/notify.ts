@@ -1,6 +1,7 @@
 import { NotificationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getIo } from "@/lib/socket";
+import { extractMentions } from "@/lib/post-text";
 import { fanoutPush } from "@/modules/notifications/services/push";
 
 type NotificationInput = {
@@ -8,6 +9,7 @@ type NotificationInput = {
   actorId?: string;
   type: NotificationType;
   postId?: string;
+  href?: string;
   body?: string;
 };
 
@@ -22,7 +24,7 @@ const DEFAULT_BODY: Partial<Record<NotificationType, string>> = {
   MISSED_CALL: "tried to call you",
   MENTION: "mentioned you",
   SHARE: "shared your post",
-  STORY_REPLY: "replied to your story",
+  STORY_REPLY: "reacted to your story",
   GROUP_INVITE: "invited you to a group",
   COMMUNITY_INVITE: "invited you to a community",
   VERIFICATION: "Verification update",
@@ -31,8 +33,10 @@ const DEFAULT_BODY: Partial<Record<NotificationType, string>> = {
 export function notificationHref(input: {
   type: NotificationType;
   postId?: string | null;
+  href?: string | null;
   actorHandle?: string | null;
 }) {
+  if (input.href) return input.href;
   if (
     input.postId &&
     ["LIKE", "COMMENT", "REPLY", "MENTION", "SHARE"].includes(input.type)
@@ -46,6 +50,7 @@ export function notificationHref(input: {
     return `/u/${input.actorHandle}`;
   }
   if (input.type === "MESSAGE") return "/messages";
+  if (input.type === "STORY_REPLY") return "/home";
   if (input.type === "CALL" || input.type === "MISSED_CALL") return "/calls";
   return "/notifications";
 }
@@ -59,16 +64,28 @@ function pushTitle(type: NotificationType, actorName?: string | null) {
       return `${name} commented`;
     case "REPLY":
       return `${name} replied`;
+    case "MENTION":
+      return `${name} mentioned you`;
+    case "SHARE":
+      return `${name} shared your post`;
     case "FOLLOW":
       return `${name} followed you`;
     case "FRIEND_REQUEST":
-      return `${name} requested to follow`;
+      return `${name} sent a friend request`;
     case "MESSAGE":
       return `Message from ${name}`;
+    case "STORY_REPLY":
+      return `${name} reacted to your story`;
     case "CALL":
       return `${name} is calling`;
     case "MISSED_CALL":
       return `Missed call from ${name}`;
+    case "GROUP_INVITE":
+      return `${name} invited you to a group`;
+    case "COMMUNITY_INVITE":
+      return `${name} invited you to a community`;
+    case "VERIFICATION":
+      return "Verification update";
     default:
       return "Relune";
   }
@@ -102,8 +119,23 @@ export async function createNotification(input: NotificationInput) {
   }
 
   const body = input.body?.trim() || DEFAULT_BODY[input.type] || undefined;
+  const href =
+    input.href ||
+    notificationHref({
+      type: input.type,
+      postId: input.postId,
+      href: input.href,
+    });
+
   const created = await prisma.notification.create({
-    data: { ...input, body },
+    data: {
+      userId: input.userId,
+      actorId: input.actorId,
+      type: input.type,
+      postId: input.postId,
+      href,
+      body,
+    },
     include: {
       actor: {
         select: {
@@ -120,9 +152,10 @@ export async function createNotification(input: NotificationInput) {
 
   const actorName =
     created.actor?.displayName ?? created.actor?.name ?? created.actor?.handle;
-  const href = notificationHref({
+  const url = notificationHref({
     type: created.type,
     postId: created.postId,
+    href: created.href,
     actorHandle: created.actor?.handle,
   });
 
@@ -131,15 +164,50 @@ export async function createNotification(input: NotificationInput) {
   void fanoutPush(input.userId, {
     title: pushTitle(created.type, actorName),
     body:
-      created.type === "MESSAGE" || created.type === "COMMENT" || created.type === "REPLY"
-        ? (created.body || DEFAULT_BODY[created.type] || "New activity")
+      created.type === "MESSAGE" ||
+      created.type === "COMMENT" ||
+      created.type === "REPLY" ||
+      created.type === "MENTION"
+        ? created.body || DEFAULT_BODY[created.type] || "New activity"
         : created.body || DEFAULT_BODY[created.type] || "New activity on Relune",
-    url: href,
+    url,
     tag: `relune-${created.type}-${created.id}`,
     type: created.type,
   }).catch(() => undefined);
 
   return created;
+}
+
+/** Notify users mentioned via @handle in text (posts or comments). */
+export async function notifyMentions(input: {
+  actorId: string;
+  text: string;
+  postId?: string;
+  href?: string;
+  excludeUserIds?: string[];
+}) {
+  const handles = extractMentions(input.text);
+  if (!handles.length) return;
+  const exclude = new Set([input.actorId, ...(input.excludeUserIds ?? [])]);
+  const users = await prisma.user.findMany({
+    where: {
+      handle: { in: handles },
+      status: "ACTIVE",
+      NOT: { id: { in: [...exclude] } },
+    },
+    select: { id: true },
+  });
+  await Promise.all(
+    users.map((user) =>
+      createNotification({
+        userId: user.id,
+        actorId: input.actorId,
+        type: "MENTION",
+        postId: input.postId,
+        href: input.href ?? (input.postId ? `/post/${input.postId}` : undefined),
+      }),
+    ),
+  );
 }
 
 export async function listNotifications(

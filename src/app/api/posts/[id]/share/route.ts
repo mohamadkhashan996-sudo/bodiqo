@@ -24,6 +24,7 @@ export async function POST(
           actorId: viewer.id,
           type: "SHARE",
           postId,
+          href: `/post/${postId}`,
         }).catch(() => undefined);
       }
     }

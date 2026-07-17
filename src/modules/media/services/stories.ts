@@ -183,6 +183,7 @@ export async function reactStory(
       actorId: userId,
       type: "STORY_REPLY",
       body: `reacted ${emoji} to your story`,
+      href: "/home",
     });
   }
   return reaction;

@@ -15,6 +15,7 @@ type Note = {
   id: string;
   type: string;
   body?: string | null;
+  href?: string | null;
   readAt?: string | null;
   createdAt: string;
   postId?: string | null;
@@ -73,7 +74,14 @@ export default function NotificationsPage() {
   }
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      }).catch(() => undefined);
+      load();
+    })();
   }, []);
 
   useEffect(() => {
@@ -89,9 +97,9 @@ export default function NotificationsPage() {
   const visible = items.filter((item) => {
     if (filter === "unread") return !item.readAt;
     if (filter === "mentions")
-      return item.type.includes("MENTION") || item.type.includes("COMMENT") || item.type === "REPLY";
+      return item.type === "MENTION" || item.type === "COMMENT" || item.type === "REPLY";
     if (filter === "social")
-      return ["FOLLOW", "LIKE", "FRIEND_REQUEST"].includes(item.type);
+      return ["FOLLOW", "LIKE", "FRIEND_REQUEST", "SHARE"].includes(item.type);
     if (filter === "messages") return item.type === "MESSAGE";
     if (filter === "calls") return item.type === "CALL" || item.type === "MISSED_CALL";
     return true;
@@ -133,6 +141,7 @@ export default function NotificationsPage() {
   }
 
   function hrefFor(item: Note) {
+    if (item.href) return item.href;
     const postId = item.post?.id ?? item.postId;
     if (postId && ["LIKE", "COMMENT", "REPLY", "MENTION", "SHARE"].includes(item.type)) {
       return `/post/${postId}`;
@@ -141,11 +150,21 @@ export default function NotificationsPage() {
       return `/u/${item.actor.handle}`;
     }
     if (item.type === "MESSAGE") return "/messages";
+    if (item.type === "STORY_REPLY") return "/home";
     if (["CALL", "MISSED_CALL"].includes(item.type)) return "/calls";
     return null;
   }
 
   function labelFor(item: Note) {
+    if (item.type === "LIKE") return "liked your post";
+    if (item.type === "COMMENT") return item.body || "commented on your post";
+    if (item.type === "REPLY") return item.body || "replied to a comment";
+    if (item.type === "MENTION") return "mentioned you";
+    if (item.type === "FOLLOW") return "started following you";
+    if (item.type === "FRIEND_REQUEST") return "sent you a friend request";
+    if (item.type === "MESSAGE") return item.body || "sent you a message";
+    if (item.type === "SHARE") return "shared your post";
+    if (item.type === "STORY_REPLY") return item.body || "reacted to your story";
     if (item.body) return item.body;
     return item.type.toLowerCase().replaceAll("_", " ");
   }

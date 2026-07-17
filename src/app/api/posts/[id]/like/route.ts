@@ -22,6 +22,7 @@ export async function POST(
         actorId: u.id,
         type: "LIKE",
         postId,
+        href: `/post/${postId}`,
       }).catch(() => undefined);
     }
     return ok({ like: result.like });

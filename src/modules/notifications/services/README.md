@@ -1,13 +1,28 @@
-# Notifications module
+# Notifications
 
-In-app notifications are created via `createNotification` (likes, comments, follows, messages, calls).
+In-app + push notifications for Relune activity.
 
-Delivery paths:
-1. Persist `Notification` row
-2. Emit Socket.IO `notification:new` to `user:{id}` for live badge/UI
-3. Fan out Web Push to stored `PushSubscription` rows when VAPID is configured and admin `pushNotifications.enabled` is true
+## Types wired
 
-APIs:
-- `GET/PATCH /api/notifications`
-- `GET /api/notifications/unread`
-- `GET/POST/DELETE /api/notifications/push`
+| Type | Trigger |
+|------|---------|
+| `LIKE` | Post like |
+| `COMMENT` / `REPLY` | Comment on post / reply to comment (author + parent commenter) |
+| `MENTION` | `@handle` in posts or comments |
+| `FOLLOW` | New follower / accepted friend request |
+| `FRIEND_REQUEST` | Incoming friend request |
+| `MESSAGE` | New chat message (deep-links to conversation) |
+| `SHARE` | Post share |
+| `STORY_REPLY` | Story reaction |
+| `CALL` / `MISSED_CALL` | Voice/video calls |
+
+## Flow
+
+1. `createNotification` persists + emits Socket.IO `notification:new` + Web Push fanout
+2. `/api/notifications` list / mark read; `/api/notifications/unread` badge count
+3. `/api/notifications/push` VAPID subscribe/unsubscribe
+4. UI: `/notifications` page + nav bell badge + `PushOptIn`
+
+## Push setup
+
+Set `VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` (see `.env.example`). Users enable push on the notifications page. Service worker: `/sw.js` (push-only).
