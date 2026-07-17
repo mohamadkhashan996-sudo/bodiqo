@@ -1,7 +1,16 @@
-import { fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
-import { prisma } from "@/lib/prisma";
+import { fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
+import { toggleMembership } from "@/modules/communities/services/communities";
 
-export async function POST(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ slug: string }> },
+) {
   try {
-    await guardApiAbuse(_request, "communities:slug:join:post"); const user = await requireUser(); const community = await prisma.community.findUnique({ where: { slug: (await params).slug } }); if (!community) return new Response(JSON.stringify({ error: "Community not found" }), { status: 404 }); const existing = await prisma.communityMember.findUnique({ where: { communityId_userId: { communityId: community.id, userId: user.id } } }); if (existing?.status === "JOINED") { await prisma.$transaction([prisma.communityMember.delete({ where: { id: existing.id } }), prisma.community.update({ where: { id: community.id }, data: { membersCount: { decrement: 1 } } })]); return ok({ joined: false }); } const status = community.visibility === "PRIVATE" ? "PENDING" : "JOINED"; await prisma.$transaction([prisma.communityMember.upsert({ where: { communityId_userId: { communityId: community.id, userId: user.id } }, create: { communityId: community.id, userId: user.id, status }, update: { status } }), ...(status === "JOINED" ? [prisma.community.update({ where: { id: community.id }, data: { membersCount: { increment: 1 } } })] : [])]); return ok({ joined: status === "JOINED", pending: status === "PENDING" }); } catch (error) { return fail(error); }
+    await guardApiAbuse(request, "communities:slug:join:post");
+    const user = await requireUser();
+    const { slug } = await context.params;
+    return ok(await toggleMembership(user.id, slug));
+  } catch (error) {
+    return fail(error);
+  }
 }

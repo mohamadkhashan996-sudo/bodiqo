@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Plus, UsersRound } from "lucide-react";
+import { Lock, Plus, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Card, EmptyState } from "@/components/ui/card";
@@ -17,8 +17,9 @@ type Community = {
   description: string | null;
   image: string | null;
   category: string | null;
+  visibility: "PUBLIC" | "PRIVATE";
   membersCount: number;
-  members: { status: string }[];
+  members: { status: string; role?: string }[];
 };
 
 export default function CommunitiesPage() {
@@ -28,6 +29,8 @@ export default function CommunitiesPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [rules, setRules] = useState("");
+  const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,9 +52,15 @@ export default function CommunitiesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
-        slug: slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+        slug:
+          slug ||
+          name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, ""),
         description: description || undefined,
-        visibility: "PUBLIC",
+        rules: rules || undefined,
+        visibility,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -65,6 +74,8 @@ export default function CommunitiesPage() {
     setName("");
     setSlug("");
     setDescription("");
+    setRules("");
+    setVisibility("PUBLIC");
     await load();
   }
 
@@ -90,12 +101,14 @@ export default function CommunitiesPage() {
         </Button>
       </div>
       <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
-        Small worlds for the interests that keep drawing you back.
+        Public rooms anyone can join, or private spaces behind a request.
       </p>
 
       {open ? (
         <Card className="mt-6 space-y-3">
-          <h2 className="font-[family-name:var(--font-display)] text-xl">New community</h2>
+          <h2 className="font-[family-name:var(--font-display)] text-xl">
+            New community
+          </h2>
           <Input
             placeholder="Name"
             value={name}
@@ -122,9 +135,40 @@ export default function CommunitiesPage() {
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
           />
+          <Textarea
+            placeholder="House rules (optional)"
+            value={rules}
+            onChange={(e) => setRules(e.target.value)}
+            rows={3}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={visibility === "PUBLIC" ? "signal" : "quiet"}
+              onClick={() => setVisibility("PUBLIC")}
+            >
+              Public
+            </Button>
+            <Button
+              type="button"
+              variant={visibility === "PRIVATE" ? "signal" : "quiet"}
+              onClick={() => setVisibility("PRIVATE")}
+            >
+              <Lock className="size-3.5" /> Private
+            </Button>
+          </div>
+          <p className="text-xs text-[var(--muted)]">
+            {visibility === "PRIVATE"
+              ? "People must request to join. Moderators approve access."
+              : "Anyone can join and see the feed right away."}
+          </p>
           {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
           <div className="flex gap-2">
-            <Button type="button" disabled={busy || !name.trim()} onClick={() => void create()}>
+            <Button
+              type="button"
+              disabled={busy || !name.trim()}
+              onClick={() => void create()}
+            >
               {busy ? "Creating…" : "Create"}
             </Button>
             <Button type="button" variant="quiet" onClick={() => setOpen(false)}>
@@ -156,9 +200,15 @@ export default function CommunitiesPage() {
               )}
             </div>
             <p className="mt-6 text-xs font-bold uppercase tracking-wider text-[var(--signal)]">
-              {community.category ?? "Relune space"}
+              {community.category ??
+                (community.visibility === "PRIVATE" ? "Private" : "Public")}
             </p>
-            <h2 className="mt-2 font-[family-name:var(--font-display)] text-2xl">{community.name}</h2>
+            <h2 className="mt-2 flex items-center gap-2 font-[family-name:var(--font-display)] text-2xl">
+              {community.name}
+              {community.visibility === "PRIVATE" ? (
+                <Lock className="size-4 text-[var(--muted)]" />
+              ) : null}
+            </h2>
             <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--muted)]">
               {community.description ?? "A space waiting for its first story."}
             </p>
@@ -168,14 +218,24 @@ export default function CommunitiesPage() {
                 {community.membersCount.toLocaleString()} members
               </span>
               {community.members[0]?.status === "JOINED" ? (
-                <span className="rounded-full bg-[var(--mist)] px-2 py-1">Joined</span>
+                <span className="rounded-full bg-[var(--mist)] px-2 py-1">
+                  Joined
+                </span>
+              ) : community.members[0]?.status === "PENDING" ? (
+                <span className="rounded-full bg-[var(--mist)] px-2 py-1">
+                  Pending
+                </span>
               ) : null}
             </div>
           </Link>
         ))}
       </div>
       {!communities.length ? (
-        <EmptyState className="mt-8" title="No communities yet" description="Create the first space." />
+        <EmptyState
+          className="mt-8"
+          title="No communities yet"
+          description="Create the first space."
+        />
       ) : null}
     </PageTransition>
   );
