@@ -24,7 +24,11 @@ type Person = {
   relation?: FollowRelation;
 };
 
-export default function FollowListPage({ mode }: { mode: "followers" | "following" }) {
+export default function FollowListPage({
+  mode,
+}: {
+  mode: "followers" | "following" | "friends";
+}) {
   const { handle } = useParams<{ handle: string }>();
   const [users, setUsers] = useState<Person[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -72,7 +76,7 @@ export default function FollowListPage({ mode }: { mode: "followers" | "followin
           ← @{handle}
         </Link>
         <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl tracking-tight capitalize">
-          {mode}
+          {mode === "friends" ? "Friends" : mode}
         </h1>
       </div>
 
@@ -128,7 +132,18 @@ export default function FollowListPage({ mode }: { mode: "followers" | "followin
 
       {!loading && !error && !users.length ? (
         <EmptyState
-          title={mode === "followers" ? "No followers yet" : "Not following anyone yet"}
+          title={
+            mode === "followers"
+              ? "No followers yet"
+              : mode === "following"
+                ? "Not following anyone yet"
+                : "No friends yet"
+          }
+          description={
+            mode === "friends"
+              ? "Friends are people you follow who follow you back."
+              : undefined
+          }
         />
       ) : null}
     </PageTransition>

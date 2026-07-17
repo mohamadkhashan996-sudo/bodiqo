@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
-import { Lock, MessageCircle, MoreHorizontal, Pencil } from "lucide-react";
+import { Lock, MapPin, MessageCircle, MoreHorizontal, Pencil } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
@@ -17,6 +17,7 @@ import { useExperience } from "@/components/experience-provider";
 import { useGuest } from "@/components/auth/guest-provider";
 import { VerificationBadge } from "@/components/brand/official-badge";
 import { ReportDialog } from "@/components/social/report-dialog";
+import { InterestChips } from "@/components/profile/interest-picker";
 
 type ProfileVisibility = {
   isPrivate?: boolean;
@@ -192,6 +193,10 @@ export default function ProfilePageClient() {
         year: "numeric",
       })
     : null;
+  const interests = (user.interests as Array<{ id?: string; name: string }> | undefined) ?? [];
+  const location = [String(user.city ?? ""), String(user.country ?? "")]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <PageTransition className="section-shell max-w-5xl px-5 md:px-8">
@@ -324,6 +329,33 @@ export default function ProfilePageClient() {
             </p>
           ) : null}
 
+          {interests.length ? (
+            <div className="mt-4">
+              <InterestChips interests={interests} />
+            </div>
+          ) : null}
+
+          {location || user.website ? (
+            <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-[var(--muted)]">
+              {location ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="size-3.5" />
+                  {location}
+                </span>
+              ) : null}
+              {user.website ? (
+                <a
+                  href={String(user.website)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[var(--signal-deep)] hover:underline"
+                >
+                  {String(user.website).replace(/^https?:\/\//, "")}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+
           {user.isOfficial ? (
             <div className="mt-5 rounded-[var(--radius-xl)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--signal)]">
@@ -336,7 +368,7 @@ export default function ProfilePageClient() {
             </div>
           ) : null}
 
-          <div className="mt-6 grid grid-cols-3 gap-3 sm:flex sm:gap-8">
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             {[
               {
                 value: visibility.canViewFollowers ? user.followersCount : "—",
@@ -347,6 +379,11 @@ export default function ProfilePageClient() {
                 value: visibility.canViewFollowing ? user.followingCount : "—",
                 label: t("profile", "following"),
                 href: visibility.canViewFollowing ? `/u/${handle}/following` : null,
+              },
+              {
+                value: visibility.canViewFollowers ? user.friendsCount : "—",
+                label: "Friends",
+                href: visibility.canViewFollowers ? `/u/${handle}/friends` : null,
               },
               {
                 value: visibility.canViewContent ? user.postsCount : "—",
@@ -492,7 +529,22 @@ export default function ProfilePageClient() {
                       <p className="mt-2 text-sm">{joined}</p>
                     </div>
                   ) : null}
-                  {!user.bio && !user.website && !user.city && !user.country && !joined ? (
+                  {interests.length ? (
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                        Interests
+                      </p>
+                      <div className="mt-3">
+                        <InterestChips interests={interests} />
+                      </div>
+                    </div>
+                  ) : null}
+                  {!user.bio &&
+                  !user.website &&
+                  !user.city &&
+                  !user.country &&
+                  !joined &&
+                  !interests.length ? (
                     <p className="text-sm text-[var(--muted)]">No profile details yet.</p>
                   ) : null}
                 </Card>

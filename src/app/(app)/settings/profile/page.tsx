@@ -10,6 +10,8 @@ import { Input, Textarea } from "@/components/ui/input";
 import { PageTransition } from "@/components/motion/primitives";
 import { StateBanner } from "@/components/ui/card";
 import { uploadFile } from "@/lib/upload-client";
+import { InterestPicker } from "@/components/profile/interest-picker";
+import type { InterestItem } from "@/types/feed";
 
 type ProfileForm = {
   displayName: string;
@@ -43,26 +45,38 @@ export default function ProfileSettingsPage() {
   const [uploading, setUploading] = useState<"image" | "coverImage" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [interests, setInterests] = useState<InterestItem[]>([]);
+  const [chosenInterests, setChosenInterests] = useState<string[]>([]);
   const avatarRef = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/users/me")
-      .then((r) => r.json())
-      .then((data) => {
-        const user = data.user;
-        if (!user) return;
-        setForm({
-          displayName: user.displayName ?? user.name ?? "",
-          handle: user.handle ?? "",
-          bio: user.bio ?? "",
-          website: user.website ?? "",
-          city: user.city ?? "",
-          country: user.country ?? "",
-          image: user.image ?? "",
-          coverImage: user.coverImage ?? "",
-          isPrivate: Boolean(user.isPrivate),
-        });
+    Promise.all([
+      fetch("/api/users/me").then((r) => r.json()),
+      fetch("/api/interests").then((r) => r.json()),
+    ])
+      .then(([profileData, interestData]) => {
+        const user = profileData.user;
+        if (user) {
+          setForm({
+            displayName: user.displayName ?? user.name ?? "",
+            handle: user.handle ?? "",
+            bio: user.bio ?? "",
+            website: user.website ?? "",
+            city: user.city ?? "",
+            country: user.country ?? "",
+            image: user.image ?? "",
+            coverImage: user.coverImage ?? "",
+            isPrivate: Boolean(user.isPrivate),
+          });
+          setChosenInterests(
+            (user.interests ?? []).map(
+              (row: { interest?: { id: string }; interestId?: string }) =>
+                row.interest?.id ?? row.interestId ?? "",
+            ).filter(Boolean),
+          );
+        }
+        setInterests(interestData.interests ?? []);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -106,6 +120,7 @@ export default function ProfileSettingsPage() {
         image: form.image || null,
         coverImage: form.coverImage || null,
         isPrivate: form.isPrivate,
+        interestIds: chosenInterests,
       }),
     });
     const data = await res.json();
@@ -347,6 +362,23 @@ export default function ProfileSettingsPage() {
                 className="mt-2"
               />
             </label>
+          </div>
+
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+              Interests
+            </p>
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Help people discover you and tune your recommendations.
+            </p>
+            <div className="mt-3">
+              <InterestPicker
+                interests={interests}
+                chosen={chosenInterests}
+                onChange={setChosenInterests}
+                disabled={loading || saving}
+              />
+            </div>
           </div>
 
           <div className="rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-4">

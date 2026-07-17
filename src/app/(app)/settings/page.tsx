@@ -5,6 +5,7 @@ import { signIn, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import {
   Bell,
+  BadgeCheck,
   Globe2,
   Link2,
   Lock,
@@ -32,6 +33,7 @@ const links = [
   { href: "/settings/profile", icon: UserRound, key: "profile" },
   { href: "/settings/privacy", icon: Lock, key: "privacy" },
   { href: "/settings/security", icon: Shield, key: "security" },
+  { href: "/settings/verification", icon: BadgeCheck, key: "verification" },
   { href: "/settings/bookmarks", icon: Link2, key: "bookmarks" },
   { href: "/settings#appearance", icon: Palette, key: "appearance" },
   { href: "/settings#language", icon: Globe2, key: "language" },

@@ -40,6 +40,7 @@ const schema = z.object({
   isPrivate: z.boolean().optional(),
   locale: z.string().max(12).optional(),
   theme: z.nativeEnum(ThemePreference).optional(),
+  interestIds: z.array(z.string()).max(20).optional(),
 });
 
 const profileSelect = {
@@ -98,12 +99,21 @@ export async function PATCH(r: Request) {
     }
 
     const displayName = data.displayName ?? data.name;
+    const { interestIds, ...profile } = data;
     const user = await prisma.user.update({
       where: { id: u.id },
       data: {
-        ...data,
+        ...profile,
         ...(displayName !== undefined
           ? { displayName, name: displayName }
+          : {}),
+        ...(interestIds !== undefined
+          ? {
+              interests: {
+                deleteMany: {},
+                create: interestIds.map((interestId) => ({ interestId })),
+              },
+            }
           : {}),
       },
       select: profileSelect,

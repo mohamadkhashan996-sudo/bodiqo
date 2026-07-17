@@ -120,6 +120,51 @@ export async function listFollowing(
   };
 }
 
+export async function listFriends(
+  handle: string,
+  viewerId?: string,
+  cursor?: string,
+  limit = 30,
+) {
+  const user = await prisma.user.findUnique({
+    where: { handle: handle.toLowerCase() },
+    select: { id: true, isPrivate: true },
+  });
+  if (!user) throw new AppError("User not found", 404);
+  const visibility = await getProfileVisibility(user, viewerId);
+  if (!visibility.canViewFollowers) throw new AppError("Friends are private", 403);
+
+  const take = Math.min(Math.max(limit, 1), 50);
+  const rows = await prisma.follow.findMany({
+    where: {
+      followerId: user.id,
+      following: {
+        following: {
+          some: { followingId: user.id },
+        },
+      },
+    },
+    include: { following: { select: userSelect } },
+    orderBy: { createdAt: "desc" },
+    take: take + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+  });
+  const nextCursor = rows.length > take ? rows.pop()!.id : null;
+  const users = rows.map((row) => row.following);
+  const relations = await relationMap(
+    viewerId,
+    users.map((u) => u.id),
+  );
+
+  return {
+    users: users.map((u) => ({
+      ...u,
+      relation: viewerId === u.id ? ("self" as const) : relations.get(u.id) ?? "none",
+    })),
+    nextCursor,
+  };
+}
+
 export async function listFriendRequests(userId: string, limit = 50) {
   const take = Math.min(Math.max(limit, 1), 100);
   const [incoming, outgoing] = await Promise.all([
