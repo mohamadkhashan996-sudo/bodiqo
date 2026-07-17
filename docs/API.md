@@ -74,11 +74,14 @@ Base URL: `AUTH_URL` (local `http://localhost:3000`)
 | `/api/admin/roles` | Roles |
 | `/api/admin/audit` | Audit log |
 
-## Health
+## Health & observability
 | Path | Purpose |
 | --- | --- |
 | `GET /api/health` | DB ping |
 | `GET /api/health?mode=ready` | Readiness |
 | `GET /api/health?mode=live` | Liveness |
+| `GET /api/metrics` | Prometheus metrics (`METRICS_TOKEN` or staff) |
+| `GET /api/metrics?format=json` | JSON metrics + recent errors |
+| `POST /api/errors` | Client error ingest (rate-limited) |
 
 Realtime events are delivered over Socket.io (`/socket.io`) on the custom server — not REST.

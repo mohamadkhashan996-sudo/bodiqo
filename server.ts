@@ -8,6 +8,8 @@ import { CallType, PresenceStatus, Prisma } from "@prisma/client";
 import { assertBootEnv, socketAllowedOrigins } from "./src/config/env";
 import { prisma } from "./src/lib/prisma";
 import { setIo } from "./src/lib/socket";
+import { logger } from "./src/lib/logger";
+import { installProcessErrorHandlers } from "./src/lib/error-tracking";
 import { assertConversationMember } from "./src/modules/messaging/services/conversations";
 import { deleteMessage, editMessage, markDelivered, markSeen, reactMessage, sendMessage } from "./src/modules/messaging/services/messages";
 import { broadcastMessageNew } from "./src/modules/messaging/services/broadcast";
@@ -15,6 +17,7 @@ import { addParticipant, createCall, listCallParticipants, updateCallStatus, upd
 import { createNotification } from "./src/modules/notifications/services/notify";
 import { shouldShowTyping } from "./src/modules/messaging/services/privacy-gate";
 
+installProcessErrorHandlers();
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handler = app.getRequestHandler();
@@ -72,12 +75,11 @@ void app.prepare().then(async () => {
       const sub = pub.duplicate();
       await Promise.all([pub.connect(), sub.connect()]);
       io.adapter(createAdapter(pub, sub));
-      console.log("> Socket.io Redis adapter enabled");
+      logger.info("socket_redis_adapter_enabled");
     } catch (error) {
-      console.warn(
-        "> Socket.io Redis adapter unavailable",
-        error instanceof Error ? error.message : error,
-      );
+      logger.warn("socket_redis_adapter_unavailable", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -254,10 +256,17 @@ void app.prepare().then(async () => {
     });
   });
   server.listen(Number(process.env.PORT) || 3000, () => {
-    console.log(`> Ready on http://localhost:${process.env.PORT || 3000}`);
+    logger.info("server_ready", {
+      port: Number(process.env.PORT) || 3000,
+      env: process.env.NODE_ENV,
+    });
     void import("./src/modules/admin/services/backups")
       .then(({ runScheduledBackups }) => runScheduledBackups())
-      .catch(() => undefined);
+      .catch((error) =>
+        logger.warn("scheduled_backup_boot_failed", {
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
     void import("./src/modules/admin/services/cleanup")
       .then(({ runAutomaticCleanup }) => runAutomaticCleanup())
       .catch(() => undefined);
@@ -270,6 +279,16 @@ void app.prepare().then(async () => {
       void import("./src/modules/admin/services/cleanup")
         .then(({ runAutomaticCleanup }) => runAutomaticCleanup())
         .catch(() => undefined);
+    }, 6 * 60 * 60_000);
+    // Daily backup tick (also checks weekly) — every 6 hours
+    setInterval(() => {
+      void import("./src/modules/admin/services/backups")
+        .then(({ runScheduledBackups }) => runScheduledBackups())
+        .catch((error) =>
+          logger.warn("scheduled_backup_tick_failed", {
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        );
     }, 6 * 60 * 60_000);
   });
 });

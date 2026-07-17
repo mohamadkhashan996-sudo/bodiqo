@@ -3,6 +3,7 @@ import { DM_Sans, Syne } from "next/font/google";
 import { auth } from "@/modules/auth";
 import { Providers } from "@/components/providers";
 import { SplashScreen } from "@/components/motion/splash";
+import { ClientErrorReporter } from "@/components/observability/client-error-reporter";
 import { site } from "@/config/site";
 import "./globals.css";
 
@@ -122,6 +123,7 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         <Providers locale={locale} theme={theme}>
+          <ClientErrorReporter />
           <SplashScreen />
           <a
             href="#content"

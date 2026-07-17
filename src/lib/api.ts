@@ -55,6 +55,11 @@ export function ok(data: unknown, status = 200) {
 
 export function fail(error: unknown) {
   const result = toErrorResponse(error);
+  if (result.status >= 500) {
+    void import("@/lib/metrics").then(({ incCounter }) =>
+      incCounter("relune_http_errors_total", { status: String(result.status) }),
+    );
+  }
   return NextResponse.json(result.body, { status: result.status });
 }
 

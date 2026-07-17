@@ -17,6 +17,7 @@ Open http://localhost:3000 · Demo: `maya@cirqua.local` / `cirqua1234`
 ```bash
 npm run test:smoke
 npm run test:verify
+npm test
 ```
 
 ## Deploy
@@ -24,6 +25,9 @@ npm run test:verify
 | --- | --- |
 | Web (Docker / Fly / Render) | [DEPLOY](docs/DEPLOY.md) |
 | Production env | [PRODUCTION](docs/PRODUCTION.md) |
+| Observability | [OBSERVABILITY](docs/OBSERVABILITY.md) |
+| Testing | [TESTING](docs/TESTING.md) |
+| Runbooks | [docs/runbooks](docs/runbooks/) |
 | Cut a release | [RELEASE](docs/RELEASE.md) |
 | iOS & Android | [MOBILE](docs/MOBILE.md) |
 
@@ -40,10 +44,14 @@ npm run mobile:add && npm run mobile:sync
 | --- | --- |
 | [INSTALL](docs/INSTALL.md) | Setup |
 | [DEPLOY](docs/DEPLOY.md) | Production web |
+| [PRODUCTION](docs/PRODUCTION.md) | Launch checklist |
+| [OBSERVABILITY](docs/OBSERVABILITY.md) | Logs, metrics, errors |
+| [TESTING](docs/TESTING.md) | Unit / smoke / CI |
 | [MOBILE](docs/MOBILE.md) | Capacitor iOS / Android |
 | [RELEASE](docs/RELEASE.md) | Versioning & go-live |
 | [API](docs/API.md) | HTTP surface |
-| [MAINTENANCE](docs/MAINTENANCE.md) | Ops |
+| [MAINTENANCE](docs/MAINTENANCE.md) | Ops cadence |
+| [runbooks](docs/runbooks/) | Incident, restore, deploy, secrets |
 | [CHANGELOG](CHANGELOG.md) | 1.0.0 notes |
 | [PHASE-12](docs/PHASE-12.md) | Deployment phase |
 | [FUTURE](docs/FUTURE.md) | Roadmap hooks |

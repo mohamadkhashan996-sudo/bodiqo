@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get install -y --no-install-recommends openssl ca-certificates postgresql-client \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 1001 relune \
   && useradd --system --uid 1001 --gid relune relune
@@ -38,8 +38,10 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
-RUN chmod +x ./scripts/docker-entrypoint.sh \
-  && mkdir -p public/uploads \
+COPY --from=builder /app/scripts/backup.sh ./scripts/backup.sh
+COPY --from=builder /app/scripts/restore.sh ./scripts/restore.sh
+RUN chmod +x ./scripts/docker-entrypoint.sh ./scripts/backup.sh ./scripts/restore.sh \
+  && mkdir -p public/uploads data/backups \
   && chown -R relune:relune /app
 USER relune
 EXPOSE 3000

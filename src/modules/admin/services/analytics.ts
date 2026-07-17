@@ -181,10 +181,15 @@ export async function getMonitoringSnapshot() {
       ]),
     ]);
 
+    const { recentErrors } = await import("@/lib/error-tracking");
+    const { metricsSnapshot } = await import("@/lib/metrics");
+
     return {
       errorsLast24h: errors,
       auditEventsLast24h: apiHints,
       securityLogs: security,
+      recentAppErrors: recentErrors().slice(0, 15),
+      metrics: metricsSnapshot(),
       database: {
         users: dbCounts[0],
         posts: dbCounts[1],
@@ -198,7 +203,8 @@ export async function getMonitoringSnapshot() {
       },
       performance: {
         cache: "memory",
-        note: "Attach APM (OpenTelemetry) in production for deep traces",
+        metricsPath: "/api/metrics",
+        note: "Prometheus scrape + optional SENTRY_DSN; see docs/OBSERVABILITY.md",
       },
     };
   });

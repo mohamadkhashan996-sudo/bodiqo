@@ -51,8 +51,10 @@ services:
         condition: service_healthy
     volumes:
       - relune_uploads:/app/public/uploads
+      - relune_backups:/app/data/backups
 
 volumes:
   relune_pg:
   relune_redis:
   relune_uploads:
+  relune_backups:

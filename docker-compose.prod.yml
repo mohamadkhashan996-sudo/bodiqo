@@ -43,3 +43,6 @@ services:
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET}
     ports:
       - "${PORT:-3000}:3000"
+    volumes:
+      - relune_uploads:/app/public/uploads
+      - relune_backups:/app/data/backups

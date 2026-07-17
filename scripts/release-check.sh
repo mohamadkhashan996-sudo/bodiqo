@@ -35,5 +35,16 @@ test -f docs/DEPLOY.md
 test -f docs/MOBILE.md
 test -f docs/RELEASE.md
 test -f docs/PRODUCTION.md
+test -f docs/OBSERVABILITY.md
+test -f docs/TESTING.md
+test -f docs/runbooks/incident.md
+test -f docs/runbooks/restore.md
+test -f scripts/backup.sh
+test -f scripts/restore.sh
+test -f .github/workflows/ci.yml
+test -f .github/workflows/deploy.yml
+
+echo "==> Unit tests"
+npm test
 
 echo "Release check passed."

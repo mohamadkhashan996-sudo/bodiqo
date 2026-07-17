@@ -16,7 +16,10 @@ export function toErrorResponse(error: unknown) {
       body: { error: error.message, code: error.code },
     };
   }
-  console.error(error);
+  // Lazy import to avoid circular deps at module init
+  void import("@/lib/error-tracking").then(({ captureException }) =>
+    captureException(error, { source: "server" }),
+  );
   return {
     status: 500,
     body: { error: "Internal server error", code: "INTERNAL" },

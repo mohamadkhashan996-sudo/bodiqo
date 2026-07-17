@@ -47,6 +47,14 @@ export async function GET(request: Request) {
       time: new Date().toISOString(),
     };
 
+    void import("@/lib/metrics").then(({ observeMs, incCounter }) => {
+      observeMs("relune_health_db_ms", dbMs);
+      incCounter("relune_health_checks_total", {
+        mode: mode === "ready" ? "ready" : "health",
+        ok: ready ? "true" : "false",
+      });
+    });
+
     return NextResponse.json(payload, { status: ready ? 200 : 503 });
   } catch (error) {
     logger.error("healthcheck_failed", {

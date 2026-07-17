@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PageTransition } from "@/components/motion/primitives";
+import { reportClientError } from "@/components/observability/client-error-reporter";
 
 export default function Error({
   error,
@@ -13,7 +14,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    reportClientError(error);
   }, [error]);
 
   return (

@@ -22,6 +22,10 @@
     "db:setup:official": "bash scripts/setup-official-account.sh",
     "test:smoke": "tsx scripts/smoke.ts",
     "test:verify": "tsx scripts/verify-platform.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "backup": "bash scripts/backup.sh",
+    "backup:restore": "bash scripts/restore.sh",
     "up": "bash scripts/dev-up.sh",
     "prebuild": "prisma generate",
     "release:check": "bash scripts/release-check.sh",
@@ -74,6 +78,7 @@
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "tsx": "^4.20.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }
