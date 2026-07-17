@@ -71,14 +71,40 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
     setHints([]);
 
     if (status === "PUBLISHED" && body.trim()) {
-      const spam = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "spam", text: body }),
-      }).then((r) => r.json());
-      if (spam.spamLikely) {
+      const [moderation, duplicate] = await Promise.all([
+        fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "moderate", text: body }),
+        }).then((r) => r.json()),
+        fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "duplicate", text: body }),
+        }).then((r) => r.json()),
+      ]);
+      if (moderation.spam?.spamLikely) {
         setSending(false);
-        setHints([spam.assistance || "This may look like spam. Please revise."]);
+        setHints([
+          moderation.spam.assistance ||
+            "This may look like spam. Please revise.",
+        ]);
+        return;
+      }
+      if (moderation.toxicity?.toxicLikely) {
+        setSending(false);
+        setHints([
+          moderation.toxicity.assistance ||
+            "This language looks harmful. Please revise.",
+        ]);
+        return;
+      }
+      if (duplicate.duplicateLikely) {
+        setSending(false);
+        setHints([
+          duplicate.assistance ||
+            "This looks like a duplicate of a recent post.",
+        ]);
         return;
       }
     }

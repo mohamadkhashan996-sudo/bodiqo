@@ -4,6 +4,7 @@ import {
   CommunityVisibility,
 } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import { assertContentSafe } from "@/lib/ai-content-gate";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/modules/notifications/services/notify";
 
@@ -417,6 +418,8 @@ export async function createCommunityPost(
   if (member.status !== "JOINED") {
     throw new AppError("Join this community first", 403);
   }
+
+  assertContentSafe(input.body, "Community post");
 
   const canPin =
     member.role === "OWNER" ||

@@ -1,9 +1,13 @@
 import { z } from "zod";
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
+import { prisma } from "@/lib/prisma";
 import {
+  detectDuplicateSignals,
   detectFakeAccountSignals,
   detectSpamSignals,
+  detectToxicity,
+  scoreContentModeration,
   smartSearchExpand,
   suggestCaption,
   suggestComment,
@@ -12,7 +16,6 @@ import {
   trendingPrediction,
 } from "@/modules/ai/services/intelligence";
 import { getSmartRecommendations } from "@/modules/ai/services/recommend";
-import { prisma } from "@/lib/prisma";
 
 export async function GET(request: Request) {
   try {
@@ -44,7 +47,10 @@ export async function GET(request: Request) {
           counts.set(key, (counts.get(key) ?? 0) + 1);
         }
       }
-      const topics = [...counts.entries()].map(([tag, count]) => ({ tag, count }));
+      const topics = [...counts.entries()].map(([tag, count]) => ({
+        tag,
+        count,
+      }));
       return ok({ predictions: trendingPrediction(topics).slice(0, 12) });
     }
 
@@ -57,7 +63,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await guardApiAbuse(request, "ai:write", 30);
-    await requireUser();
+    const user = await requireUser();
     const data = await body(
       request,
       z.object({
@@ -66,6 +72,9 @@ export async function POST(request: Request) {
           "hashtags",
           "comment",
           "spam",
+          "toxicity",
+          "duplicate",
+          "moderate",
           "fake",
           "translate",
         ]),
@@ -76,25 +85,59 @@ export async function POST(request: Request) {
       }),
     );
 
-    if (data.action === "caption") return ok(suggestCaption(data.seed ?? data.text));
-    if (data.action === "hashtags") return ok(suggestHashtags(data.text ?? ""));
-    if (data.action === "comment") return ok(suggestComment(data.text ?? ""));
-    if (data.action === "spam") return ok(detectSpamSignals(data.text ?? ""));
+    if (data.action === "caption") {
+      return ok(suggestCaption(data.seed ?? data.text));
+    }
+    if (data.action === "hashtags") {
+      return ok(suggestHashtags(data.text ?? ""));
+    }
+    if (data.action === "comment") {
+      return ok(suggestComment(data.text ?? ""));
+    }
+    if (data.action === "spam") {
+      return ok(detectSpamSignals(data.text ?? ""));
+    }
+    if (data.action === "toxicity") {
+      return ok(detectToxicity(data.text ?? ""));
+    }
+    if (data.action === "moderate") {
+      return ok(scoreContentModeration(data.text ?? ""));
+    }
+    if (data.action === "duplicate") {
+      const recent = await prisma.post.findMany({
+        where: {
+          authorId: user.id,
+          createdAt: { gte: new Date(Date.now() - 48 * 3_600_000) },
+          status: { not: "DELETED" },
+        },
+        select: { body: true },
+        take: 40,
+        orderBy: { createdAt: "desc" },
+      });
+      return ok(
+        detectDuplicateSignals(
+          data.text ?? "",
+          recent.map((p) => p.body),
+        ),
+      );
+    }
     if (data.action === "translate") {
       return ok(translateAssist(data.text ?? "", data.targetLocale ?? "en"));
     }
     if (data.action === "fake") {
       if (!data.userId) throw new AppError("userId required", 400);
-      const user = await prisma.user.findUnique({ where: { id: data.userId } });
-      if (!user) throw new AppError("not found", 404);
+      const target = await prisma.user.findUnique({
+        where: { id: data.userId },
+      });
+      if (!target) throw new AppError("not found", 404);
       return ok(
         detectFakeAccountSignals({
-          trustScore: user.trustScore,
-          followersCount: user.followersCount,
-          followingCount: user.followingCount,
-          postsCount: user.postsCount,
-          emailVerified: Boolean(user.emailVerified),
-          createdAt: user.createdAt,
+          trustScore: target.trustScore,
+          followersCount: target.followersCount,
+          followingCount: target.followingCount,
+          postsCount: target.postsCount,
+          emailVerified: Boolean(target.emailVerified),
+          createdAt: target.createdAt,
         }),
       );
     }

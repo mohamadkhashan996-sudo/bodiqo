@@ -1,24 +1,35 @@
 import { AppError } from "@/lib/errors";
 import { detectSpamSignals } from "@/modules/ai/services/intelligence";
+import {
+  assertContentNotSpam as assertSpam,
+  assertContentSafe,
+  assertHoneypotEmpty,
+  assertNotDuplicatePost,
+} from "@/lib/ai-content-gate";
 
-/** Server-side anti-spam gate for user-generated text. */
-export function assertContentNotSpam(text: string | null | undefined, label = "Content") {
-  const value = text?.trim() ?? "";
-  if (!value) return { spamLikely: false, score: 0, reasons: [] as string[] };
-  const result = detectSpamSignals(value);
+/** @deprecated Prefer assertContentSafe from ai-content-gate. */
+export function assertContentNotSpam(
+  text: string | null | undefined,
+  label = "Content",
+) {
+  return assertSpam(text, label);
+}
+
+export { assertHoneypotEmpty, assertContentSafe, assertNotDuplicatePost };
+
+/** Soft check that returns signals without throwing (for UI previews). */
+export function previewSpam(text: string) {
+  return detectSpamSignals(text);
+}
+
+export function softSpamOrThrow(text: string, label = "Content") {
+  const result = detectSpamSignals(text);
   if (result.spamLikely) {
     throw new AppError(
-      `${label} looks like spam and was blocked. Remove scam phrases or excess links and try again.`,
+      `${label} looks like spam and was blocked.`,
       422,
       "SPAM_BLOCKED",
     );
   }
   return result;
-}
-
-/** Silent honeypot rejection for bots that fill hidden fields. */
-export function assertHoneypotEmpty(value: string | null | undefined) {
-  if (value && value.trim()) {
-    throw new AppError("Unable to complete this request", 400);
-  }
 }

@@ -1,5 +1,6 @@
 import { MessageType, Prisma } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import { assertContentSafe } from "@/lib/ai-content-gate";
 import { prisma } from "@/lib/prisma";
 import { assertConversationMember } from "./conversations";
 
@@ -27,6 +28,9 @@ export async function sendMessage(senderId: string, conversationId: string, inpu
   const hasCipher = Boolean(input.isEncrypted && input.ciphertext && input.nonce);
   if (!input.body.trim() && !input.mediaUrl && !hasCipher) {
     throw new AppError("A message needs text or media", 400);
+  }
+  if (!hasCipher && input.body.trim()) {
+    assertContentSafe(input.body, "Message");
   }
   if (input.replyToId) {
     const reply = await prisma.message.findFirst({ where: { id: input.replyToId, conversationId }, select: { id: true } });

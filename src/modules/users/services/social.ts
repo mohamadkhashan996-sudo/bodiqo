@@ -1,6 +1,7 @@
 import { FriendRequestStatus, ReportCategory, ReportTarget } from "@prisma/client";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { scoreContentModeration } from "@/modules/ai/services/intelligence";
 import { createNotification } from "@/modules/notifications/services/notify";
 import { canFollow } from "@/modules/messaging/services/privacy-gate";
 
@@ -173,19 +174,56 @@ export async function reportEntity(
   details?: string,
   category?: ReportCategory,
 ) {
+  let contentText = details ?? "";
+  if (targetType === "POST") {
+    const post = await prisma.post.findUnique({
+      where: { id: targetId },
+      select: { body: true },
+    });
+    contentText = [post?.body, details].filter(Boolean).join("\n");
+  } else if (targetType === "COMMENT") {
+    const comment = await prisma.comment.findUnique({
+      where: { id: targetId },
+      select: { body: true },
+    });
+    contentText = [comment?.body, details].filter(Boolean).join("\n");
+  } else if (targetType === "MESSAGE") {
+    const message = await prisma.message.findUnique({
+      where: { id: targetId },
+      select: { body: true },
+    });
+    contentText = [message?.body, details].filter(Boolean).join("\n");
+  } else if (targetType === "USER") {
+    const user = await prisma.user.findUnique({
+      where: { id: targetId },
+      select: { bio: true, displayName: true },
+    });
+    contentText = [user?.displayName, user?.bio, details]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  const ai = scoreContentModeration(`${reason}\n${contentText}`);
+
   const inferred =
     category ??
-    (/spam/i.test(reason)
+    (ai.categories.includes("SPAM") || /spam/i.test(reason)
       ? "SPAM"
       : /scam|phish/i.test(reason)
         ? "SCAM"
-        : /harass|bully/i.test(reason)
+        : ai.categories.includes("HARASSMENT") || /harass|bully|toxic/i.test(reason)
           ? "HARASSMENT"
-          : /copyright|dmca/i.test(reason)
-            ? "COPYRIGHT"
-            : /fake/i.test(reason)
-              ? "FAKE_ACCOUNT"
-              : "OTHER");
+          : ai.categories.includes("VIOLENCE") || /violen|threat/i.test(reason)
+            ? "VIOLENCE"
+            : /copyright|dmca/i.test(reason)
+              ? "COPYRIGHT"
+              : /fake/i.test(reason)
+                ? "FAKE_ACCOUNT"
+                : "OTHER");
+
+  const aiNote = `AI risk ${ai.riskScore}/100 · spam ${ai.spam.score} · toxicity ${ai.toxicity.score}${
+    ai.recommendEscalate ? " · auto-escalated" : ""
+  }`;
 
   return prisma.report.create({
     data: {
@@ -193,8 +231,9 @@ export async function reportEntity(
       targetType,
       targetId,
       reason,
-      details,
+      details: details ? `${details}\n\n[${aiNote}]` : `[${aiNote}]`,
       category: inferred,
+      status: ai.recommendEscalate ? "ESCALATED" : "OPEN",
     },
   });
 }

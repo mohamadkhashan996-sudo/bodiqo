@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { smartSearchExpand } from "@/modules/ai/services/intelligence";
 
 export type SearchType =
   | "all"
@@ -41,6 +42,18 @@ function scoreTextMatch(haystack: string | null | undefined, q: string, weight =
   return 0;
 }
 
+function scoreAgainstTerms(
+  haystack: string | null | undefined,
+  terms: string[],
+  weight = 1,
+) {
+  let best = 0;
+  for (const term of terms) {
+    best = Math.max(best, scoreTextMatch(haystack, term, weight));
+  }
+  return best;
+}
+
 async function blockedIds(userId?: string) {
   if (!userId) return [] as string[];
   const blocks = await prisma.block.findMany({
@@ -56,17 +69,23 @@ async function blockedIds(userId?: string) {
   ];
 }
 
-async function searchUsers(q: string, excludedIds: string[], limit: number) {
+async function searchUsers(
+  q: string,
+  excludedIds: string[],
+  limit: number,
+  expansions: string[] = [],
+) {
+  const terms = [...new Set([q, ...expansions])].filter(Boolean).slice(0, 8);
   const users = await prisma.user.findMany({
     where: {
       status: "ACTIVE",
       ...(excludedIds.length ? { id: { notIn: excludedIds } } : {}),
-      OR: [
-        { handle: { contains: q, mode: "insensitive" } },
-        { name: { contains: q, mode: "insensitive" } },
-        { displayName: { contains: q, mode: "insensitive" } },
-        { bio: { contains: q, mode: "insensitive" } },
-      ],
+      OR: terms.flatMap((term) => [
+        { handle: { contains: term, mode: "insensitive" as const } },
+        { name: { contains: term, mode: "insensitive" as const } },
+        { displayName: { contains: term, mode: "insensitive" as const } },
+        { bio: { contains: term, mode: "insensitive" as const } },
+      ]),
     },
     select: {
       id: true,
@@ -80,16 +99,18 @@ async function searchUsers(q: string, excludedIds: string[], limit: number) {
       isPrivate: true,
       followersCount: true,
     },
-    take: Math.min(limit * 3, 60),
+    take: Math.min(limit * 4, 80),
   });
 
   return users
     .map((user) => {
       let score =
-        scoreTextMatch(user.handle, q, 3) +
-        scoreTextMatch(user.displayName, q, 2) +
-        scoreTextMatch(user.name, q, 1.5) +
-        scoreTextMatch(user.bio, q, 0.5);
+        scoreAgainstTerms(user.handle, terms, 3) +
+        scoreAgainstTerms(user.displayName, terms, 2) +
+        scoreAgainstTerms(user.name, terms, 1.5) +
+        scoreAgainstTerms(user.bio, terms, 0.5);
+      // Prefer exact primary query matches over synonym-only hits.
+      score += scoreTextMatch(user.handle, q, 1.5);
       if (user.isOfficial) score += 25;
       if (user.isVerified) score += 12;
       score += Math.min(20, Math.log10((user.followersCount ?? 0) + 1) * 8);
@@ -104,7 +125,9 @@ async function searchPosts(
   excludedIds: string[],
   limit: number,
   videoOnly = false,
+  expansions: string[] = [],
 ) {
+  const terms = [...new Set([q, ...expansions])].filter(Boolean).slice(0, 8);
   const tag = q.toLowerCase().replace(/^#/, "");
   const posts = await prisma.post.findMany({
     where: {
@@ -120,35 +143,28 @@ async function searchPosts(
             ],
           }
         : {}),
-      AND: [
+      OR: [
+        ...terms.map((term) => ({
+          body: { contains: term, mode: "insensitive" as const },
+        })),
         {
-          OR: [
-            { body: { contains: q, mode: "insensitive" } },
-            {
-              hashtags: {
-                some: { hashtag: { tag: { contains: tag } } },
+          hashtags: {
+            some: {
+              hashtag: {
+                tag: { contains: tag, mode: "insensitive" as const },
               },
             },
-            {
-              author: {
-                OR: [
-                  { handle: { contains: q, mode: "insensitive" } },
-                  { displayName: { contains: q, mode: "insensitive" } },
-                  { name: { contains: q, mode: "insensitive" } },
-                ],
-              },
-            },
-          ],
+          },
         },
       ],
     },
+    orderBy: [{ likeCount: "desc" }, { publishedAt: "desc" }],
+    take: Math.min(limit * 4, 80),
     include: {
       author: { select: AUTHOR_SELECT },
-      media: { orderBy: { sortOrder: "asc" } },
-      hashtags: { include: { hashtag: true } },
+      media: { orderBy: { sortOrder: "asc" as const }, take: 4 },
+      hashtags: { include: { hashtag: true }, take: 8 },
     },
-    take: Math.min(limit * 3, 60),
-    orderBy: [{ likeCount: "desc" }, { publishedAt: "desc" }],
   });
 
   return posts
@@ -158,13 +174,13 @@ async function searchPosts(
         (Date.now() - new Date(post.publishedAt ?? post.createdAt).getTime()) /
           3_600_000,
       );
+      const tagBlob = post.hashtags.map((h) => h.hashtag.tag).join(" ");
       let score =
-        scoreTextMatch(post.body, q, 2) +
+        scoreAgainstTerms(post.body, terms, 2) +
+        scoreAgainstTerms(tagBlob, terms, 2.5) +
+        scoreTextMatch(post.body, q, 1) +
         scoreTextMatch(post.author.handle, q, 1.5) +
         scoreTextMatch(post.author.displayName, q, 1);
-      for (const row of post.hashtags) {
-        score += scoreTextMatch(row.hashtag.tag, tag, 2.5);
-      }
       score +=
         (post.likeCount ?? 0) * 0.4 +
         (post.commentCount ?? 0) * 0.6 +
@@ -181,17 +197,18 @@ async function searchPosts(
     .slice(0, limit);
 }
 
-async function searchCommunities(q: string, limit: number) {
+async function searchCommunities(q: string, limit: number, expansions: string[] = []) {
+  const terms = [...new Set([q, ...expansions])].filter(Boolean).slice(0, 8);
   const communities = await prisma.community.findMany({
     where: {
       visibility: "PUBLIC",
-      OR: [
-        { name: { contains: q, mode: "insensitive" } },
-        { slug: { contains: q, mode: "insensitive" } },
-        { description: { contains: q, mode: "insensitive" } },
-        { category: { contains: q, mode: "insensitive" } },
-        { tags: { contains: q, mode: "insensitive" } },
-      ],
+      OR: terms.flatMap((term) => [
+        { name: { contains: term, mode: "insensitive" as const } },
+        { slug: { contains: term, mode: "insensitive" as const } },
+        { description: { contains: term, mode: "insensitive" as const } },
+        { category: { contains: term, mode: "insensitive" as const } },
+        { tags: { contains: term, mode: "insensitive" as const } },
+      ]),
     },
     select: {
       id: true,
@@ -210,11 +227,12 @@ async function searchCommunities(q: string, limit: number) {
   return communities
     .map((c) => {
       let score =
-        scoreTextMatch(c.name, q, 3) +
-        scoreTextMatch(c.slug, q, 2.5) +
-        scoreTextMatch(c.description, q, 1) +
-        scoreTextMatch(c.category, q, 1.5) +
-        scoreTextMatch(c.tags, q, 1.2);
+        scoreAgainstTerms(c.name, terms, 3) +
+        scoreAgainstTerms(c.slug, terms, 2.5) +
+        scoreAgainstTerms(c.description, terms, 1) +
+        scoreAgainstTerms(c.category, terms, 1.5) +
+        scoreAgainstTerms(c.tags, terms, 1.2) +
+        scoreTextMatch(c.name, q, 1);
       score += Math.min(25, Math.log10((c.membersCount ?? 0) + 1) * 10);
       return { ...c, score };
     })
@@ -222,10 +240,16 @@ async function searchCommunities(q: string, limit: number) {
     .slice(0, limit);
 }
 
-async function searchHashtags(q: string, limit: number) {
-  const tag = q.toLowerCase().replace(/^#/, "");
+async function searchHashtags(q: string, limit: number, expansions: string[] = []) {
+  const terms = [...new Set([q.replace(/^#/, ""), ...expansions.map((e) => e.replace(/^#/, ""))])]
+    .filter(Boolean)
+    .slice(0, 8);
   const hashtags = await prisma.hashtag.findMany({
-    where: { tag: { contains: tag } },
+    where: {
+      OR: terms.map((term) => ({
+        tag: { contains: term, mode: "insensitive" as const },
+      })),
+    },
     orderBy: { postCount: "desc" },
     take: Math.min(limit * 2, 40),
   });
@@ -233,7 +257,7 @@ async function searchHashtags(q: string, limit: number) {
     .map((h) => ({
       ...h,
       score:
-        scoreTextMatch(h.tag, tag, 3) +
+        scoreAgainstTerms(h.tag, terms, 3) +
         Math.min(30, Math.log10((h.postCount ?? 0) + 1) * 12),
     }))
     .sort((a, b) => b.score - a.score)
@@ -297,13 +321,27 @@ export async function searchAll(
 
   const excluded = await blockedIds(userId);
   const want = (t: SearchType) => type === "all" || type === t;
+  const { expansions } = smartSearchExpand(q);
+  const expandTerms = expansions.filter(
+    (term) => term.toLowerCase() !== q.toLowerCase(),
+  );
 
   const [usersRaw, posts, videos, communities, hashtags] = await Promise.all([
-    want("users") ? searchUsers(q, excluded, limit) : Promise.resolve([]),
-    want("posts") ? searchPosts(q, excluded, limit, false) : Promise.resolve([]),
-    want("videos") ? searchPosts(q, excluded, limit, true) : Promise.resolve([]),
-    want("communities") ? searchCommunities(q, limit) : Promise.resolve([]),
-    want("hashtags") ? searchHashtags(q, limit) : Promise.resolve([]),
+    want("users")
+      ? searchUsers(q, excluded, limit, expandTerms)
+      : Promise.resolve([]),
+    want("posts")
+      ? searchPosts(q, excluded, limit, false, expandTerms)
+      : Promise.resolve([]),
+    want("videos")
+      ? searchPosts(q, excluded, limit, true, expandTerms)
+      : Promise.resolve([]),
+    want("communities")
+      ? searchCommunities(q, limit, expandTerms)
+      : Promise.resolve([]),
+    want("hashtags")
+      ? searchHashtags(q, limit, expandTerms)
+      : Promise.resolve([]),
   ]);
 
   const users = await enrichUserRelations(usersRaw, userId);
@@ -318,6 +356,8 @@ export async function searchAll(
     communities,
     hashtags,
     tokens: tokens(q),
+    expansions,
+    smart: true,
   };
 }
 

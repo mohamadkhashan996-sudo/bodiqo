@@ -1,10 +1,12 @@
 import { AppError } from "@/lib/errors";
+import { assertContentSafe } from "@/lib/ai-content-gate";
 import { prisma } from "@/lib/prisma";
 import { canComment } from "@/modules/messaging/services/privacy-gate";
 
 const include = { author: { select: { id: true, handle: true, name: true, image: true } } };
 export async function addComment(authorId: string, postId: string, body: string, parentId?: string) {
   if (!body.trim()) throw new AppError("Comment cannot be empty", 400);
+  assertContentSafe(body, "Comment");
   return prisma.$transaction(async (tx) => {
     const post = await tx.post.findFirst({ where: { id: postId, deletedAt: null, commentsEnabled: true } });
     if (!post) throw new AppError("Comments are unavailable", 404);
@@ -19,6 +21,7 @@ export async function addComment(authorId: string, postId: string, body: string,
 }
 export async function editComment(authorId: string, id: string, body: string) {
   if (!body.trim()) throw new AppError("Comment cannot be empty", 400);
+  assertContentSafe(body, "Comment");
   const comment = await prisma.comment.findFirst({ where: { id, authorId, deletedAt: null } });
   if (!comment) throw new AppError("Comment not found", 404);
   return prisma.comment.update({ where: { id }, data: { body: body.trim() }, include });

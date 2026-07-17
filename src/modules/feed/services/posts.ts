@@ -1,5 +1,9 @@
 import { MediaKind, PostStatus, PostType, PostVisibility } from "@prisma/client";
 import { AppError } from "@/lib/errors";
+import {
+  assertContentSafe,
+  assertNotDuplicatePost,
+} from "@/lib/ai-content-gate";
 import { prisma } from "@/lib/prisma";
 import { cached, cacheDelPrefix } from "@/lib/cache";
 import { extractHashtags, extractMentions } from "@/lib/post-text";
@@ -69,6 +73,13 @@ export async function createPost(
   }
   if (!data.body?.trim() && !data.media?.length && !pollOptions.length) {
     throw new AppError("A post needs content", 400);
+  }
+
+  if (data.body?.trim()) {
+    assertContentSafe(data.body, "Post");
+    if ((data.status ?? "PUBLISHED") !== "DRAFT") {
+      await assertNotDuplicatePost(authorId, data.body);
+    }
   }
 
   let status: PostStatus = data.status ?? "PUBLISHED";
