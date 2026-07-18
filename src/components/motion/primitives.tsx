@@ -1,29 +1,10 @@
 "use client";
 
-import { motion, useReducedMotion, type HTMLMotionProps } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
+
 import { cn } from "@/lib/utils";
 
 const ease = [0.22, 1, 0.36, 1] as const;
-
-export function FadeIn({
-  children,
-  className,
-  delay = 0,
-  ...props
-}: HTMLMotionProps<"div"> & { delay?: number }) {
-  const reduce = useReducedMotion();
-  return (
-    <motion.div
-      className={className}
-      initial={reduce ? false : { opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay, ease }}
-      {...props}
-    >
-      {children}
-    </motion.div>
-  );
-}
 
 export function PageTransition({
   children,

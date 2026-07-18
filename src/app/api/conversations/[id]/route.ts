@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { body, fail, ok, requireUser, guardApiAbuse } from "@/lib/api";
+
+import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import {
   getConversation,
   leaveConversation,
@@ -34,10 +35,25 @@ export async function PATCH(
         isArchived: z.boolean().optional(),
         isFavorite: z.boolean().optional(),
         draftText: z.string().max(10000).nullable().optional(),
+        action: z.enum(["accept_request", "decline_request"]).optional(),
       }),
     );
+    const id = (await params).id;
+    if (input.action === "accept_request") {
+      const { acceptMessageRequest } = await import(
+        "@/modules/messaging/services/conversations"
+      );
+      return ok({ member: await acceptMessageRequest(user.id, id) });
+    }
+    if (input.action === "decline_request") {
+      const { declineMessageRequest } = await import(
+        "@/modules/messaging/services/conversations"
+      );
+      return ok({ member: await declineMessageRequest(user.id, id) });
+    }
+    const { action: _action, ...flags } = input;
     return ok({
-      member: await updateMemberFlags(user.id, (await params).id, input),
+      member: await updateMemberFlags(user.id, id, flags),
     });
   } catch (error) {
     return fail(error);

@@ -1,11 +1,11 @@
-import { fail, ok, optionalUser, requireUser, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok, optionalUser, requireUser } from "@/lib/api";
 import { clampInt } from "@/lib/security";
 import {
   clearSearchHistory,
   listSearchHistory,
   searchAll,
-  trendingHashtags,
   type SearchType,
+  trendingHashtags,
 } from "@/modules/users/services/search";
 
 const TYPES = new Set<SearchType>([
@@ -24,10 +24,11 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams;
     const q = params.get("q")?.trim() ?? "";
     const typeParam = (params.get("type") ?? "all").toLowerCase();
-    const type = (TYPES.has(typeParam as SearchType)
-      ? typeParam
-      : "all") as SearchType;
+    const type = (
+      TYPES.has(typeParam as SearchType) ? typeParam : "all"
+    ) as SearchType;
     const limit = clampInt(params.get("limit"), 20, 1, 40);
+    const record = params.get("record") !== "0";
 
     if (!q) {
       const [trending, recent] = await Promise.all([
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
     }
 
     const [results, trending] = await Promise.all([
-      searchAll(q, user?.id, { type, limit }),
+      searchAll(q, user?.id, { type, limit, record }),
       trendingHashtags(8),
     ]);
     return ok({

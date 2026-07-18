@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { FormEvent, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { StateBanner } from "@/components/ui/card";
+import type { FormEvent } from "react";
+
 import { PageTransition } from "@/components/motion/primitives";
+import { Button } from "@/components/ui/button";
+import { StateBanner } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
@@ -42,32 +44,46 @@ export default function ForgotPasswordPage() {
   return (
     <PageTransition>
       <h1 className="page-title">Reset your password</h1>
-      <p className="page-subtitle mt-3">We’ll email a link to choose a new password.</p>
+      <p className="page-subtitle mt-3">
+        We’ll email a link to choose a new password.
+      </p>
       {sent ? (
         <div className="mt-8 space-y-4">
           <StateBanner tone="success">
             If that email belongs to Relune, a reset link is on its way.
           </StateBanner>
           {devResetUrl ? (
-            <p className="text-xs text-[var(--signal-deep)] break-all">
+            <p className="text-xs break-all text-[var(--signal-deep)]">
               Dev reset link:{" "}
               <Link href={devResetUrl} className="underline">
                 {devResetUrl}
               </Link>
             </p>
           ) : null}
-          <Link href="/sign-in" className="text-sm text-[var(--signal-deep)] hover:underline">
+          <Link
+            href="/sign-in"
+            className="text-sm text-[var(--signal-deep)] hover:underline"
+          >
             Back to sign in
           </Link>
         </div>
       ) : (
         <form onSubmit={submit} className="mt-8 space-y-4">
-          <Input required name="email" type="email" placeholder="you@example.com" autoComplete="email" />
+          <Input
+            required
+            name="email"
+            type="email"
+            placeholder="you@example.com"
+            autoComplete="email"
+          />
           {error ? <StateBanner tone="error">{error}</StateBanner> : null}
           <Button className="w-full" disabled={loading}>
             {loading ? "Sending…" : "Send reset link"}
           </Button>
-          <Link href="/sign-in" className="block text-center text-sm text-[var(--muted)] hover:underline">
+          <Link
+            href="/sign-in"
+            className="block text-center text-sm text-[var(--muted)] hover:underline"
+          >
             Back to sign in
           </Link>
         </form>

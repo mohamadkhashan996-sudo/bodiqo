@@ -1,9 +1,11 @@
 import { z } from "zod";
-import { auth } from "@/modules/auth/auth";
-import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
-import { prisma } from "@/lib/prisma";
+
+import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/modules/auth/auth";
 import { bumpSessionVersion } from "@/modules/auth/security";
+import { markDeviceSessionsRevoked } from "@/modules/auth/session-validity";
 
 export async function GET() {
   try {
@@ -40,15 +42,28 @@ export async function DELETE(r: Request) {
       }),
     );
     if (data.all) {
+      const active = await prisma.deviceSession.findMany({
+        where: { userId: u.id, revokedAt: null },
+        select: { sessionKey: true },
+      });
       await prisma.deviceSession.updateMany({
         where: { userId: u.id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      await markDeviceSessionsRevoked(active.map((s) => s.sessionKey));
       await bumpSessionVersion(u.id);
       return ok({ ok: true, all: true });
     }
     if (data.others) {
       const currentId = session?.deviceSessionId;
+      const others = await prisma.deviceSession.findMany({
+        where: {
+          userId: u.id,
+          revokedAt: null,
+          ...(currentId ? { id: { not: currentId } } : {}),
+        },
+        select: { sessionKey: true },
+      });
       await prisma.deviceSession.updateMany({
         where: {
           userId: u.id,
@@ -57,16 +72,22 @@ export async function DELETE(r: Request) {
         },
         data: { revokedAt: new Date() },
       });
+      await markDeviceSessionsRevoked(others.map((s) => s.sessionKey));
       return ok({ ok: true, others: true });
     }
     if (!data.id) throw new AppError("Session id required", 400);
     if (session?.deviceSessionId && data.id === session.deviceSessionId) {
       throw new AppError("Use sign out to end the current session", 400);
     }
+    const target = await prisma.deviceSession.findFirst({
+      where: { id: data.id, userId: u.id },
+      select: { sessionKey: true },
+    });
     await prisma.deviceSession.updateMany({
       where: { id: data.id, userId: u.id },
       data: { revokedAt: new Date() },
     });
+    if (target?.sessionKey) await markDeviceSessionsRevoked([target.sessionKey]);
     return ok({ ok: true });
   } catch (e) {
     return fail(e);

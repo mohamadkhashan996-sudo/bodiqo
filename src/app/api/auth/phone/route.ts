@@ -1,9 +1,17 @@
 import { z } from "zod";
-import { body, clientIp, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
-import { issuePhoneOtp, consumePhoneOtp } from "@/modules/auth/phone-otp";
-import { normalizePhone } from "@/modules/auth/phone";
+
+import {
+  body,
+  clientIp,
+  fail,
+  guardApiAbuse,
+  ok,
+  requireUser,
+} from "@/lib/api";
 import { AppError } from "@/lib/errors";
+import { prisma } from "@/lib/prisma";
+import { normalizePhone } from "@/modules/auth/phone";
+import { consumePhoneOtp, issuePhoneOtp } from "@/modules/auth/phone-otp";
 import { sendSecurityAlert } from "@/modules/auth/security";
 
 export async function GET() {
@@ -35,7 +43,8 @@ export async function POST(request: Request) {
     const taken = await prisma.user.findFirst({
       where: { phone, NOT: { id: user.id } },
     });
-    if (taken) throw new AppError("Phone already linked to another account", 409);
+    if (taken)
+      throw new AppError("Phone already linked to another account", 409);
 
     await prisma.user.update({
       where: { id: user.id },
@@ -82,7 +91,10 @@ export async function PATCH(request: Request) {
       where: { id: user.id },
       data: { phone, phoneVerified: new Date() },
     });
-    await sendSecurityAlert(user.id, "A phone number was verified on your Relune account.");
+    await sendSecurityAlert(
+      user.id,
+      "A phone number was verified on your Relune account.",
+    );
     return ok({ ok: true, phone, phoneVerified: true });
   } catch (e) {
     return fail(e);
@@ -97,7 +109,10 @@ export async function DELETE(request: Request) {
       where: { id: user.id },
       data: { phone: null, phoneVerified: null },
     });
-    await sendSecurityAlert(user.id, "The phone number was removed from your Relune account.");
+    await sendSecurityAlert(
+      user.id,
+      "The phone number was removed from your Relune account.",
+    );
     return ok({ ok: true });
   } catch (e) {
     return fail(e);

@@ -6,14 +6,15 @@
 
 ## Scores
 
-| Dimension | Score | Notes |
-| --- | ---: | --- |
-| Security | **84 / 100** | Presence + media + mention gates closed; CSP inline remains |
-| Performance | **76 / 100** | Batched privacy, follow caps, media index; FTS still open |
-| Scalability | **68 / 100** | Redis-ready; per-process metrics; single-node defaults |
-| Production readiness | **88 / 100** | CI/CD, health, backups, obs, runbooks in place |
+| Dimension            |        Score | Notes                                                       |
+| -------------------- | -----------: | ----------------------------------------------------------- |
+| Security             | **84 / 100** | Presence + media + mention gates closed; CSP inline remains |
+| Performance          | **76 / 100** | Batched privacy, follow caps, media index; FTS still open   |
+| Scalability          | **68 / 100** | Redis-ready; per-process metrics; single-node defaults      |
+| Production readiness | **88 / 100** | CI/CD, health, backups, obs, runbooks in place              |
 
 ## Fixed this pass
+
 - Presence: no global Socket.io broadcast; privacy-filtered peer emit
 - Private media: authenticated deny-by-default
 - Metrics: Bearer-only `METRICS_TOKEN`
@@ -26,6 +27,7 @@
 - Stronger production env validation
 
 ## Remaining (non-blocking for staged launch)
+
 1. CSP `'unsafe-inline'` scripts (Next hydration trade-off)
 2. Message search without FTS/trigram
 3. Per-replica in-memory metrics
@@ -34,9 +36,11 @@
 6. Playwright e2e (smoke + Vitest cover CI today)
 
 ## Verification
+
 - `npm run typecheck` — pass
 - `npm test` — 9 tests pass
 - `npm run lint` — clean after fixes
 
 ## Launch checklist
+
 See `docs/PRODUCTION.md` and `docs/runbooks/`.

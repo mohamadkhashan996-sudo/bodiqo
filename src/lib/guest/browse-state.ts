@@ -8,7 +8,9 @@ export type BrowseState = {
 
 const KEY = "relune.browseState";
 
-export function saveBrowseState(partial?: Partial<Omit<BrowseState, "savedAt" | "path">>) {
+export function saveBrowseState(
+  partial?: Partial<Omit<BrowseState, "savedAt" | "path">>,
+) {
   if (typeof window === "undefined") return;
   const state: BrowseState = {
     path: window.location.pathname + window.location.search,

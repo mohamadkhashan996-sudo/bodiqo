@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { cached } from "@/lib/cache";
+import { prisma } from "@/lib/prisma";
 
 function daysAgo(n: number) {
   const d = new Date();

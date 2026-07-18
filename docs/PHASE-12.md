@@ -3,6 +3,7 @@
 Closes Relune launch readiness: web containers, mobile shells, CI/CD, and release gates.
 
 ## Delivered
+
 - **Web:** hardened `Dockerfile`, `docker-compose.prod.yml`, Fly (`fly.toml`), Render (`render.yaml`)
 - **CI/CD:** `.github/workflows/ci.yml` + tag-based `release.yml` (GHCR)
 - **Mobile:** Capacitor config, `mobile/www` fallback, iOS/Android docs + permission templates
@@ -11,6 +12,7 @@ Closes Relune launch readiness: web containers, mobile shells, CI/CD, and releas
 - **Version:** `1.0.0`
 
 ## Commands
+
 ```bash
 # Web
 docker compose up -d --build
@@ -27,4 +29,5 @@ npm run release:check
 ```
 
 ## Project status
+
 **Relune 1.0 is deployment-ready.** Remaining work is operational (DNS, store accounts, secrets, monitoring) rather than product scaffolding.

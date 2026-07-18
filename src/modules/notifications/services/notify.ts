@@ -1,8 +1,14 @@
-import { NotificationType } from "@prisma/client";
+import type { NotificationType } from "@prisma/client";
+
+import { AppError } from "@/lib/errors";
+import { extractMentions } from "@/lib/post-text";
 import { prisma } from "@/lib/prisma";
 import { getIo } from "@/lib/socket";
-import { extractMentions } from "@/lib/post-text";
 import { fanoutPush } from "@/modules/notifications/services/push";
+import {
+  categoryAllowsType,
+  getNotificationPreferences,
+} from "@/modules/notifications/services/prefs";
 
 type NotificationInput = {
   userId: string;
@@ -18,7 +24,7 @@ const DEFAULT_BODY: Partial<Record<NotificationType, string>> = {
   COMMENT: "commented on your post",
   REPLY: "replied to a comment",
   FOLLOW: "started following you",
-  FRIEND_REQUEST: "sent you a follow request",
+  FRIEND_REQUEST: "sent you a friend request",
   MESSAGE: "sent you a message",
   CALL: "is calling you",
   MISSED_CALL: "tried to call you",
@@ -28,7 +34,23 @@ const DEFAULT_BODY: Partial<Record<NotificationType, string>> = {
   GROUP_INVITE: "invited you to a group",
   COMMUNITY_INVITE: "invited you to a community",
   VERIFICATION: "Verification update",
+  LIVE_STARTED: "is live now",
+  LIVE_GIFT: "sent you a gift",
+  ANNOUNCEMENT: "New announcement",
 };
+
+const includeNote = {
+  actor: {
+    select: {
+      id: true,
+      handle: true,
+      name: true,
+      displayName: true,
+      image: true,
+    },
+  },
+  post: { select: { id: true, body: true } },
+} as const;
 
 export function notificationHref(input: {
   type: NotificationType;
@@ -43,15 +65,16 @@ export function notificationHref(input: {
   ) {
     return `/post/${input.postId}`;
   }
-  if (
-    input.actorHandle &&
-    ["FOLLOW", "FRIEND_REQUEST"].includes(input.type)
-  ) {
+  if (input.actorHandle && ["FOLLOW", "FRIEND_REQUEST"].includes(input.type)) {
     return `/u/${input.actorHandle}`;
   }
   if (input.type === "MESSAGE") return "/messages";
   if (input.type === "STORY_REPLY") return "/home";
   if (input.type === "CALL" || input.type === "MISSED_CALL") return "/calls";
+  if (input.type === "LIVE_STARTED" || input.type === "LIVE_GIFT") {
+    return input.href || "/live";
+  }
+  if (input.type === "ANNOUNCEMENT") return "/notifications";
   return "/notifications";
 }
 
@@ -86,13 +109,78 @@ function pushTitle(type: NotificationType, actorName?: string | null) {
       return `${name} invited you to a community`;
     case "VERIFICATION":
       return "Verification update";
+    case "LIVE_STARTED":
+      return `${name} is live`;
+    case "LIVE_GIFT":
+      return `${name} sent a gift`;
+    case "ANNOUNCEMENT":
+      return "Relune announcement";
     default:
       return "Relune";
   }
 }
 
+async function emitAndPush(
+  created: {
+    id: string;
+    userId: string;
+    type: NotificationType;
+    postId: string | null;
+    href: string | null;
+    body: string | null;
+    actor: {
+      handle: string | null;
+      name: string | null;
+      displayName: string | null;
+    } | null;
+  },
+  opts?: { skipPush?: boolean },
+) {
+  getIo()?.to(`user:${created.userId}`).emit("notification:new", created);
+
+  if (opts?.skipPush) return;
+
+  const prefs = await getNotificationPreferences(created.userId);
+  if (!prefs.pushEnabled) return;
+
+  const actorName =
+    created.actor?.displayName ?? created.actor?.name ?? created.actor?.handle;
+  const url = notificationHref({
+    type: created.type,
+    postId: created.postId,
+    href: created.href,
+    actorHandle: created.actor?.handle,
+  });
+
+  const sensitivePreview =
+    created.type === "MESSAGE" ||
+    created.type === "COMMENT" ||
+    created.type === "REPLY" ||
+    created.type === "MENTION";
+
+  const pushBody =
+    created.type === "MESSAGE" && prefs.hideMessagePreview
+      ? "sent you a message"
+      : sensitivePreview
+        ? created.body || DEFAULT_BODY[created.type] || "New activity"
+        : created.body ||
+          DEFAULT_BODY[created.type] ||
+          "New activity on Relune";
+
+  void fanoutPush(created.userId, {
+    title: pushTitle(created.type, actorName),
+    body: pushBody,
+    url,
+    tag: `relune-${created.type}-${created.id}`,
+    type: created.type,
+  }).catch(() => undefined);
+}
+
 export async function createNotification(input: NotificationInput) {
   if (input.userId === input.actorId) return null;
+
+  const prefs = await getNotificationPreferences(input.userId);
+  if (!categoryAllowsType(prefs, input.type)) return null;
 
   if (input.actorId) {
     const muted = await prisma.mute.findUnique({
@@ -118,6 +206,29 @@ export async function createNotification(input: NotificationInput) {
     if (blocked) return null;
   }
 
+  // Coalesce unread likes from the same actor on the same post.
+  if (input.type === "LIKE" && input.actorId && input.postId) {
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId: input.userId,
+        actorId: input.actorId,
+        type: "LIKE",
+        postId: input.postId,
+        readAt: null,
+      },
+      include: includeNote,
+    });
+    if (existing) {
+      const bumped = await prisma.notification.update({
+        where: { id: existing.id },
+        data: { createdAt: new Date() },
+        include: includeNote,
+      });
+      getIo()?.to(`user:${input.userId}`).emit("notification:new", bumped);
+      return bumped;
+    }
+  }
+
   const body = input.body?.trim() || DEFAULT_BODY[input.type] || undefined;
   const href =
     input.href ||
@@ -136,45 +247,10 @@ export async function createNotification(input: NotificationInput) {
       href,
       body,
     },
-    include: {
-      actor: {
-        select: {
-          id: true,
-          handle: true,
-          name: true,
-          displayName: true,
-          image: true,
-        },
-      },
-      post: { select: { id: true, body: true } },
-    },
+    include: includeNote,
   });
 
-  const actorName =
-    created.actor?.displayName ?? created.actor?.name ?? created.actor?.handle;
-  const url = notificationHref({
-    type: created.type,
-    postId: created.postId,
-    href: created.href,
-    actorHandle: created.actor?.handle,
-  });
-
-  getIo()?.to(`user:${input.userId}`).emit("notification:new", created);
-
-  void fanoutPush(input.userId, {
-    title: pushTitle(created.type, actorName),
-    body:
-      created.type === "MESSAGE" ||
-      created.type === "COMMENT" ||
-      created.type === "REPLY" ||
-      created.type === "MENTION"
-        ? created.body || DEFAULT_BODY[created.type] || "New activity"
-        : created.body || DEFAULT_BODY[created.type] || "New activity on Relune",
-    url,
-    tag: `relune-${created.type}-${created.id}`,
-    type: created.type,
-  }).catch(() => undefined);
-
+  await emitAndPush(created);
   return created;
 }
 
@@ -197,21 +273,24 @@ export async function notifyMentions(input: {
     },
     select: { id: true },
   });
-  const { canMention } = await import(
-    "@/modules/messaging/services/privacy-gate"
-  );
-  await Promise.all(
-    users.map(async (user) => {
-      if (!(await canMention(input.actorId, user.id))) return;
-      return createNotification({
-        userId: user.id,
-        actorId: input.actorId,
-        type: "MENTION",
-        postId: input.postId,
-        href: input.href ?? (input.postId ? `/post/${input.postId}` : undefined),
-      });
-    }),
-  );
+  const { canMention } = await import("@/modules/users/services/privacy-gate");
+  const chunkSize = 8;
+  for (let i = 0; i < users.length; i += chunkSize) {
+    const chunk = users.slice(i, i + chunkSize);
+    await Promise.all(
+      chunk.map(async (user) => {
+        if (!(await canMention(input.actorId, user.id))) return;
+        return createNotification({
+          userId: user.id,
+          actorId: input.actorId,
+          type: "MENTION",
+          postId: input.postId,
+          href:
+            input.href ?? (input.postId ? `/post/${input.postId}` : undefined),
+        });
+      }),
+    );
+  }
 }
 
 export async function listNotifications(
@@ -222,18 +301,7 @@ export async function listNotifications(
   const take = Math.min(Math.max(limit, 1), 50);
   const notifications = await prisma.notification.findMany({
     where: { userId },
-    include: {
-      actor: {
-        select: {
-          id: true,
-          handle: true,
-          name: true,
-          displayName: true,
-          image: true,
-        },
-      },
-      post: { select: { id: true, body: true } },
-    },
+    include: includeNote,
     orderBy: { createdAt: "desc" },
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -254,6 +322,36 @@ export async function markRead(userId: string, notificationId?: string) {
     where: {
       userId,
       ...(notificationId ? { id: notificationId } : {}),
+      readAt: null,
+    },
+    data: { readAt: new Date() },
+  });
+}
+
+export async function deleteNotifications(
+  userId: string,
+  notificationIds?: string[],
+) {
+  if (notificationIds?.length) {
+    const result = await prisma.notification.deleteMany({
+      where: { userId, id: { in: notificationIds } },
+    });
+    return { deleted: result.count };
+  }
+  throw new AppError("Notification id required", 400);
+}
+
+/** Mark friend-request notifications from an actor as read after respond. */
+export async function dismissActorNotifications(
+  userId: string,
+  actorId: string,
+  types: NotificationType[] = ["FRIEND_REQUEST"],
+) {
+  return prisma.notification.updateMany({
+    where: {
+      userId,
+      actorId,
+      type: { in: types },
       readAt: null,
     },
     data: { readAt: new Date() },

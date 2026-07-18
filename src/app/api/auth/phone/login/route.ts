@@ -1,9 +1,10 @@
 import { z } from "zod";
+
 import { body, clientIp, fail, guardApiAbuse, ok } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
-import { consumePhoneOtp } from "@/modules/auth/phone-otp";
+import { prisma } from "@/lib/prisma";
 import { createAuthChallenge } from "@/modules/auth/challenges";
+import { consumePhoneOtp } from "@/modules/auth/phone-otp";
 import { trackLogin } from "@/modules/auth/session-track";
 
 export async function POST(request: Request) {

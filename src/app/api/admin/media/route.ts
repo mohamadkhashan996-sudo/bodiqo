@@ -1,5 +1,7 @@
+import type { MediaStatus } from "@prisma/client";
+import { MediaKind } from "@prisma/client";
 import { z } from "zod";
-import { MediaKind, MediaStatus } from "@prisma/client";
+
 import { body, fail, guardApiAbuse, ok, requireStaff } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import {

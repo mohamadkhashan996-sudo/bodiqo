@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
-import { Modal } from "@/components/ui/modal";
+
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 
 type HighlightItem = {
   id: string;
@@ -49,9 +50,9 @@ export function ProfileHighlights({
   }, [handle]);
 
   async function load() {
-    const d = await fetch(`/api/highlights?handle=${encodeURIComponent(handle)}`).then(
-      (r) => r.json(),
-    );
+    const d = await fetch(
+      `/api/highlights?handle=${encodeURIComponent(handle)}`,
+    ).then((r) => r.json());
     setLocked(Boolean(d.locked));
     setHighlights(d.highlights ?? []);
   }
@@ -71,7 +72,7 @@ export function ProfileHighlights({
   return (
     <>
       <div className="mt-6">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+        <p className="mb-3 text-[11px] font-semibold tracking-[0.18em] text-[var(--muted)] uppercase">
           Highlights
         </p>
         {highlights.length ? (
@@ -167,7 +168,9 @@ export function ProfileHighlights({
             ) : null}
           </>
         ) : (
-          <p className="text-sm text-[var(--muted)]">No items in this highlight.</p>
+          <p className="text-sm text-[var(--muted)]">
+            No items in this highlight.
+          </p>
         )}
 
         {isOwner && active ? (

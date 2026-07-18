@@ -1,4 +1,4 @@
-import { fail, ok, optionalUser, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok, optionalUser } from "@/lib/api";
 import { getShorts } from "@/modules/feed/services/posts";
 
 export async function GET(request: Request) {
@@ -7,7 +7,12 @@ export async function GET(request: Request) {
     const u = await optionalUser();
     const q = new URL(request.url).searchParams;
     const modeParam = q.get("mode");
-    const mode = modeParam === "latest" ? "latest" : "forYou";
+    const mode =
+      modeParam === "latest"
+        ? "latest"
+        : modeParam === "following"
+          ? "following"
+          : "forYou";
     return ok(
       await getShorts(
         u?.id,

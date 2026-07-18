@@ -41,7 +41,7 @@ COPY --from=builder /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoin
 COPY --from=builder /app/scripts/backup.sh ./scripts/backup.sh
 COPY --from=builder /app/scripts/restore.sh ./scripts/restore.sh
 RUN chmod +x ./scripts/docker-entrypoint.sh ./scripts/backup.sh ./scripts/restore.sh \
-  && mkdir -p public/uploads data/backups \
+  && mkdir -p public/uploads storage/private/uploads data/backups \
   && chown -R relune:relune /app
 USER relune
 EXPOSE 3000

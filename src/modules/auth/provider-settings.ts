@@ -1,19 +1,22 @@
+import { cached, cacheDel } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
-import { cacheDel, cached } from "@/lib/cache";
 import {
+  type AuthProviderFlags,
   DEFAULT_AUTH_PROVIDERS,
   OAUTH_PROVIDER_ORDER,
-  providerEnvReady,
-  type AuthProviderFlags,
   type OAuthProviderId,
+  providerEnvReady,
 } from "@/modules/auth/providers";
 
 const SETTINGS_KEY = "auth.providers";
 
 export async function getAuthProviderFlags(): Promise<AuthProviderFlags> {
   return cached("auth:provider-flags", 30, async () => {
-    const row = await prisma.systemSetting.findUnique({ where: { key: SETTINGS_KEY } });
-    if (!row?.value || typeof row.value !== "object") return { ...DEFAULT_AUTH_PROVIDERS };
+    const row = await prisma.systemSetting.findUnique({
+      where: { key: SETTINGS_KEY },
+    });
+    if (!row?.value || typeof row.value !== "object")
+      return { ...DEFAULT_AUTH_PROVIDERS };
     return { ...DEFAULT_AUTH_PROVIDERS, ...(row.value as AuthProviderFlags) };
   });
 }

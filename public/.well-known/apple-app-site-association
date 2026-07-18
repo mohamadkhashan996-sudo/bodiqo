@@ -4,7 +4,14 @@
     "details": [
       {
         "appID": "TEAMID.app.relune.social",
-        "paths": ["*", "/"]
+        "paths": [
+          "/post/*",
+          "/u/*",
+          "/live/*",
+          "/stories/*",
+          "/shorts/*",
+          "/messages/*"
+        ]
       }
     ]
   },

@@ -1,7 +1,20 @@
-import { Prisma, ReportCategory, ReportStatus, ReportTarget } from "@prisma/client";
+import type {
+  Prisma,
+  ReportCategory,
+  ReportStatus,
+  ReportTarget,
+  Role,
+} from "@prisma/client";
+
+import { cacheDelPrefix } from "@/lib/cache";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { cacheDelPrefix } from "@/lib/cache";
+import { broadcastComment } from "@/modules/feed/services/broadcast";
+import {
+  moderateDeleteCommentSubtree,
+  moderateRestoreComment,
+} from "@/modules/feed/services/comments";
+
 import { writeAudit } from "./audit";
 
 export async function listReports(opts: {
@@ -76,7 +89,11 @@ export async function listContent(opts: {
 }) {
   const take = Math.min(opts.take ?? 40, 100);
 
-  if (opts.kind === "posts" || opts.kind === "videos" || opts.kind === "deleted") {
+  if (
+    opts.kind === "posts" ||
+    opts.kind === "videos" ||
+    opts.kind === "deleted"
+  ) {
     const where: Prisma.PostWhereInput =
       opts.kind === "deleted"
         ? { status: "DELETED" }
@@ -164,15 +181,28 @@ export async function moderateComment(
   commentId: string,
   action: "delete" | "restore",
 ) {
-  const comment = await prisma.comment.findUnique({ where: { id: commentId } });
-  if (!comment) throw new AppError("Comment not found", 404);
-  const updated = await prisma.comment.update({
-    where: { id: commentId },
-    data: { deletedAt: action === "delete" ? new Date() : null },
-  });
+  if (action === "delete") {
+    const result = await moderateDeleteCommentSubtree(commentId);
+    await writeAudit({
+      actorId,
+      action: "admin.content.comment.delete",
+      target: commentId,
+    });
+    broadcastComment({
+      type: "deleted",
+      postId: result.postId,
+      commentId: result.id,
+      parentId: result.parentId,
+      commentCount: result.commentCount,
+      deletedIds: result.deletedIds,
+    });
+    return result;
+  }
+
+  const updated = await moderateRestoreComment(commentId);
   await writeAudit({
     actorId,
-    action: `admin.content.comment.${action}`,
+    action: "admin.content.comment.restore",
     target: commentId,
   });
   return updated;
@@ -182,7 +212,11 @@ export async function deleteStory(actorId: string, storyId: string) {
   await prisma.story.delete({ where: { id: storyId } }).catch(() => {
     throw new AppError("Story not found", 404);
   });
-  await writeAudit({ actorId, action: "admin.content.story.delete", target: storyId });
+  await writeAudit({
+    actorId,
+    action: "admin.content.story.delete",
+    target: storyId,
+  });
   return { ok: true };
 }
 
@@ -260,7 +294,7 @@ async function resolveReportTargetUserId(report: {
 
 export async function resolveReportWithAction(
   actorId: string,
-  actorRole: import("@prisma/client").Role,
+  actorRole: Role,
   reportId: string,
   action: "delete_post" | "delete_comment" | "ban_user" | "none",
 ) {

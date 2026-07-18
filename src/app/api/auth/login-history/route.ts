@@ -1,4 +1,4 @@
-import { fail, ok, requireUser, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 export async function GET(request: Request) {
   try {

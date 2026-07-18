@@ -1,4 +1,5 @@
 import Link from "next/link";
+
 import { BrandLockup } from "@/components/brand/logo";
 
 export default function MaintenancePage() {
@@ -9,7 +10,8 @@ export default function MaintenancePage() {
         Brief pause
       </h1>
       <p className="mt-4 max-w-md text-sm leading-7 text-[var(--muted)]">
-        Relune is undergoing care and will return shortly. Thank you for your patience.
+        Relune is undergoing care and will return shortly. Thank you for your
+        patience.
       </p>
       <Link
         href="/sign-in"

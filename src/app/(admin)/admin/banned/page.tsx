@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+
 import {
   AdminPageHeader,
+  adminPost,
   Panel,
   StatCard,
-  adminPost,
   useAdminJson,
 } from "@/components/admin/admin-ui";
 
@@ -136,7 +137,7 @@ export default function AdminBannedUsersPage() {
             key={value}
             type="button"
             onClick={() => setFilter(value)}
-            className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide ${
+            className={`rounded-full px-4 py-2 text-xs tracking-wide uppercase ${
               filter === value
                 ? "bg-[var(--ink)] text-[var(--cloud)]"
                 : "border-2 border-[var(--mist-strong)] bg-[var(--surface)]"
@@ -147,7 +148,7 @@ export default function AdminBannedUsersPage() {
         ))}
         <Link
           href="/admin/users"
-          className="rounded-full border-2 border-[var(--mist-strong)] px-4 py-2 text-xs uppercase tracking-wide"
+          className="rounded-full border-2 border-[var(--mist-strong)] px-4 py-2 text-xs tracking-wide uppercase"
         >
           All users
         </Link>
@@ -170,7 +171,7 @@ export default function AdminBannedUsersPage() {
 
       <Panel className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">
+          <thead className="text-[10px] tracking-[0.16em] text-[var(--muted)] uppercase">
             <tr>
               <th className="pb-3">User</th>
               <th className="pb-3">Status</th>

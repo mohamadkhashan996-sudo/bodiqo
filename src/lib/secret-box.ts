@@ -1,5 +1,6 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import { createCipheriv, createDecipheriv } from "node:crypto";
+
 import { AppError } from "@/lib/errors";
 
 const PREFIX = "enc:v1:";
@@ -63,6 +64,8 @@ export function issueTurnCredentials(userId: string, ttlSeconds = 3600) {
   if (!secret) return null;
   const expiry = Math.floor(Date.now() / 1000) + ttlSeconds;
   const username = `${expiry}:${userId}`;
-  const credential = createHmac("sha1", secret).update(username).digest("base64");
+  const credential = createHmac("sha1", secret)
+    .update(username)
+    .digest("base64");
   return { username, credential, ttlSeconds };
 }

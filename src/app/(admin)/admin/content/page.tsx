@@ -3,10 +3,11 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+
 import {
   AdminPageHeader,
-  Panel,
   adminPost,
+  Panel,
   useAdminJson,
 } from "@/components/admin/admin-ui";
 
@@ -52,7 +53,7 @@ function ContentPageInner() {
             key={k}
             type="button"
             onClick={() => setKind(k)}
-            className={`rounded-full px-4 py-2 text-xs uppercase tracking-wide ${
+            className={`rounded-full px-4 py-2 text-xs tracking-wide uppercase ${
               kind === k
                 ? "bg-[var(--ink)] text-[var(--cloud)]"
                 : "border-2 border-[var(--mist-strong)] bg-[var(--surface)]"
@@ -72,22 +73,16 @@ function ContentPageInner() {
       </div>
       {loading ? <p className="text-sm text-[var(--muted)]">Loading…</p> : null}
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}
-      <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,280px)]">
         <Panel className="space-y-3">
           {data?.items?.map((item) => {
             const id = String(item.id);
             const author = item.author as
-              | { handle?: string; displayName?: string }
-              | undefined;
+              { handle?: string; displayName?: string } | undefined;
             const owner = item.owner as
-              | { handle?: string; displayName?: string }
-              | undefined;
+              { handle?: string; displayName?: string } | undefined;
             const body = String(
-              item.body ??
-                item.name ??
-                item.textOverlay ??
-                item.mediaUrl ??
-                id,
+              item.body ?? item.name ?? item.textOverlay ?? item.mediaUrl ?? id,
             ).slice(0, 160);
             return (
               <div
@@ -105,10 +100,7 @@ function ContentPageInner() {
                     {kind === "posts" || kind === "videos" ? (
                       <>
                         {" · "}
-                        <Link
-                          href={`/post/${id}`}
-                          className="underline"
-                        >
+                        <Link href={`/post/${id}`} className="underline">
                           Open
                         </Link>
                       </>
@@ -116,7 +108,9 @@ function ContentPageInner() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {kind === "posts" || kind === "videos" || kind === "deleted" ? (
+                  {kind === "posts" ||
+                  kind === "videos" ||
+                  kind === "deleted" ? (
                     <>
                       {kind !== "deleted" ? (
                         <>
@@ -221,7 +215,9 @@ function ContentPageInner() {
 
 export default function AdminContentPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+    <Suspense
+      fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
+    >
       <ContentPageInner />
     </Suspense>
   );

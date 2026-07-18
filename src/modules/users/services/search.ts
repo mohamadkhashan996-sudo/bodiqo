@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { cached } from "@/lib/cache";
 import { smartSearchExpand } from "@/modules/ai/services/intelligence";
+import {
+  blockedIdsFor,
+  filterVisiblePostIds,
+} from "@/modules/users/services/visibility";
 
 export type SearchType =
   | "all"
@@ -18,6 +21,8 @@ const AUTHOR_SELECT = {
   image: true,
   isVerified: true,
   isOfficial: true,
+  isPrivate: true,
+  status: true,
 } as const;
 
 function normalizeQuery(raw: string) {
@@ -33,7 +38,11 @@ function tokens(q: string) {
     .slice(0, 6);
 }
 
-function scoreTextMatch(haystack: string | null | undefined, q: string, weight = 1) {
+function scoreTextMatch(
+  haystack: string | null | undefined,
+  q: string,
+  weight = 1,
+) {
   if (!haystack) return 0;
   const h = haystack.toLowerCase();
   const needle = q.toLowerCase();
@@ -57,17 +66,7 @@ function scoreAgainstTerms(
 
 async function blockedIds(userId?: string) {
   if (!userId) return [] as string[];
-  const blocks = await prisma.block.findMany({
-    where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
-    select: { blockerId: true, blockedId: true },
-  });
-  return [
-    ...new Set(
-      blocks.flatMap((row) =>
-        row.blockerId === userId ? [row.blockedId] : [row.blockerId],
-      ),
-    ),
-  ];
+  return blockedIdsFor(userId);
 }
 
 async function searchUsers(
@@ -125,6 +124,7 @@ async function searchPosts(
   q: string,
   excludedIds: string[],
   limit: number,
+  viewerId?: string,
   videoOnly = false,
   expansions: string[] = [],
 ) {
@@ -135,6 +135,10 @@ async function searchPosts(
       status: "PUBLISHED",
       deletedAt: null,
       visibility: "PUBLIC",
+      author: {
+        status: "ACTIVE",
+        ...(excludedIds.length ? { id: { notIn: excludedIds } } : {}),
+      },
       ...(excludedIds.length ? { authorId: { notIn: excludedIds } } : {}),
       ...(videoOnly
         ? {
@@ -160,7 +164,7 @@ async function searchPosts(
       ],
     },
     orderBy: [{ likeCount: "desc" }, { publishedAt: "desc" }],
-    take: Math.min(limit * 4, 80),
+    take: Math.min(limit * 6, 120),
     include: {
       author: { select: AUTHOR_SELECT },
       media: { orderBy: { sortOrder: "asc" as const }, take: 4 },
@@ -168,7 +172,12 @@ async function searchPosts(
     },
   });
 
-  return posts
+  const visibleIds = new Set(
+    (await filterVisiblePostIds(viewerId, posts)).map((p) => p.id),
+  );
+  const visible = posts.filter((p) => visibleIds.has(p.id));
+
+  return visible
     .map((post) => {
       const ageHours = Math.max(
         0,
@@ -198,7 +207,11 @@ async function searchPosts(
     .slice(0, limit);
 }
 
-async function searchCommunities(q: string, limit: number, expansions: string[] = []) {
+async function searchCommunities(
+  q: string,
+  limit: number,
+  expansions: string[] = [],
+) {
   const terms = [...new Set([q, ...expansions])].filter(Boolean).slice(0, 8);
   const communities = await prisma.community.findMany({
     where: {
@@ -241,8 +254,17 @@ async function searchCommunities(q: string, limit: number, expansions: string[] 
     .slice(0, limit);
 }
 
-async function searchHashtags(q: string, limit: number, expansions: string[] = []) {
-  const terms = [...new Set([q.replace(/^#/, ""), ...expansions.map((e) => e.replace(/^#/, ""))])]
+async function searchHashtags(
+  q: string,
+  limit: number,
+  expansions: string[] = [],
+) {
+  const terms = [
+    ...new Set([
+      q.replace(/^#/, ""),
+      ...expansions.map((e) => e.replace(/^#/, "")),
+    ]),
+  ]
     .filter(Boolean)
     .slice(0, 8);
   const hashtags = await prisma.hashtag.findMany({
@@ -265,9 +287,10 @@ async function searchHashtags(q: string, limit: number, expansions: string[] = [
     .slice(0, limit);
 }
 
-async function enrichUserRelations<
-  T extends { id: string },
->(users: T[], userId?: string) {
+async function enrichUserRelations<T extends { id: string }>(
+  users: T[],
+  userId?: string,
+) {
   if (!userId || !users.length) {
     return users.map((u) => ({ ...u, relation: "none" as const }));
   }
@@ -301,11 +324,12 @@ async function enrichUserRelations<
 export async function searchAll(
   query: string,
   userId?: string,
-  options?: { type?: SearchType; limit?: number },
+  options?: { type?: SearchType; limit?: number; record?: boolean },
 ) {
   const q = normalizeQuery(query);
   const type = options?.type ?? "all";
   const limit = Math.min(Math.max(options?.limit ?? 20, 1), 40);
+  const shouldRecord = options?.record !== false;
 
   if (!q) {
     const recent = userId ? await listSearchHistory(userId) : [];
@@ -333,10 +357,10 @@ export async function searchAll(
       ? searchUsers(q, excluded, limit, expandTerms)
       : Promise.resolve([]),
     want("posts")
-      ? searchPosts(q, excluded, limit, false, expandTerms)
+      ? searchPosts(q, excluded, limit, userId, false, expandTerms)
       : Promise.resolve([]),
     want("videos")
-      ? searchPosts(q, excluded, limit, true, expandTerms)
+      ? searchPosts(q, excluded, limit, userId, true, expandTerms)
       : Promise.resolve([]),
     want("communities")
       ? searchCommunities(q, limit, expandTerms)
@@ -347,7 +371,7 @@ export async function searchAll(
   ]);
 
   const users = await enrichUserRelations(usersRaw, userId);
-  if (userId) await recordSearch(userId, q);
+  if (userId && shouldRecord) await recordSearch(userId, q);
 
   return {
     query: q,
@@ -363,16 +387,67 @@ export async function searchAll(
   };
 }
 
+/** Lightweight prefix suggestions for autocomplete (does not write history). */
+export async function suggestSearch(query: string, userId?: string, limit = 6) {
+  const q = normalizeQuery(query);
+  if (q.length < 1) {
+    const [recent, trending] = await Promise.all([
+      userId ? listSearchHistory(userId, 8) : Promise.resolve([]),
+      trendingHashtags(8),
+    ]);
+    return { query: "", users: [], hashtags: trending, recent };
+  }
+
+  const excluded = await blockedIds(userId);
+  const take = Math.min(Math.max(limit, 1), 12);
+  const [usersRaw, hashtags, recent] = await Promise.all([
+    searchUsers(q, excluded, take),
+    searchHashtags(q, take),
+    userId ? listSearchHistory(userId, 6) : Promise.resolve([]),
+  ]);
+  const users = await enrichUserRelations(usersRaw, userId);
+  const recentMatches = recent.filter((row) =>
+    row.query.toLowerCase().includes(q.toLowerCase()),
+  );
+  return {
+    query: q,
+    users,
+    hashtags,
+    recent: recentMatches,
+  };
+}
+
 export async function recordSearch(userId: string, query: string) {
   const q = query.trim().slice(0, 200);
   if (!q) return null;
-  // Dedupe recent identical queries for this user.
+  // Case-insensitive dedupe: bump existing row instead of inserting duplicates.
   const recent = await prisma.searchHistory.findFirst({
-    where: { userId, query: q },
+    where: { userId, query: { equals: q, mode: "insensitive" } },
     orderBy: { createdAt: "desc" },
   });
-  if (recent && Date.now() - recent.createdAt.getTime() < 60_000) {
-    return recent;
+  if (recent) {
+    if (Date.now() - recent.createdAt.getTime() < 120_000) {
+      return recent;
+    }
+    return prisma.searchHistory.update({
+      where: { id: recent.id },
+      data: { query: q, createdAt: new Date() },
+    });
+  }
+  // Cap history size per user (keep newest 40).
+  const count = await prisma.searchHistory.count({ where: { userId } });
+  if (count >= 40) {
+    const oldest = await prisma.searchHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+      take: count - 39,
+      select: { id: true },
+    });
+    if (oldest.length) {
+      await prisma.searchHistory.deleteMany({
+        where: { id: { in: oldest.map((r) => r.id) } },
+      });
+    }
   }
   return prisma.searchHistory.create({ data: { userId, query: q } });
 }
@@ -400,10 +475,8 @@ export async function clearSearchHistory(userId: string) {
 
 export async function trendingHashtags(limit = 10) {
   const take = Math.min(Math.max(limit, 1), 50);
-  return cached(`search:trending-tags:${take}`, 60, () =>
-    prisma.hashtag.findMany({
-      orderBy: { postCount: "desc" },
-      take,
-    }),
+  const { getWindowedTrendingHashtags } = await import(
+    "@/modules/feed/services/trending"
   );
+  return getWindowedTrendingHashtags(take);
 }

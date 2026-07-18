@@ -1,14 +1,15 @@
 import { randomInt } from "crypto";
-import { prisma } from "@/lib/prisma";
+
 import { AppError } from "@/lib/errors";
+import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
 import {
   hashOpaque,
   hashOpaqueLegacy,
   safeEqualHex,
 } from "@/modules/auth/password";
-import { sendSms } from "@/modules/auth/sms";
 import { normalizePhone } from "@/modules/auth/phone";
-import { rateLimit } from "@/lib/rate-limit";
+import { sendSms } from "@/modules/auth/sms";
 
 export type PhoneOtpPurpose = "LOGIN" | "VERIFY" | "REGISTER";
 
@@ -43,7 +44,11 @@ export async function issuePhoneOtp(opts: {
       select: { id: true },
     });
     if (existing) {
-      throw new AppError("Phone number already registered", 409);
+      // Anti-enumeration: look like a successful send without SMS/OTP row.
+      return {
+        phone,
+        expiresAt: new Date(Date.now() + 10 * 60_000),
+      };
     }
   }
 

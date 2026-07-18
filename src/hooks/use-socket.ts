@@ -1,15 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { io, Socket } from "socket.io-client";
+import type { Socket } from "socket.io-client";
+import { io } from "socket.io-client";
 
 let socket: Socket | null = null;
 
-export function useSocket() {
+export function useSocket(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled !== false;
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    socket ??= io({ path: "/socket.io", withCredentials: true, autoConnect: false });
+    if (!enabled) {
+      setConnected(false);
+      return;
+    }
+
+    socket ??= io({
+      path: "/socket.io",
+      withCredentials: true,
+      autoConnect: false,
+    });
     const client = socket;
     const onConnect = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
@@ -21,7 +32,7 @@ export function useSocket() {
       client.off("connect", onConnect);
       client.off("disconnect", onDisconnect);
     };
-  }, []);
+  }, [enabled]);
 
-  return { socket, connected };
+  return { socket: enabled ? socket : null, connected };
 }

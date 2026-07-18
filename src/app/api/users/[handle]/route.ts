@@ -1,4 +1,4 @@
-import { fail, ok, optionalUser, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok, optionalUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { getPublicProfile } from "@/modules/users/services/profile";
 

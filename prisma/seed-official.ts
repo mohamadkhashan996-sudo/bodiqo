@@ -1,5 +1,7 @@
+import type { PostType } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { randomBytes } from "crypto";
-import { PrismaClient, PostType } from "@prisma/client";
+
 import { hashPassword } from "../src/modules/auth/password";
 import {
   OFFICIAL_EMAIL,
@@ -12,7 +14,9 @@ function resolveOfficialPassword(): { password: string; generated: boolean } {
   const fromEnv = process.env.OFFICIAL_ACCOUNT_PASSWORD?.trim();
   if (fromEnv) {
     if (fromEnv.length < 12) {
-      throw new Error("OFFICIAL_ACCOUNT_PASSWORD must be at least 12 characters");
+      throw new Error(
+        "OFFICIAL_ACCOUNT_PASSWORD must be at least 12 characters",
+      );
     }
     return { password: fromEnv, generated: false };
   }
@@ -33,8 +37,8 @@ const THUMB =
 const WELCOME_VIDEO =
   "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
 
-const BIO = `Welcome to the official RELUNE account.
-The official home of RELUNE.
+const BIO = `Welcome to the official Relune account.
+The official home of Relune.
 Building one of the world's safest and most modern social platforms.
 Privacy First.
 Security First.
@@ -53,7 +57,7 @@ const POSTS: SeedPost[] = [
   {
     id: "official-welcome",
     pinned: true,
-    body: `Welcome to RELUNE ✦
+    body: `Welcome to Relune ✦
 
 We're building one of the world's safest and most modern social platforms — designed for creators, protected by privacy-first engineering, and shaped by community trust.
 
@@ -63,18 +67,18 @@ Follow @relune for official announcements, safety updates, and new features.`,
   {
     id: "official-welcome-video",
     type: "VIDEO",
-    body: "Welcome to RELUNE — a cinematic home for your presence. This is where your story begins.",
+    body: "Welcome to Relune — a cinematic home for your presence. This is where your story begins.",
     media: [{ kind: "VIDEO", url: WELCOME_VIDEO }],
   },
   {
     id: "official-welcome-reel",
     type: "SHORT",
-    body: "Your world. Your pace. Welcome to RELUNE Shorts.",
+    body: "Your world. Your pace. Welcome to Relune Shorts.",
     media: [{ kind: "VIDEO", url: WELCOME_VIDEO }],
   },
   {
     id: "official-intro",
-    body: "Platform Introduction — RELUNE brings together feed, shorts, communities, messaging, and stories in one elegant experience built for trust and creativity.",
+    body: "Platform Introduction — Relune brings together feed, shorts, communities, messaging, and stories in one elegant experience built for trust and creativity.",
     media: [{ kind: "IMAGE", url: THUMB }],
   },
   {
@@ -83,7 +87,7 @@ Follow @relune for official announcements, safety updates, and new features.`,
   },
   {
     id: "official-privacy",
-    body: "Privacy & Security — Your data belongs to you. RELUNE uses encryption, secure sessions, 2FA, and transparent controls so you decide what you share.",
+    body: "Privacy & Security — Your data belongs to you. Relune uses encryption, secure sessions, 2FA, and transparent controls so you decide what you share.",
   },
   {
     id: "official-safety",
@@ -91,7 +95,7 @@ Follow @relune for official announcements, safety updates, and new features.`,
   },
   {
     id: "official-protect",
-    body: "How RELUNE protects your account — Rate limiting, device management, login alerts, session revoke, and optional two-factor authentication keep you in control.",
+    body: "How Relune protects your account — Rate limiting, device management, login alerts, session revoke, and optional two-factor authentication keep you in control.",
   },
   {
     id: "official-report",
@@ -113,7 +117,7 @@ Follow @relune for official announcements, safety updates, and new features.`,
   },
   {
     id: "official-new-members",
-    body: "Welcome to every new member joining RELUNE today. We're glad you're here — explore freely, create boldly, and reach out if you need help.",
+    body: "Welcome to every new member joining Relune today. We're glad you're here — explore freely, create boldly, and reach out if you need help.",
   },
 ];
 
@@ -127,8 +131,8 @@ async function main() {
       id: OFFICIAL_USER_ID,
       email: OFFICIAL_EMAIL,
       handle: "relune",
-      name: "RELUNE",
-      displayName: "RELUNE",
+      name: "Relune",
+      displayName: "Relune",
       bio: BIO,
       image: AVATAR,
       coverImage: COVER,
@@ -146,8 +150,8 @@ async function main() {
     update: {
       email: OFFICIAL_EMAIL,
       handle: "relune",
-      name: "RELUNE",
-      displayName: "RELUNE",
+      name: "Relune",
+      displayName: "Relune",
       bio: BIO,
       image: AVATAR,
       coverImage: COVER,
@@ -212,11 +216,15 @@ async function main() {
 
   await prisma.systemSetting.upsert({
     where: { key: "officialAccountId" },
-    create: { key: "officialAccountId", value: official.id, updatedBy: official.id },
+    create: {
+      key: "officialAccountId",
+      value: official.id,
+      updatedBy: official.id,
+    },
     update: { value: official.id, updatedBy: official.id },
   });
 
-  console.log("Official RELUNE account ready.");
+  console.log("Official Relune account ready.");
   console.log(`Profile: http://localhost:3000/u/relune`);
   console.log(`Email:   ${OFFICIAL_EMAIL}`);
   if (generated) {
@@ -224,7 +232,9 @@ async function main() {
   } else {
     console.log("Password: set via OFFICIAL_ACCOUNT_PASSWORD (not printed).");
   }
-  console.log(`Posts:   ${postCount} (${POSTS.find((p) => p.pinned)?.id} pinned)`);
+  console.log(
+    `Posts:   ${postCount} (${POSTS.find((p) => p.pinned)?.id} pinned)`,
+  );
 }
 
 main()

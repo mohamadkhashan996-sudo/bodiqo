@@ -1,7 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { AdminPageHeader, Panel, useAdminJson } from "@/components/admin/admin-ui";
+
+import {
+  AdminPageHeader,
+  Panel,
+  useAdminJson,
+} from "@/components/admin/admin-ui";
 
 export default function AdminSearchPage() {
   const [q, setQ] = useState("");
@@ -27,7 +32,9 @@ export default function AdminSearchPage() {
         placeholder="Search the platform…"
         className="mb-6 w-full max-w-xl rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 text-sm outline-none focus:border-[var(--signal)]"
       />
-      {loading ? <p className="text-sm text-[var(--muted)]">Searching…</p> : null}
+      {loading ? (
+        <p className="text-sm text-[var(--muted)]">Searching…</p>
+      ) : null}
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}
       {data ? (
         <div className="grid gap-4 md:grid-cols-2">

@@ -1,4 +1,4 @@
-import { fail, ok, requireUser, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { removeHighlightItem } from "@/modules/media/services/highlights";
 
 export async function DELETE(

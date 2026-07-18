@@ -14,7 +14,8 @@ export type AnalyticsEvent =
   | "message_send"
   | "community_join"
   | "feature_use"
-  | "session_start";
+  | "session_start"
+  | "post_share";
 
 function provider() {
   return (process.env.NEXT_PUBLIC_ANALYTICS_PROVIDER || "none").toLowerCase();

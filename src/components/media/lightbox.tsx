@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
+import { createPortal } from "react-dom";
+
 import { cn } from "@/lib/utils";
 
 export function MediaLightbox({
@@ -24,7 +25,8 @@ export function MediaLightbox({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight") onIndexChange(Math.min(items.length - 1, index + 1));
+      if (e.key === "ArrowRight")
+        onIndexChange(Math.min(items.length - 1, index + 1));
       if (e.key === "ArrowLeft") onIndexChange(Math.max(0, index - 1));
     };
     window.addEventListener("keydown", onKey);
@@ -47,7 +49,7 @@ export function MediaLightbox({
       >
         <button
           type="button"
-          className="on-dark-control absolute right-5 top-5"
+          className="on-dark-control absolute top-5 right-5"
           onClick={onClose}
           aria-label="Close"
         >
@@ -57,7 +59,9 @@ export function MediaLightbox({
           key={current.url}
           src={current.url}
           alt={current.alt || ""}
-          className={cn("max-h-[85vh] max-w-[92vw] rounded-2xl object-contain shadow-2xl")}
+          className={cn(
+            "max-h-[min(85dvh,100%)] max-w-[min(92vw,100%)] rounded-2xl object-contain shadow-2xl",
+          )}
           style={{ transform: `scale(${zoom})` }}
           initial={reduce ? false : { opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}

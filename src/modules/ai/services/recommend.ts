@@ -1,67 +1,37 @@
+import { cached, cacheDel } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
-import { cached } from "@/lib/cache";
+import { uniqueById } from "@/lib/utils";
 import { rankPosts } from "@/modules/feed/services/rank";
-import { tokens } from "@/modules/ai/services/intelligence";
+import { blockedIdsFor } from "@/modules/users/services/visibility";
 
-export async function getSmartRecommendations(userId: string) {
-  return cached(`reco:${userId}`, 45, async () => {
-    const [following, likes, interests] = await Promise.all([
-      prisma.follow.findMany({
-        where: { followerId: userId },
-        select: { followingId: true },
-      }),
-      prisma.postLike.findMany({
-        where: { userId },
-        take: 50,
-        orderBy: { createdAt: "desc" },
-        include: {
-          post: {
-            select: {
-              authorId: true,
-              body: true,
-              type: true,
-              hashtags: { include: { hashtag: true }, take: 6 },
-            },
-          },
-        },
-      }),
-      prisma.userInterest.findMany({
-        where: { userId },
-        include: { interest: true },
-      }),
-    ]);
+export async function getSmartRecommendations(
+  userId: string,
+  opts?: { fresh?: boolean },
+) {
+  const key = `reco:${userId}`;
+  if (opts?.fresh) await cacheDel(key);
 
-    const followingIds = following.map((f) => f.followingId);
-    const likedAuthorIds = likes.map((l) => l.post.authorId);
-    const interestNames = interests.map((i) => i.interest.name.toLowerCase());
+  return cached(key, 45, async () => {
+    const blocked = await blockedIdsFor(userId);
+    const { buildViewerAffinity } = await import(
+      "@/modules/feed/services/affinity"
+    );
+    const affinity = await buildViewerAffinity(userId);
 
-    const affinityTerms = new Map<string, number>();
-    for (const name of interestNames) {
-      affinityTerms.set(name, (affinityTerms.get(name) ?? 0) + 3);
-    }
-    for (const like of likes) {
-      for (const word of tokens(like.post.body).slice(0, 6)) {
-        affinityTerms.set(word, (affinityTerms.get(word) ?? 0) + 1);
-      }
-      for (const row of like.post.hashtags) {
-        const tag = row.hashtag.tag.toLowerCase();
-        affinityTerms.set(tag, (affinityTerms.get(tag) ?? 0) + 2);
-      }
-    }
-
-    const interestTerms = [...affinityTerms.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 12)
-      .map(([term]) => term);
-
-    const exclude = [userId, ...followingIds];
-    const followingSet = new Set(followingIds);
+    const followingIds = [...(affinity.followingIds ?? [])];
+    const interestTerms = affinity.interestTerms ?? [];
+    const exclude = [
+      ...new Set([userId, ...followingIds, ...blocked]),
+    ];
+    const authorExclude = exclude;
+    const followingSet = affinity.followingIds ?? new Set(followingIds);
     const windowStart = new Date(Date.now() - 21 * 24 * 60 * 60_000);
 
     const creators = await prisma.user.findMany({
       where: {
         status: "ACTIVE",
-        id: { notIn: exclude },
+        isPrivate: false,
+        id: { notIn: authorExclude },
       },
       take: 12,
       orderBy: [{ isVerified: "desc" }, { followersCount: "desc" }],
@@ -76,13 +46,21 @@ export async function getSmartRecommendations(userId: string) {
       },
     });
 
+    const postWhere = {
+      status: "PUBLISHED" as const,
+      deletedAt: null,
+      visibility: "PUBLIC" as const,
+      publishedAt: { gte: windowStart },
+      authorId: { notIn: authorExclude },
+      author: { status: "ACTIVE" as const, isPrivate: false },
+      ...(affinity.seenPostIds.length && !affinity.coldStart
+        ? { id: { notIn: affinity.seenPostIds.slice(0, 40) } }
+        : {}),
+    };
+
     const posts = await prisma.post.findMany({
       where: {
-        status: "PUBLISHED",
-        visibility: "PUBLIC",
-        publishedAt: { gte: windowStart },
-        authorId: { notIn: exclude },
-        author: { status: "ACTIVE", isPrivate: false },
+        ...postWhere,
         ...(interestTerms.length
           ? {
               OR: interestTerms.slice(0, 8).map((name) => ({
@@ -102,6 +80,7 @@ export async function getSmartRecommendations(userId: string) {
             image: true,
             isVerified: true,
             isOfficial: true,
+            isPrivate: true,
           },
         },
         media: true,
@@ -112,13 +91,7 @@ export async function getSmartRecommendations(userId: string) {
       posts.length > 0
         ? posts
         : await prisma.post.findMany({
-            where: {
-              status: "PUBLISHED",
-              visibility: "PUBLIC",
-              publishedAt: { gte: windowStart },
-              authorId: { not: userId },
-              author: { status: "ACTIVE", isPrivate: false },
-            },
+            where: postWhere,
             take: 50,
             orderBy: [{ likeCount: "desc" }, { publishedAt: "desc" }],
             include: {
@@ -130,44 +103,67 @@ export async function getSmartRecommendations(userId: string) {
                   image: true,
                   isVerified: true,
                   isOfficial: true,
+                  isPrivate: true,
                 },
               },
               media: true,
             },
           });
 
-    const ranked = rankPosts(fallbackPosts, {
-      followingIds: followingSet,
-      interestTerms,
-    }).slice(0, 20);
+    const ranked = uniqueById(
+      rankPosts(fallbackPosts, {
+        followingIds: followingSet,
+        friendIds: affinity.friendIds,
+        interestTerms,
+        authorAffinity: affinity.authorAffinity,
+        diversify: true,
+        maxPerAuthor: affinity.maxPerAuthor,
+      }).slice(0, 20),
+    );
 
     const videos = ranked
       .filter((p) => p.type === "VIDEO" || p.type === "SHORT")
       .slice(0, 8);
 
-    const communities = await prisma.community.findMany({
-      take: 8,
-      orderBy: { membersCount: "desc" },
-      where: interestTerms.length
+    const communityWhere = {
+      visibility: "PUBLIC" as const,
+      ...(interestTerms.length
         ? {
             OR: interestTerms.slice(0, 5).flatMap((term) => [
               { name: { contains: term, mode: "insensitive" as const } },
               { category: { contains: term, mode: "insensitive" as const } },
-              { description: { contains: term, mode: "insensitive" as const } },
+              {
+                description: { contains: term, mode: "insensitive" as const },
+              },
             ]),
           }
-        : undefined,
-      include: {
-        owner: { select: { handle: true, displayName: true } },
+        : {}),
+    };
+
+    const communities = await prisma.community.findMany({
+      take: 8,
+      orderBy: { membersCount: "desc" },
+      where: communityWhere,
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        membersCount: true,
+        image: true,
+        category: true,
       },
     });
 
-    const friendSeeds = [...new Set(likedAuthorIds)].filter(
-      (id) => !exclude.includes(id),
-    );
+    const friendSeeds = [...(affinity.friendIds ?? [])]
+      .filter((id) => !authorExclude.includes(id) && !blocked.includes(id))
+      .slice(0, 8);
     const friends = friendSeeds.length
       ? await prisma.user.findMany({
-          where: { id: { in: friendSeeds.slice(0, 8) }, status: "ACTIVE" },
+          where: {
+            id: { in: friendSeeds },
+            status: "ACTIVE",
+            isPrivate: false,
+          },
           select: {
             id: true,
             handle: true,
@@ -179,9 +175,9 @@ export async function getSmartRecommendations(userId: string) {
       : creators.slice(0, 4);
 
     const topics = interestTerms.length
-      ? interestTerms.slice(0, 8).map((topic) => ({
+      ? interestTerms.slice(0, 8).map((topic, index) => ({
           topic,
-          score: affinityTerms.get(topic) ?? 1,
+          score: Math.max(1, 12 - index),
         }))
       : [
           { topic: "design", score: 1 },
@@ -201,12 +197,19 @@ export async function getSmartRecommendations(userId: string) {
           : await prisma.community.findMany({
               take: 8,
               orderBy: { membersCount: "desc" },
-              include: {
-                owner: { select: { handle: true, displayName: true } },
+              where: { visibility: "PUBLIC" },
+              select: {
+                id: true,
+                slug: true,
+                name: true,
+                membersCount: true,
+                image: true,
+                category: true,
               },
             }),
       topics,
-      engine: "affinity+rank",
+      engine: affinity.coldStart ? "cold-start+rank" : "affinity+rank",
+      coldStart: affinity.coldStart,
       generatedAt: new Date().toISOString(),
     };
   });

@@ -1,10 +1,12 @@
-import { fail, ok, optionalUser, guardApiAbuse} from "@/lib/api";
-import { getPostById } from "@/modules/feed/services/posts";
 import { PostVisibility } from "@prisma/client";
 import { z } from "zod";
-import { body, requireUser } from "@/lib/api";
+
+import { body, fail, guardApiAbuse, ok, optionalUser, requireUser } from "@/lib/api";
 import {
+  archivePost,
   deletePost,
+  getPostById,
+  unarchivePost,
   updatePost,
 } from "@/modules/feed/services/posts";
 
@@ -29,19 +31,30 @@ export async function PATCH(
     await guardApiAbuse(r, "posts:id:patch");
     const u = await requireUser();
     const { id } = await params;
+    const input = await body(
+      r,
+      z.object({
+        body: z.string().max(10000).optional(),
+        visibility: z.nativeEnum(PostVisibility).optional(),
+        commentsEnabled: z.boolean().optional(),
+        isPinned: z.boolean().optional(),
+        locationName: z.string().max(120).nullable().optional(),
+        locationLat: z.number().min(-90).max(90).nullable().optional(),
+        locationLng: z.number().min(-180).max(180).nullable().optional(),
+        archive: z.boolean().optional(),
+      }),
+    );
+
+    if (input.archive === true) {
+      return ok({ post: await archivePost(u.id, id) });
+    }
+    if (input.archive === false) {
+      return ok({ post: await unarchivePost(u.id, id) });
+    }
+
+    const { archive: _archive, ...patch } = input;
     return ok({
-      post: await updatePost(
-        u.id,
-        id,
-        await body(
-          r,
-          z.object({
-            body: z.string().max(10000).optional(),
-            visibility: z.nativeEnum(PostVisibility).optional(),
-            commentsEnabled: z.boolean().optional(),
-          }),
-        ),
-      ),
+      post: await updatePost(u.id, id, patch),
     });
   } catch (e) {
     return fail(e);

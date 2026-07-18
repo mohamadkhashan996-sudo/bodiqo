@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logger } from "@/lib/logger";
+
 import { site } from "@/config/site";
-import { redisPing } from "@/lib/redis";
 import { guardApiAbuse } from "@/lib/api";
+import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
+import { redisPing } from "@/lib/redis";
 
 /** Liveness — process is up */
 export async function GET(request: Request) {

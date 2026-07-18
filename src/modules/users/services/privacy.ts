@@ -1,21 +1,43 @@
-import { Prisma, PrivacyAudience } from "@prisma/client";
+import type { Prisma, PrivacyAudience } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 
 const fields = [
-  "whoCanFollow", "whoCanMessage", "whoCanCall", "whoCanComment", "whoCanMention",
-  "whoCanTag", "whoCanSeeStories", "whoCanSeeActivity", "whoCanSeeOnline",
-  "showReadReceipts", "showTyping",
+  "whoCanFollow",
+  "whoCanMessage",
+  "whoCanCall",
+  "whoCanComment",
+  "whoCanMention",
+  "whoCanTag",
+  "whoCanSeeStories",
+  "whoCanSeeActivity",
+  "whoCanSeeOnline",
+  "whoCanSeeFriends",
+  "showReadReceipts",
+  "showTyping",
 ] as const;
 
 export type PrivacyInput = Partial<{
-  whoCanFollow: PrivacyAudience; whoCanMessage: PrivacyAudience; whoCanCall: PrivacyAudience;
-  whoCanComment: PrivacyAudience; whoCanMention: PrivacyAudience; whoCanTag: PrivacyAudience;
-  whoCanSeeStories: PrivacyAudience; whoCanSeeActivity: PrivacyAudience; whoCanSeeOnline: PrivacyAudience;
-  showReadReceipts: boolean; showTyping: boolean;
+  whoCanFollow: PrivacyAudience;
+  whoCanMessage: PrivacyAudience;
+  whoCanCall: PrivacyAudience;
+  whoCanComment: PrivacyAudience;
+  whoCanMention: PrivacyAudience;
+  whoCanTag: PrivacyAudience;
+  whoCanSeeStories: PrivacyAudience;
+  whoCanSeeActivity: PrivacyAudience;
+  whoCanSeeOnline: PrivacyAudience;
+  whoCanSeeFriends: PrivacyAudience;
+  showReadReceipts: boolean;
+  showTyping: boolean;
 }>;
 
 export function getPrivacy(userId: string) {
-  return prisma.privacySettings.upsert({ where: { userId }, create: { userId }, update: {} });
+  return prisma.privacySettings.upsert({
+    where: { userId },
+    create: { userId },
+    update: {},
+  });
 }
 
 export function updatePrivacy(userId: string, input: PrivacyInput) {

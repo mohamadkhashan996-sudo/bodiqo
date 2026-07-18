@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { renderPrometheus, metricsSnapshot } from "@/lib/metrics";
+
+import { fail, requireStaff } from "@/lib/api";
 import { recentErrors } from "@/lib/error-tracking";
-import { requireStaff, fail } from "@/lib/api";
+import { metricsSnapshot, renderPrometheus } from "@/lib/metrics";
 
 function authorized(request: Request) {
   const token = process.env.METRICS_TOKEN;

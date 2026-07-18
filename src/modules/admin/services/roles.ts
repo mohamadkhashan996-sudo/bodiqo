@@ -1,7 +1,9 @@
-import { Role } from "@prisma/client";
+import type { Role } from "@prisma/client";
+
 import { AppError } from "@/lib/errors";
-import { prisma } from "@/lib/prisma";
 import { permissionsFor, ROLE_RANK } from "@/lib/permissions";
+import { prisma } from "@/lib/prisma";
+
 import { writeAudit } from "./audit";
 
 export async function listRoles() {

@@ -20,7 +20,9 @@ export function isSafeHttpUrl(value: string) {
   }
 }
 
-export function sanitizeHttpUrl(value: string | null | undefined): string | null {
+export function sanitizeHttpUrl(
+  value: string | null | undefined,
+): string | null {
   if (!value?.trim()) return null;
   const trimmed = value.trim();
   return isSafeHttpUrl(trimmed) ? trimmed : null;

@@ -1,13 +1,15 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { FormEvent } from "react";
+
+import { VerificationBadge } from "@/components/brand/official-badge";
+import { PageTransition } from "@/components/motion/primitives";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input, Textarea } from "@/components/ui/input";
-import { PageTransition } from "@/components/motion/primitives";
 import { StateBanner } from "@/components/ui/card";
-import { VerificationBadge } from "@/components/brand/official-badge";
+import { Input, Textarea } from "@/components/ui/input";
 
 type VerificationRequest = {
   id: string;
@@ -79,7 +81,9 @@ export default function VerificationSettingsPage() {
     }
     setNotes("");
     setEvidenceUrl("");
-    setMessage("Verification request submitted. Our team will review it shortly.");
+    setMessage(
+      "Verification request submitted. Our team will review it shortly.",
+    );
     await refresh();
   }
 
@@ -88,12 +92,19 @@ export default function VerificationSettingsPage() {
   return (
     <PageTransition className="page-shell max-w-3xl">
       <div className="mb-6">
-        <Link href="/settings" className="text-sm text-[var(--muted)] hover:text-[var(--ink)]">
+        <Link
+          href="/settings"
+          className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
+        >
           ← Back to settings
         </Link>
         <h1 className="mt-3 flex items-center gap-2 font-[family-name:var(--font-display)] text-4xl tracking-tight">
           Verification
-          <VerificationBadge isVerified={verified} isOfficial={official} className="size-6" />
+          <VerificationBadge
+            isVerified={verified}
+            isOfficial={official}
+            className="size-6"
+          />
         </h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
           Request a verified badge so people know your profile is authentic.
@@ -111,7 +122,8 @@ export default function VerificationSettingsPage() {
           </StateBanner>
         ) : pending ? (
           <StateBanner tone="warning">
-            You have a pending verification request. We&apos;ll notify you when it&apos;s reviewed.
+            You have a pending verification request. We&apos;ll notify you when
+            it&apos;s reviewed.
           </StateBanner>
         ) : null}
 
@@ -121,7 +133,7 @@ export default function VerificationSettingsPage() {
         {!verified && !official && !pending ? (
           <form onSubmit={submit} className="space-y-4">
             <label className="block">
-              <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+              <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
                 Full name
               </span>
               <Input
@@ -133,7 +145,7 @@ export default function VerificationSettingsPage() {
               />
             </label>
             <label className="block">
-              <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+              <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
                 Category
               </span>
               <select
@@ -149,7 +161,7 @@ export default function VerificationSettingsPage() {
               </select>
             </label>
             <label className="block">
-              <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+              <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
                 Evidence link
               </span>
               <Input
@@ -160,11 +172,12 @@ export default function VerificationSettingsPage() {
                 className="mt-2"
               />
               <p className="mt-2 text-xs text-[var(--muted)]">
-                Link to a website, press page, or public profile that confirms your identity.
+                Link to a website, press page, or public profile that confirms
+                your identity.
               </p>
             </label>
             <label className="block">
-              <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+              <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
                 Notes
               </span>
               <Textarea
@@ -183,7 +196,7 @@ export default function VerificationSettingsPage() {
 
         {requests.length ? (
           <div className="border-t border-[var(--mist-strong)] pt-5">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+            <p className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
               Request history
             </p>
             <ul className="mt-3 space-y-3">
@@ -194,7 +207,7 @@ export default function VerificationSettingsPage() {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">{request.category}</span>
-                    <span className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+                    <span className="text-xs tracking-[0.14em] text-[var(--muted)] uppercase">
                       {request.status}
                     </span>
                   </div>

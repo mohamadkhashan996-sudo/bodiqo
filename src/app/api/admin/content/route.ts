@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireStaff } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import {
@@ -16,12 +17,7 @@ export async function GET(request: Request) {
     await requireStaff("content:read");
     const { searchParams } = new URL(request.url);
     const kind = (searchParams.get("kind") ?? "posts") as
-      | "posts"
-      | "stories"
-      | "videos"
-      | "comments"
-      | "communities"
-      | "deleted";
+      "posts" | "stories" | "videos" | "comments" | "communities" | "deleted";
     const items = await listContent({
       kind,
       q: searchParams.get("q") ?? undefined,
@@ -44,14 +40,7 @@ export async function POST(request: Request) {
       z.object({
         target: z.enum(["post", "comment", "story", "community"]),
         id: z.string().min(1),
-        action: z.enum([
-          "delete",
-          "restore",
-          "pin",
-          "unpin",
-          "hide",
-          "unhide",
-        ]),
+        action: z.enum(["delete", "restore", "pin", "unpin", "hide", "unhide"]),
       }),
     );
     if (data.target === "post") {

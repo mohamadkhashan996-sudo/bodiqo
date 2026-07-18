@@ -1,5 +1,5 @@
-import { logger } from "@/lib/logger";
 import { site } from "@/config/site";
+import { logger } from "@/lib/logger";
 
 type Mail = { to: string; subject: string; html: string; text: string };
 
@@ -35,26 +35,37 @@ export async function sendMail(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: process.env.MAIL_FROM || `Relune <noreply@${new URL(site.url).hostname}>`,
+          from:
+            process.env.MAIL_FROM ||
+            `Relune <noreply@${new URL(site.url).hostname}>`,
           to: [message.to],
           subject: message.subject,
           html: message.html,
           text: message.text,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        id?: string;
+        message?: string;
+      };
       if (!res.ok) {
         logger.error("mail_resend_failed", { status: res.status, data });
         throw new Error(data.message || "Mail provider error");
       }
-      logger.info("mail_sent", { to: message.to, provider: "resend", id: data.id });
+      logger.info("mail_sent", {
+        to: message.to,
+        provider: "resend",
+        id: data.id,
+      });
       return { ok: true, id: data.id };
     } catch (error) {
       logger.error("mail_send_failed", {
         error: error instanceof Error ? error.message : String(error),
       });
       if (process.env.NODE_ENV === "production") {
-        throw error instanceof Error ? error : new Error("Email delivery failed");
+        throw error instanceof Error
+          ? error
+          : new Error("Email delivery failed");
       }
       // Dev: fall through to log mode
     }

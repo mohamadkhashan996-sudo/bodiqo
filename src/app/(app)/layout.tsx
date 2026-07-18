@@ -1,11 +1,14 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/modules/auth";
-import { AppNavigation } from "@/components/app-navigation";
+
 import { AppMain } from "@/components/app-main";
-import { RealtimeProvider } from "@/components/realtime-provider";
+import { AppNavigation } from "@/components/app-navigation";
 import { BrowseRestore } from "@/components/auth/browse-restore";
-import { isMaintenanceMode } from "@/modules/admin/services/settings";
+import { SplashScreen } from "@/components/motion/splash";
+import { AppProviders } from "@/components/providers";
+import { RealtimeProvider } from "@/components/realtime-provider";
 import { isStaff } from "@/lib/permissions";
+import { isMaintenanceMode } from "@/modules/admin/services/settings";
+import { auth } from "@/modules/auth";
 
 export default async function AppShellLayout({
   children,
@@ -22,7 +25,8 @@ export default async function AppShellLayout({
   }
 
   return (
-    <>
+    <AppProviders>
+      <SplashScreen />
       <BrowseRestore />
       {session?.user ? (
         <RealtimeProvider>
@@ -41,6 +45,6 @@ export default async function AppShellLayout({
           <AppMain>{children}</AppMain>
         </div>
       )}
-    </>
+    </AppProviders>
   );
 }

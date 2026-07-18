@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { AppError, toErrorResponse } from "@/lib/errors";
 
 describe("errors", () => {

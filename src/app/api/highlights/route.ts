@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import {
   body,
   fail,
@@ -21,9 +22,7 @@ export async function GET(request: Request) {
   try {
     const viewer = await optionalUser();
     const handle =
-      new URL(request.url).searchParams.get("handle") ||
-      viewer?.handle ||
-      null;
+      new URL(request.url).searchParams.get("handle") || viewer?.handle || null;
     if (!handle) {
       return ok({ highlights: [] });
     }

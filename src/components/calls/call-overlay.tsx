@@ -7,16 +7,27 @@ import {
   MonitorUp,
   PhoneOff,
   Shield,
+  SwitchCamera,
+  Volume2,
+  VolumeX,
   Video,
   VideoOff,
 } from "lucide-react";
+
 import { useSocket } from "@/hooks/use-socket";
+import { CALL_START_EVENT } from "@/lib/call-events";
 import {
   acquireDisplayStream,
   acquireLocalStream,
+  applyDegradedSenderParams,
+  applyHdSenderParams,
+  type CameraFacing,
+  type CallQuality,
   fetchIceServers,
   preferHdCodecs,
   replaceVideoTrack,
+  sampleCallQuality,
+  switchCameraFacing,
 } from "@/lib/call-media";
 import {
   callSafetyNumber,
@@ -103,6 +114,13 @@ export function CallOverlay() {
   const [e2eReady, setE2eReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [connected, setConnected] = useState(false);
+  const [speakerOn, setSpeakerOn] = useState(true);
+  const [networkHint, setNetworkHint] = useState<string | null>(null);
+  const [facing, setFacing] = useState<CameraFacing>("user");
+  const [quality, setQuality] = useState<CallQuality | null>(null);
+  const reconnecting = useRef(false);
+  const facingRef = useRef<CameraFacing>("user");
 
   const localVideo = useRef<HTMLVideoElement>(null);
   const remoteVideo = useRef<HTMLVideoElement>(null);
@@ -160,7 +178,8 @@ export function CallOverlay() {
   );
 
   const end = useCallback(() => {
-    if (callRef.current) socket?.emit("call:end", { callId: callRef.current.id });
+    if (callRef.current)
+      socket?.emit("call:end", { callId: callRef.current.id });
     stopMedia();
     setCall(null);
     setIncoming(null);
@@ -172,6 +191,12 @@ export function CallOverlay() {
     setSafetyNumber(null);
     setError(null);
     setElapsed(0);
+    setConnected(false);
+    setNetworkHint(null);
+    setQuality(null);
+    setFacing("user");
+    facingRef.current = "user";
+    reconnecting.current = false;
   }, [socket, stopMedia]);
 
   const sendSignal = useCallback(
@@ -185,7 +210,8 @@ export function CallOverlay() {
           );
           payload = { encrypted };
         } catch {
-          /* fall back to plaintext signaling */
+          setError("Couldn’t encrypt call signaling. Signal not sent.");
+          return;
         }
       }
       socket?.emit("call:signal", { callId, toUserId, signal: payload });
@@ -244,17 +270,48 @@ export function CallOverlay() {
         }
       };
       connection.onconnectionstatechange = () => {
-        if (
-          connection.connectionState === "failed" ||
-          connection.connectionState === "disconnected"
-        ) {
-          setError("Connection interrupted");
+        const state = connection.connectionState;
+        if (state === "connected") {
+          setConnected(true);
+          setError(null);
+          setNetworkHint(null);
+          reconnecting.current = false;
+          return;
+        }
+        if (state === "disconnected" || state === "failed") {
+          setConnected(false);
+          setNetworkHint(
+            state === "failed" ? "Connection failed" : "Poor network — reconnecting…",
+          );
+          if (reconnecting.current) return;
+          reconnecting.current = true;
+          void (async () => {
+            try {
+              connection.restartIce();
+              const offer = await connection.createOffer({ iceRestart: true });
+              await connection.setLocalDescription(offer);
+              const peerId = remoteUserId.current;
+              const active = callRef.current;
+              if (peerId && active) {
+                await sendSignal(active.id, peerId, { description: offer });
+              }
+            } catch {
+              setError("Connection interrupted");
+              socket?.emit("call:end", { callId: callRef.current?.id });
+              stopMedia();
+              setCall(null);
+            } finally {
+              window.setTimeout(() => {
+                reconnecting.current = false;
+              }, 4000);
+            }
+          })();
         }
       };
       peer.current = connection;
       return connection;
     },
-    [sendSignal],
+    [sendSignal, socket, stopMedia],
   );
 
   const attachLocal = useCallback((local: MediaStream) => {
@@ -269,14 +326,13 @@ export function CallOverlay() {
     stopRing();
     setError(null);
     try {
-      const local = await acquireLocalStream(incoming.type);
+      const local = await acquireLocalStream(incoming.type, facingRef.current);
       attachLocal(local);
       const target = incoming.callerId;
       const connection = await preparePeer(incoming, target);
-      local.getTracks().forEach((track) =>
-        connection.addTrack(track, local),
-      );
+      local.getTracks().forEach((track) => connection.addTrack(track, local));
       preferHdCodecs(connection);
+      await applyHdSenderParams(connection);
       if (pendingOffer.current) {
         await connection.setRemoteDescription(pendingOffer.current);
         await flushCandidates();
@@ -303,6 +359,10 @@ export function CallOverlay() {
 
   useEffect(() => {
     const invite = (next: Call) => {
+      if (callRef.current) {
+        socket?.emit("call:busy", { callId: next.id });
+        return;
+      }
       setIncoming(next);
       void notifyIncoming(next);
       void (async () => {
@@ -355,8 +415,22 @@ export function CallOverlay() {
     }) => {
       const next = await resolveSignal(raw);
       if (next.description?.type === "offer") {
-        pendingOffer.current = next.description;
         remoteUserId.current = fromUserId;
+        // Offer arrived after accept — answer immediately instead of parking it.
+        if (peer.current && callRef.current?.id === callId) {
+          try {
+            await peer.current.setRemoteDescription(next.description);
+            await flushCandidates();
+            const answer = await peer.current.createAnswer();
+            await peer.current.setLocalDescription(answer);
+            await sendSignal(callId, fromUserId, { description: answer });
+            pendingOffer.current = null;
+          } catch {
+            pendingOffer.current = next.description;
+          }
+          return;
+        }
+        pendingOffer.current = next.description;
         return;
       }
       if (!peer.current || callRef.current?.id !== callId) {
@@ -389,13 +463,12 @@ export function CallOverlay() {
       if (!next || !target) return;
       setError(null);
       try {
-        const local = await acquireLocalStream(next.type);
+        const local = await acquireLocalStream(next.type, facingRef.current);
         attachLocal(local);
         const connection = await preparePeer(next, target);
-        local.getTracks().forEach((track) =>
-          connection.addTrack(track, local),
-        );
+        local.getTracks().forEach((track) => connection.addTrack(track, local));
         preferHdCodecs(connection);
+        await applyHdSenderParams(connection);
         const offer = await connection.createOffer();
         await connection.setLocalDescription(offer);
         await sendSignal(next.id, target, { description: offer });
@@ -406,7 +479,19 @@ export function CallOverlay() {
     };
 
     const onAccepted = ({ callId }: { callId: string; userId: string }) => {
-      if (callRef.current?.id === callId) setError(null);
+      if (callRef.current?.id === callId) {
+        setError(null);
+        setConnected(true);
+      }
+    };
+
+    const onBusy = ({ callId }: { callId: string }) => {
+      if (callRef.current?.id === callId) {
+        setError("User is busy");
+        stopMedia();
+        setCall(null);
+        setConnected(false);
+      }
     };
 
     const onMediaState = ({
@@ -428,11 +513,14 @@ export function CallOverlay() {
       setCall(null);
       setIncoming(null);
       setSharingScreen(false);
+      setConnected(false);
+      setNetworkHint(null);
     };
 
     socket?.on("call:incoming", invite);
     socket?.on("call:signal", signal);
     socket?.on("call:accepted", onAccepted);
+    socket?.on("call:busy", onBusy);
     socket?.on("call:media-state", onMediaState);
     socket?.on("call:end", hangupRemote);
     socket?.on("call:decline", hangupRemote);
@@ -440,17 +528,20 @@ export function CallOverlay() {
       setIncoming(null);
       stopRing();
       stopMedia();
+      setCall(null);
+      setConnected(false);
     });
-    window.addEventListener("relune:call-start", start);
+    window.addEventListener(CALL_START_EVENT, start);
     return () => {
       socket?.off("call:incoming", invite);
       socket?.off("call:signal", signal);
       socket?.off("call:accepted", onAccepted);
+      socket?.off("call:busy", onBusy);
       socket?.off("call:media-state", onMediaState);
       socket?.off("call:end", hangupRemote);
       socket?.off("call:decline", hangupRemote);
       socket?.off("call:missed");
-      window.removeEventListener("relune:call-start", start);
+      window.removeEventListener(CALL_START_EVENT, start);
     };
   }, [
     attachLocal,
@@ -469,11 +560,77 @@ export function CallOverlay() {
   useEffect(() => () => stopMedia(), [stopMedia]);
 
   useEffect(() => {
-    if (!call) return;
+    if (!call || !connected) return;
     setElapsed(0);
     const timer = window.setInterval(() => setElapsed((v) => v + 1), 1000);
     return () => window.clearInterval(timer);
-  }, [call]);
+  }, [call, connected]);
+
+  useEffect(() => {
+    const onDeviceChange = () => {
+      setNetworkHint((prev) => prev ?? "Audio device changed");
+    };
+    navigator.mediaDevices?.addEventListener?.("devicechange", onDeviceChange);
+    return () => {
+      navigator.mediaDevices?.removeEventListener?.(
+        "devicechange",
+        onDeviceChange,
+      );
+    };
+  }, []);
+
+  const toggleSpeaker = async () => {
+    const el = remoteVideo.current as HTMLVideoElement & {
+      setSinkId?: (id: string) => Promise<void>;
+    };
+    if (!el?.setSinkId) {
+      setSpeakerOn((v) => !v);
+      if (el) el.muted = speakerOn;
+      return;
+    }
+    try {
+      // "" = default output (often speaker on desktop). "communications" unsupported in most browsers.
+      await el.setSinkId("");
+      el.muted = false;
+      setSpeakerOn(true);
+    } catch {
+      el.muted = speakerOn;
+      setSpeakerOn((v) => !v);
+    }
+  };
+
+  useEffect(() => {
+    if (!call || !connected || !peer.current) return;
+    let cancelled = false;
+    const tick = async () => {
+      const connection = peer.current;
+      if (!connection || cancelled) return;
+      const sample = await sampleCallQuality(connection);
+      if (cancelled) return;
+      setQuality(sample.quality);
+      if (sample.quality === "poor" || sample.quality === "fair") {
+        setNetworkHint(
+          sample.quality === "poor"
+            ? "Poor connection — lowering video quality"
+            : "Fair connection",
+        );
+        await applyDegradedSenderParams(connection);
+      } else if (sample.quality === "excellent") {
+        setNetworkHint(null);
+        await applyHdSenderParams(connection);
+      }
+    };
+    void tick();
+    const id = window.setInterval(() => void tick(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [call, connected]);
+
+  useEffect(() => {
+    facingRef.current = facing;
+  }, [facing]);
 
   const toggleMute = () => {
     const next = !muted;
@@ -494,6 +651,30 @@ export function CallOverlay() {
     emitMediaState({ cameraOff: next });
   };
 
+  const switchCamera = async () => {
+    if (!peer.current || !call || call.type !== "VIDEO" || sharingScreen) return;
+    try {
+      const { stream: nextStream, track } = await switchCameraFacing(
+        stream.current,
+        facingRef.current,
+      );
+      const nextFacing: CameraFacing =
+        facingRef.current === "user" ? "environment" : "user";
+      setFacing(nextFacing);
+      facingRef.current = nextFacing;
+      stream.current = nextStream;
+      cameraTrack.current = track;
+      if (track) {
+        track.enabled = !cameraOff;
+        await replaceVideoTrack(peer.current, track);
+      }
+      if (localVideo.current) localVideo.current.srcObject = nextStream;
+      await applyHdSenderParams(peer.current);
+    } catch {
+      setError("Couldn’t switch camera on this device.");
+    }
+  };
+
   const stopScreenShare = useCallback(async () => {
     if (!peer.current || !callRef.current) return;
     screenStream.current?.getTracks().forEach((track) => track.stop());
@@ -502,7 +683,10 @@ export function CallOverlay() {
     let cam = cameraTrack.current;
     if (!cam && active.type === "VIDEO") {
       try {
-        cam = (await acquireLocalStream("VIDEO")).getVideoTracks()[0] ?? null;
+        cam =
+          (
+            await acquireLocalStream("VIDEO", facingRef.current)
+          ).getVideoTracks()[0] ?? null;
       } catch {
         cam = null;
       }
@@ -518,6 +702,7 @@ export function CallOverlay() {
         stream.current.addTrack(cam);
         if (localVideo.current) localVideo.current.srcObject = stream.current;
       }
+      await applyHdSenderParams(peer.current);
     } else {
       await replaceVideoTrack(peer.current, null);
     }
@@ -566,7 +751,7 @@ export function CallOverlay() {
   if (incoming) {
     return (
       <div className="fixed inset-x-3 bottom-[max(1rem,calc(4.5rem+env(safe-area-inset-bottom)))] z-50 mx-auto w-[min(24rem,calc(100vw-1.5rem))] max-w-sm rounded-[2rem] border-2 border-white/75 bg-[var(--ink)] p-5 text-[var(--cloud-elevated)] shadow-2xl backdrop-blur-xl lg:bottom-5">
-        <p className="text-xs uppercase tracking-[.2em] text-[var(--ember)]">
+        <p className="text-xs tracking-[.2em] text-[var(--ember)] uppercase">
           Incoming {incoming.type.toLowerCase()} call
         </p>
         <p className="mt-2 font-[family-name:var(--font-display)] text-2xl">
@@ -628,7 +813,7 @@ export function CallOverlay() {
     "Call";
 
   return (
-    <div className="fixed bottom-[max(1rem,calc(4.5rem+env(safe-area-inset-bottom)))] left-3 right-3 z-50 mx-auto w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-[2rem] border-2 border-white/75 bg-[var(--ink)] p-3 text-white shadow-2xl sm:left-auto sm:right-5 sm:mx-0 lg:bottom-5">
+    <div className="fixed right-3 bottom-[max(1rem,calc(4.5rem+env(safe-area-inset-bottom)))] left-3 z-50 mx-auto w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-[2rem] border-2 border-white/75 bg-[var(--ink)] p-3 text-white shadow-2xl sm:right-5 sm:left-auto sm:mx-0 lg:bottom-5">
       <div className="relative aspect-video overflow-hidden rounded-[1.35rem] bg-[var(--night-elevated)]">
         <video
           ref={remoteVideo}
@@ -641,18 +826,29 @@ export function CallOverlay() {
           autoPlay
           muted
           playsInline
-          className="absolute bottom-2 right-2 h-20 w-14 rounded-xl border-2 border-white/70 object-cover"
+          className={`absolute right-2 bottom-2 h-20 w-14 rounded-xl border-2 border-white/70 object-cover ${
+            facing === "user" && !sharingScreen ? "scale-x-[-1]" : ""
+          }`}
         />
-        <div className="absolute left-3 top-3 space-y-1">
+        <div className="absolute top-3 left-3 space-y-1">
           <p className="text-xs font-semibold">{peerName}</p>
-          <p className="text-[10px] font-medium text-white/90">{formatElapsed(elapsed)}</p>
+          <p className="text-[10px] font-medium text-white/90">
+            {connected ? formatElapsed(elapsed) : "Calling…"}
+          </p>
         </div>
         <div className="absolute bottom-2 left-3 flex flex-col gap-1 text-[10px] font-medium text-white/90">
           <span className="inline-flex items-center gap-1">
             <Shield className="size-3 text-[var(--signal)]" />
             {e2eReady ? "E2E · HD" : "Secure WebRTC"}
+            {quality ? ` · ${quality}` : ""}
             {sharingScreen ? " · sharing" : ""}
+            {!sharingScreen && call.type === "VIDEO"
+              ? facing === "user"
+                ? " · front"
+                : " · rear"
+              : ""}
           </span>
+          {networkHint ? <span>{networkHint}</span> : null}
           {peerMuted ? <span>Peer muted</span> : null}
           {peerCameraOff ? <span>Peer camera off</span> : null}
         </div>
@@ -674,20 +870,46 @@ export function CallOverlay() {
         >
           {muted ? <MicOff className="size-4" /> : <Mic className="size-4" />}
         </button>
+        <button
+          type="button"
+          onClick={() => void toggleSpeaker()}
+          className="on-dark-control"
+          aria-label={speakerOn ? "Speaker on" : "Speaker off"}
+        >
+          {speakerOn ? (
+            <Volume2 className="size-4" />
+          ) : (
+            <VolumeX className="size-4" />
+          )}
+        </button>
         {call.type === "VIDEO" ? (
-          <button
-            type="button"
-            onClick={() => void toggleCamera()}
-            className="on-dark-control"
-            aria-label={cameraOff ? "Turn camera on" : "Turn camera off"}
-            disabled={sharingScreen}
-          >
-            {cameraOff ? (
-              <VideoOff className="size-4" />
-            ) : (
-              <Video className="size-4" />
-            )}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => void toggleCamera()}
+              className="on-dark-control"
+              aria-label={cameraOff ? "Turn camera on" : "Turn camera off"}
+              disabled={sharingScreen}
+            >
+              {cameraOff ? (
+                <VideoOff className="size-4" />
+              ) : (
+                <Video className="size-4" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => void switchCamera()}
+              className="on-dark-control"
+              aria-label={
+                facing === "user" ? "Switch to rear camera" : "Switch to front camera"
+              }
+              disabled={sharingScreen || cameraOff}
+              title={facing === "user" ? "Rear camera" : "Front camera"}
+            >
+              <SwitchCamera className="size-4" />
+            </button>
+          </>
         ) : null}
         <button
           type="button"

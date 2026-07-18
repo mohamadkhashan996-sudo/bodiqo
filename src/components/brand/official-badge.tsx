@@ -1,12 +1,11 @@
-"use client";
-
 import { BadgeCheck } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 /** Unique platform badge — visually distinct from standard verification */
 export function OfficialBadge({
   className,
-  title = "Official RELUNE account",
+  title = "Official Relune account",
 }: {
   className?: string;
   title?: string;
@@ -21,7 +20,7 @@ export function OfficialBadge({
       aria-label={title}
       role="img"
     >
-      <span className="flex size-[1.15em] min-w-[1.15em] items-center justify-center rounded-full bg-[var(--ink)] text-[0.55em] font-black leading-none tracking-tighter text-[var(--cloud)]">
+      <span className="flex size-[1.15em] min-w-[1.15em] items-center justify-center rounded-full bg-[var(--ink)] text-[0.55em] leading-none font-black tracking-tighter text-[var(--cloud)]">
         R
       </span>
     </span>

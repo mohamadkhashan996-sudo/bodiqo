@@ -4,6 +4,8 @@ export const MEMBER_ONLY_PATH_PREFIXES = [
   "/settings",
   "/notifications",
   "/calls",
+  "/live/go",
+  "/saved",
   "/onboarding",
   "/communities/new",
   "/admin",

@@ -1,6 +1,7 @@
-import { timingSafeEqual } from "crypto";
 import bcrypt from "bcryptjs";
+import { timingSafeEqual } from "crypto";
 import { createHash, createHmac, randomBytes } from "crypto";
+
 import { AppError } from "@/lib/errors";
 
 export const BCRYPT_ROUNDS = 12;
@@ -20,11 +21,12 @@ export function assertStrongPassword(password: string) {
   if (password.length < 8 || password.length > 128) {
     throw new AppError("Password must be 8–128 characters", 400);
   }
-  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
-    throw new AppError(
-      "Password must include upper, lower, and a number",
-      400,
-    );
+  if (
+    !/[a-z]/.test(password) ||
+    !/[A-Z]/.test(password) ||
+    !/[0-9]/.test(password)
+  ) {
+    throw new AppError("Password must include upper, lower, and a number", 400);
   }
   if (COMMON.has(password.toLowerCase())) {
     throw new AppError("Please choose a less common password", 400);
@@ -73,5 +75,9 @@ export function safeEqualHex(a: string, b: string) {
 }
 
 export function randomRecoveryCode() {
-  return randomBytes(5).toString("hex").toUpperCase().match(/.{1,5}/g)!.join("-");
+  return randomBytes(5)
+    .toString("hex")
+    .toUpperCase()
+    .match(/.{1,5}/g)!
+    .join("-");
 }

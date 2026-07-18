@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { BookmarkPlus, Eye, Plus } from "lucide-react";
+
+import { useGuest } from "@/components/auth/guest-provider";
 import { Avatar } from "@/components/ui/avatar";
-import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useGuest } from "@/components/auth/guest-provider";
+import { Modal } from "@/components/ui/modal";
+import { ACCEPT_BY_PURPOSE } from "@/lib/media-accept";
 import { uploadFile } from "@/lib/upload-client";
 
 const REACTION_EMOJIS = ["❤️", "🔥", "😂", "😮", "👏", "😢"];
@@ -99,14 +101,16 @@ export function StoriesRail() {
     if (!res.ok) return;
     const nextCounts = { ...(active.reactionCounts ?? {}) };
     if (active.myReaction && nextCounts[active.myReaction]) {
-      nextCounts[active.myReaction] = Math.max(
-        0,
-        nextCounts[active.myReaction] - 1,
-      );
+      const previous = nextCounts[active.myReaction] ?? 0;
+      nextCounts[active.myReaction] = Math.max(0, previous - 1);
       if (!nextCounts[active.myReaction]) delete nextCounts[active.myReaction];
     }
     nextCounts[emoji] = (nextCounts[emoji] ?? 0) + 1;
-    const updated = { ...active, myReaction: emoji, reactionCounts: nextCounts };
+    const updated = {
+      ...active,
+      myReaction: emoji,
+      reactionCounts: nextCounts,
+    };
     setActive(updated);
     setStories((prev) => prev.map((s) => (s.id === active.id ? updated : s)));
   }
@@ -179,14 +183,14 @@ export function StoriesRail() {
 
   return (
     <>
-      <div className="flex gap-4 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex snap-x snap-mandatory [scrollbar-width:none] gap-4 overflow-x-auto scroll-smooth pb-2 [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <button
           type="button"
           onClick={() => {
             if (!requireAuth()) return;
             setComposeOpen(true);
           }}
-          className="w-16 shrink-0 snap-start touch-manipulation text-center"
+          className="w-16 shrink-0 touch-manipulation snap-start text-center"
         >
           <span className="grid size-[3.75rem] place-items-center rounded-[1.25rem] border-2 border-dashed border-[var(--mist-strong)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
             <Plus className="size-5 text-[var(--signal-deep)]" />
@@ -203,7 +207,7 @@ export function StoriesRail() {
               key={story.id}
               type="button"
               onClick={() => void openStory(story)}
-              className="w-16 shrink-0 snap-start touch-manipulation text-center"
+              className="w-16 shrink-0 touch-manipulation snap-start text-center"
             >
               <span
                 className={`block rounded-[1.25rem] p-0.5 ${
@@ -341,7 +345,7 @@ export function StoriesRail() {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,video/mp4,video/webm"
+            accept={ACCEPT_BY_PURPOSE.story}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];

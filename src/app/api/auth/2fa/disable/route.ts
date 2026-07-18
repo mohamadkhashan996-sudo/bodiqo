@@ -1,9 +1,10 @@
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
-import { verifyTotpOrBackup, clearTwoFactor } from "@/modules/auth/two-factor";
+import { prisma } from "@/lib/prisma";
 import { bumpSessionVersion, sendSecurityAlert } from "@/modules/auth/security";
+import { clearTwoFactor, verifyTotpOrBackup } from "@/modules/auth/two-factor";
 
 export async function POST(request: Request) {
   try {
@@ -17,7 +18,8 @@ export async function POST(request: Request) {
       where: { id: user.id },
       select: { twoFactorSecret: true, twoFactorEnabled: true },
     });
-    if (!current?.twoFactorEnabled) throw new AppError("2FA is not enabled", 400);
+    if (!current?.twoFactorEnabled)
+      throw new AppError("2FA is not enabled", 400);
     await verifyTotpOrBackup(user.id, current.twoFactorSecret, code);
     await clearTwoFactor(user.id);
     await bumpSessionVersion(user.id);

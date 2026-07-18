@@ -1,9 +1,20 @@
-import { FriendRequestStatus, ReportCategory, ReportTarget } from "@prisma/client";
+import type {
+  FriendRequestStatus,
+  ReportCategory,
+  ReportTarget,
+} from "@prisma/client";
+import { Prisma } from "@prisma/client";
+
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { scoreContentModeration } from "@/modules/ai/services/intelligence";
-import { createNotification } from "@/modules/notifications/services/notify";
-import { canFollow } from "@/modules/messaging/services/privacy-gate";
+import { createNotification, dismissActorNotifications } from "@/modules/notifications/services/notify";
+import { broadcastFollowUpdate } from "@/modules/users/services/broadcast";
+import { canFollow } from "@/modules/users/services/privacy-gate";
+import { assertCanInteractWithPost } from "@/modules/users/services/visibility";
+
+/** Cooldown before re-requesting after decline/cancel. */
+const REQUEST_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 async function assertDistinct(actorId: string, targetId: string) {
   if (actorId === targetId) {
@@ -22,6 +33,55 @@ async function assertNotBlocked(a: string, b: string) {
     select: { id: true },
   });
   if (blocked) throw new AppError("This user is unavailable", 403);
+}
+
+async function clampFollowCounts(
+  tx: Prisma.TransactionClient,
+  userIds: string[],
+) {
+  const ids = [...new Set(userIds)];
+  if (!ids.length) return;
+  await tx.user.updateMany({
+    where: { id: { in: ids }, followersCount: { lt: 0 } },
+    data: { followersCount: 0 },
+  });
+  await tx.user.updateMany({
+    where: { id: { in: ids }, followingCount: { lt: 0 } },
+    data: { followingCount: 0 },
+  });
+}
+
+/** Create a directed follow edge if missing; returns whether it was new. */
+async function ensureFollowEdge(
+  tx: Prisma.TransactionClient,
+  followerId: string,
+  followingId: string,
+) {
+  const existing = await tx.follow.findUnique({
+    where: { followerId_followingId: { followerId, followingId } },
+    select: { id: true },
+  });
+  if (existing) return false;
+  try {
+    await tx.follow.create({ data: { followerId, followingId } });
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      return false;
+    }
+    throw err;
+  }
+  await tx.user.update({
+    where: { id: followerId },
+    data: { followingCount: { increment: 1 } },
+  });
+  await tx.user.update({
+    where: { id: followingId },
+    data: { followersCount: { increment: 1 } },
+  });
+  return true;
 }
 
 export async function followUser(followerId: string, followingId: string) {
@@ -44,28 +104,38 @@ export async function followUser(followerId: string, followingId: string) {
     },
     select: { id: true },
   });
-  if (already) return { status: "following" as const };
+  if (already) {
+    broadcastFollowUpdate({
+      actorId: followerId,
+      targetId: followingId,
+      status: "following",
+    });
+    return { status: "following" as const };
+  }
 
   if (target.isPrivate) {
-    await sendFriendRequest(followerId, followingId);
+    await sendFriendRequest(followerId, followingId, { asFollowRequest: true });
+    broadcastFollowUpdate({
+      actorId: followerId,
+      targetId: followingId,
+      status: "requested",
+    });
     return { status: "requested" as const };
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.follow.create({ data: { followerId, followingId } });
-    await tx.user.update({
-      where: { id: followerId },
-      data: { followingCount: { increment: 1 } },
-    });
-    await tx.user.update({
-      where: { id: followingId },
-      data: { followersCount: { increment: 1 } },
-    });
+    await ensureFollowEdge(tx, followerId, followingId);
+    await clampFollowCounts(tx, [followerId, followingId]);
   });
   await createNotification({
     userId: followingId,
     actorId: followerId,
     type: "FOLLOW",
+  });
+  broadcastFollowUpdate({
+    actorId: followerId,
+    targetId: followingId,
+    status: "following",
   });
   return { status: "following" as const };
 }
@@ -94,7 +164,13 @@ export async function unfollowUser(followerId: string, followingId: string) {
       where: { id: followingId },
       data: { followersCount: { decrement: 1 } },
     });
+    await clampFollowCounts(tx, [followerId, followingId]);
     return true;
+  });
+  broadcastFollowUpdate({
+    actorId: followerId,
+    targetId: followingId,
+    status: "none",
   });
   return { deleted, status: "none" as const };
 }
@@ -127,6 +203,7 @@ export async function blockUser(blockerId: string, blockedId: string) {
         data: { followersCount: { decrement: 1 } },
       });
     }
+    await clampFollowCounts(tx, [blockerId, blockedId]);
 
     await tx.friendRequest.deleteMany({
       where: {
@@ -182,11 +259,30 @@ export async function reportEntity(
     });
     contentText = [post?.body, details].filter(Boolean).join("\n");
   } else if (targetType === "COMMENT") {
-    const comment = await prisma.comment.findUnique({
-      where: { id: targetId },
-      select: { body: true },
+    const comment = await prisma.comment.findFirst({
+      where: { id: targetId, deletedAt: null },
+      select: {
+        body: true,
+        authorId: true,
+        postId: true,
+      },
     });
-    contentText = [comment?.body, details].filter(Boolean).join("\n");
+    if (!comment) throw new AppError("Comment not found", 404);
+    if (comment.authorId === reporterId) {
+      throw new AppError("You cannot report your own comment", 400);
+    }
+    await assertCanInteractWithPost(reporterId, comment.postId);
+    const open = await prisma.report.findFirst({
+      where: {
+        reporterId,
+        targetType: "COMMENT",
+        targetId,
+        status: { in: ["OPEN", "ESCALATED", "IN_REVIEW"] },
+      },
+      select: { id: true },
+    });
+    if (open) throw new AppError("You already reported this comment", 409);
+    contentText = [comment.body, details].filter(Boolean).join("\n");
   } else if (targetType === "MESSAGE") {
     const message = await prisma.message.findUnique({
       where: { id: targetId },
@@ -211,7 +307,8 @@ export async function reportEntity(
       ? "SPAM"
       : /scam|phish/i.test(reason)
         ? "SCAM"
-        : ai.categories.includes("HARASSMENT") || /harass|bully|toxic/i.test(reason)
+        : ai.categories.includes("HARASSMENT") ||
+            /harass|bully|toxic/i.test(reason)
           ? "HARASSMENT"
           : ai.categories.includes("VIOLENCE") || /violen|threat/i.test(reason)
             ? "VIOLENCE"
@@ -238,16 +335,30 @@ export async function reportEntity(
   });
 }
 
-export async function sendFriendRequest(fromUserId: string, toUserId: string) {
+export async function sendFriendRequest(
+  fromUserId: string,
+  toUserId: string,
+  opts?: { asFollowRequest?: boolean },
+) {
   await assertDistinct(fromUserId, toUserId);
   await assertNotBlocked(fromUserId, toUserId);
   const target = await prisma.user.findUnique({
     where: { id: toUserId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, isPrivate: true },
   });
   if (!target || target.status !== "ACTIVE") {
     throw new AppError("User not found", 404);
   }
+
+  // FOLLOW-kind requests are for private-account follow approval only.
+  // Explicit friendship requests use sendFriendshipRequest (kind FRIEND).
+  if (!opts?.asFollowRequest && !target.isPrivate) {
+    throw new AppError(
+      "This account is public — use Follow, or send a friend request",
+      400,
+    );
+  }
+
   if (!(await canFollow(fromUserId, toUserId))) {
     throw new AppError("This user is unavailable", 403);
   }
@@ -262,22 +373,39 @@ export async function sendFriendRequest(fromUserId: string, toUserId: string) {
 
   const existingRequest = await prisma.friendRequest.findUnique({
     where: { fromUserId_toUserId: { fromUserId, toUserId } },
-    select: { id: true, status: true },
+    select: { id: true, status: true, updatedAt: true },
   });
+
+  if (
+    existingRequest &&
+    (existingRequest.status === "DECLINED" ||
+      existingRequest.status === "CANCELLED")
+  ) {
+    const elapsed = Date.now() - existingRequest.updatedAt.getTime();
+    if (elapsed < REQUEST_COOLDOWN_MS) {
+      throw new AppError(
+        "Please wait before sending another follow request",
+        429,
+      );
+    }
+  }
+
+  if (existingRequest?.status === "PENDING") {
+    return existingRequest;
+  }
 
   const request = await prisma.friendRequest.upsert({
     where: { fromUserId_toUserId: { fromUserId, toUserId } },
-    create: { fromUserId, toUserId },
-    update: { status: "PENDING" },
+    create: { fromUserId, toUserId, kind: "FOLLOW", status: "PENDING" },
+    update: { kind: "FOLLOW", status: "PENDING" },
   });
 
-  if (!existingRequest || existingRequest.status !== "PENDING") {
-    await createNotification({
-      userId: toUserId,
-      actorId: fromUserId,
-      type: "FRIEND_REQUEST",
-    });
-  }
+  await createNotification({
+    userId: toUserId,
+    actorId: fromUserId,
+    type: "FRIEND_REQUEST",
+    body: "sent you a follow request",
+  });
   return request;
 }
 
@@ -289,7 +417,7 @@ export async function respondFriendRequest(
   const request = await prisma.friendRequest.findUnique({
     where: { id: requestId },
   });
-  if (!request) throw new AppError("Friend request not found", 404);
+  if (!request) throw new AppError("Request not found", 404);
   if (request.toUserId !== userId && request.fromUserId !== userId) {
     throw new AppError("Forbidden", 403);
   }
@@ -304,42 +432,30 @@ export async function respondFriendRequest(
   }
 
   if (status === "ACCEPTED") {
+    if (request.kind === "FRIEND") {
+      const { acceptFriendshipRequest } = await import(
+        "@/modules/users/services/friends"
+      );
+      return acceptFriendshipRequest(userId, requestId);
+    }
+
+    // FOLLOW-kind: one-way approve (requester → accepter).
     const updated = await prisma.$transaction(async (tx) => {
       const next = await tx.friendRequest.update({
         where: { id: requestId },
         data: { status },
       });
 
-      // Create mutual follows so accept becomes a friendship.
-      for (const [followerId, followingId] of [
-        [request.fromUserId, request.toUserId],
-        [request.toUserId, request.fromUserId],
-      ] as const) {
-        const existing = await tx.follow.findUnique({
-          where: {
-            followerId_followingId: { followerId, followingId },
-          },
-        });
-        if (existing) continue;
-        await tx.follow.create({ data: { followerId, followingId } });
-        await tx.user.update({
-          where: { id: followerId },
-          data: { followingCount: { increment: 1 } },
-        });
-        await tx.user.update({
-          where: { id: followingId },
-          data: { followersCount: { increment: 1 } },
-        });
-      }
+      await ensureFollowEdge(tx, request.fromUserId, request.toUserId);
+      await clampFollowCounts(tx, [request.fromUserId, request.toUserId]);
 
-      // Clear any reverse pending request between the same pair.
       await tx.friendRequest.updateMany({
         where: {
           fromUserId: request.toUserId,
           toUserId: request.fromUserId,
           status: "PENDING",
         },
-        data: { status: "ACCEPTED" },
+        data: { status: "CANCELLED" },
       });
 
       return next;
@@ -348,12 +464,68 @@ export async function respondFriendRequest(
       userId: request.fromUserId,
       actorId: request.toUserId,
       type: "FOLLOW",
+      body: "accepted your follow request",
+    });
+    await dismissActorNotifications(userId, request.fromUserId, [
+      "FRIEND_REQUEST",
+    ]);
+    broadcastFollowUpdate({
+      actorId: request.fromUserId,
+      targetId: request.toUserId,
+      status: "following",
     });
     return updated;
   }
 
-  return prisma.friendRequest.update({
+  const updated = await prisma.friendRequest.update({
     where: { id: requestId },
     data: { status },
   });
+  if (status === "CANCELLED" || status === "DECLINED") {
+    if (status === "DECLINED" && request.toUserId === userId) {
+      await dismissActorNotifications(userId, request.fromUserId, [
+        "FRIEND_REQUEST",
+      ]);
+    }
+    broadcastFollowUpdate({
+      actorId: request.fromUserId,
+      targetId: request.toUserId,
+      status: "none",
+    });
+  }
+  return updated;
+}
+
+/**
+ * When an account goes public, convert pending incoming follow requests
+ * into one-way follows so requesters are not left hanging.
+ */
+export async function acceptPendingFollowRequestsOnPublic(userId: string) {
+  const pending = await prisma.friendRequest.findMany({
+    where: { toUserId: userId, status: "PENDING" },
+    select: { id: true, fromUserId: true },
+    take: 200,
+  });
+  for (const row of pending) {
+    await prisma.$transaction(async (tx) => {
+      await tx.friendRequest.update({
+        where: { id: row.id },
+        data: { status: "ACCEPTED" },
+      });
+      await ensureFollowEdge(tx, row.fromUserId, userId);
+      await clampFollowCounts(tx, [row.fromUserId, userId]);
+    });
+    await createNotification({
+      userId: row.fromUserId,
+      actorId: userId,
+      type: "FOLLOW",
+      body: "accepted your follow request",
+    }).catch(() => undefined);
+    broadcastFollowUpdate({
+      actorId: row.fromUserId,
+      targetId: userId,
+      status: "following",
+    });
+  }
+  return { accepted: pending.length };
 }

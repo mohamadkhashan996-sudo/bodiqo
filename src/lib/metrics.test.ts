@@ -1,5 +1,11 @@
-import { describe, expect, it, beforeEach } from "vitest";
-import { incCounter, observeMs, renderPrometheus, metricsSnapshot } from "@/lib/metrics";
+import { beforeEach, describe, expect, it } from "vitest";
+
+import {
+  incCounter,
+  metricsSnapshot,
+  observeMs,
+  renderPrometheus,
+} from "@/lib/metrics";
 
 describe("metrics", () => {
   beforeEach(() => {

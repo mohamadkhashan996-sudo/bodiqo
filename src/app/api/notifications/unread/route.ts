@@ -1,4 +1,4 @@
-import { fail, ok, requireUser, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { countUnread } from "@/modules/notifications/services/notify";
 
 export async function GET(request: Request) {

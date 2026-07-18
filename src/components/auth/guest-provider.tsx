@@ -2,17 +2,24 @@
 
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import { useSession } from "next-auth/react";
-import { AuthGateModal } from "@/components/auth/auth-gate-modal";
+import dynamic from "next/dynamic";
+
 import { saveBrowseState } from "@/lib/guest/browse-state";
+
+const AuthGateModal = dynamic(
+  () =>
+    import("@/components/auth/auth-gate-modal").then((m) => m.AuthGateModal),
+  { ssr: false },
+);
 
 type GuestContextValue = {
   isGuest: boolean;
@@ -84,7 +91,13 @@ export function GuestProvider({ children }: { children: ReactNode }) {
   return (
     <GuestContext.Provider value={value}>
       {children}
-      <AuthGateModal open={open} onClose={closeAuthGate} callbackUrl={callbackUrl} />
+      {open ? (
+        <AuthGateModal
+          open={open}
+          onClose={closeAuthGate}
+          callbackUrl={callbackUrl}
+        />
+      ) : null}
     </GuestContext.Provider>
   );
 }

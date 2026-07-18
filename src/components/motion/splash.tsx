@@ -1,21 +1,22 @@
 "use client";
 
-import { useReducedMotion } from "framer-motion";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 
 export function SplashScreen() {
-  const reduce = useReducedMotion();
   // Start hidden to avoid SSR/client hydration mismatch and accidental click traps
   // after the splash was already dismissed in this session.
   const [show, setShow] = useState(false);
   const [visible, setVisible] = useState(true);
+  const [reduce, setReduce] = useState(false);
 
   useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduce(mq.matches);
     if (sessionStorage.getItem("relune_splash") === "1") return;
     setShow(true);
-    const hideMs = reduce ? 300 : 1200;
-    const fadeMs = reduce ? 200 : 450;
+    const hideMs = mq.matches ? 200 : 700;
+    const fadeMs = mq.matches ? 150 : 320;
     const hide = window.setTimeout(() => {
       sessionStorage.setItem("relune_splash", "1");
       setVisible(false);
@@ -27,7 +28,7 @@ export function SplashScreen() {
       window.clearTimeout(hide);
       window.clearTimeout(unmount);
     };
-  }, [reduce]);
+  }, []);
 
   if (!show) return null;
 
@@ -63,7 +64,7 @@ export function SplashScreen() {
         />
       </div>
       <p
-        className="mt-8 font-[family-name:var(--font-display)] text-3xl tracking-[0.32em] uppercase text-[var(--ink)]"
+        className="mt-8 font-[family-name:var(--font-display)] text-3xl tracking-[0.32em] text-[var(--ink)] uppercase"
         style={{
           opacity: visible ? 1 : 0,
           transform: visible ? "translateY(0)" : "translateY(8px)",

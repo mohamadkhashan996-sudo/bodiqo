@@ -55,9 +55,9 @@ export function InterestChips({
   if (!interests.length) return null;
   return (
     <div className="flex flex-wrap gap-2">
-      {interests.map((interest) => (
+      {interests.map((interest, index) => (
         <span
-          key={interest.id ?? interest.name}
+          key={interest.id ?? `${interest.name}-${index}`}
           className="rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--muted-strong)]"
         >
           {interest.name}

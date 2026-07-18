@@ -1,62 +1,72 @@
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { bumpSessionVersion } from "@/modules/auth/security";
 import { verifyPassword } from "@/modules/auth/password";
+import { bumpSessionVersion } from "@/modules/auth/security";
+import { verifyTotpOrBackup } from "@/modules/auth/two-factor";
 
 export async function GET(request: Request) {
   try {
     await guardApiAbuse(request, "account:export", 10);
     const user = await requireUser();
-    const [profile, posts, comments, conversations] = await Promise.all([
-      prisma.user.findUniqueOrThrow({
-        where: { id: user.id },
-        select: {
-          id: true,
-          email: true,
-          phone: true,
-          handle: true,
-          name: true,
-          displayName: true,
-          bio: true,
-          website: true,
-          country: true,
-          city: true,
-          locale: true,
-          theme: true,
-          createdAt: true,
-          privacy: true,
-        },
-      }),
-      prisma.post.findMany({
-        where: { authorId: user.id, status: { not: "DELETED" } },
-        select: {
-          id: true,
-          body: true,
-          type: true,
-          visibility: true,
-          createdAt: true,
-        },
-        take: 500,
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.comment.findMany({
-        where: { authorId: user.id, deletedAt: null },
-        select: { id: true, body: true, postId: true, createdAt: true },
-        take: 500,
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.conversationMember.findMany({
-        where: { userId: user.id },
-        select: { conversationId: true, joinedAt: true },
-        take: 200,
-      }),
-    ]);
+    const [profile, posts, comments, conversations, interests] =
+      await Promise.all([
+        prisma.user.findUniqueOrThrow({
+          where: { id: user.id },
+          select: {
+            id: true,
+            email: true,
+            phone: true,
+            handle: true,
+            name: true,
+            displayName: true,
+            bio: true,
+            website: true,
+            country: true,
+            city: true,
+            languages: true,
+            socialLinks: true,
+            locale: true,
+            theme: true,
+            createdAt: true,
+            privacy: true,
+          },
+        }),
+        prisma.post.findMany({
+          where: { authorId: user.id, status: { not: "DELETED" } },
+          select: {
+            id: true,
+            body: true,
+            type: true,
+            visibility: true,
+            createdAt: true,
+          },
+          take: 500,
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.comment.findMany({
+          where: { authorId: user.id, deletedAt: null },
+          select: { id: true, body: true, postId: true, createdAt: true },
+          take: 500,
+          orderBy: { createdAt: "desc" },
+        }),
+        prisma.conversationMember.findMany({
+          where: { userId: user.id },
+          select: { conversationId: true, joinedAt: true },
+          take: 200,
+        }),
+        prisma.userInterest.findMany({
+          where: { userId: user.id },
+          include: { interest: { select: { slug: true, name: true } } },
+        }),
+      ]);
 
     return ok({
       exportedAt: new Date().toISOString(),
       profile,
+      interests: interests.map((row) => row.interest),
       posts,
       comments,
       conversationIds: conversations.map((c) => c.conversationId),
@@ -69,7 +79,8 @@ export async function GET(request: Request) {
 const actionSchema = z.object({
   action: z.enum(["deactivate", "delete"]),
   password: z.string().min(1).max(128).optional(),
-  confirm: z.literal("DELETE").optional(),
+  totpCode: z.string().min(6).max(64).optional(),
+  confirm: z.enum(["DELETE", "DEACTIVATE"]),
 });
 
 export async function POST(request: Request) {
@@ -79,15 +90,52 @@ export async function POST(request: Request) {
     const input = await body(request, actionSchema);
     const user = await prisma.user.findUniqueOrThrow({
       where: { id: sessionUser.id },
-      select: { id: true, passwordHash: true, email: true, handle: true },
+      select: {
+        id: true,
+        passwordHash: true,
+        email: true,
+        handle: true,
+        twoFactorEnabled: true,
+        twoFactorSecret: true,
+      },
     });
 
+    if (input.action === "delete" && input.confirm !== "DELETE") {
+      throw new AppError('Type confirm: "DELETE" to permanently delete', 400);
+    }
+    if (input.action === "deactivate" && input.confirm !== "DEACTIVATE") {
+      throw new AppError(
+        'Type confirm: "DEACTIVATE" to deactivate your account',
+        400,
+      );
+    }
+
+    if (!user.passwordHash && !user.twoFactorEnabled) {
+      throw new AppError(
+        "Set a password or enable two-factor authentication before deleting or deactivating your account",
+        400,
+      );
+    }
+
     if (user.passwordHash) {
-      if (!input.password) {
-        throw new AppError("Password required", 400);
-      }
+      if (!input.password) throw new AppError("Password required", 400);
       const valid = await verifyPassword(input.password, user.passwordHash);
       if (!valid) throw new AppError("Invalid password", 401);
+    }
+
+    if (user.twoFactorEnabled) {
+      if (!input.totpCode) {
+        throw new AppError("Authenticator code required", 400);
+      }
+      try {
+        await verifyTotpOrBackup(
+          user.id,
+          user.twoFactorSecret,
+          input.totpCode,
+        );
+      } catch {
+        throw new AppError("Invalid authenticator or recovery code", 401);
+      }
     }
 
     if (input.action === "deactivate") {
@@ -97,10 +145,6 @@ export async function POST(request: Request) {
       });
       await bumpSessionVersion(user.id);
       return ok({ status: "SUSPENDED" });
-    }
-
-    if (input.confirm !== "DELETE") {
-      throw new AppError('Type confirm: "DELETE" to permanently delete', 400);
     }
 
     const stamp = Date.now();

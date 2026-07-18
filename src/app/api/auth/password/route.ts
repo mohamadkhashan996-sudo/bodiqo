@@ -1,7 +1,8 @@
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
+import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/modules/auth/password";
 import { bumpSessionVersion, sendSecurityAlert } from "@/modules/auth/security";
 

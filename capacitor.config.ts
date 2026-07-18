@@ -4,8 +4,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * Relune native shells load the production web app (custom Node + Socket.IO).
  * Set CAPACITOR_SERVER_URL before `npx cap sync`.
  */
-const serverUrl =
-  process.env.CAPACITOR_SERVER_URL || "https://localhost:3000";
+const serverUrl = process.env.CAPACITOR_SERVER_URL || "https://localhost:3000";
 
 const config: CapacitorConfig = {
   appId: "app.relune.social",

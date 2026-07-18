@@ -1,20 +1,18 @@
-import {
-  AccountStatus,
-  Prisma,
-  Role,
-  type User,
-} from "@prisma/client";
+import type { AccountStatus, Prisma, Role } from "@prisma/client";
+import type { User } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { AppError } from "@/lib/errors";
-import { prisma } from "@/lib/prisma";
+
 import { cacheDelPrefix } from "@/lib/cache";
+import { AppError } from "@/lib/errors";
 import { ROLE_RANK } from "@/lib/permissions";
-import { writeAudit } from "./audit";
+import { prisma } from "@/lib/prisma";
 import {
   assertCanManageOfficialAccount,
   assertOfficialAccountProtected,
 } from "@/modules/platform/official-account";
 import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
+
+import { writeAudit } from "./audit";
 
 const userSelect = {
   id: true,
@@ -130,8 +128,13 @@ export async function getUserAdmin(userId: string) {
   return { user, notes, warnings, loginHistory, devices, verificationRequests };
 }
 
-function assertCanManage(actorRole: Role, target: Pick<User, "role" | "id">, actorId: string) {
-  if (target.id === actorId) throw new AppError("Cannot perform this on yourself", 400);
+function assertCanManage(
+  actorRole: Role,
+  target: Pick<User, "role" | "id">,
+  actorId: string,
+) {
+  if (target.id === actorId)
+    throw new AppError("Cannot perform this on yourself", 400);
   if (ROLE_RANK[actorRole] <= ROLE_RANK[target.role]) {
     throw new AppError("Insufficient privilege for this user", 403);
   }
@@ -160,7 +163,7 @@ export async function updateUserAdmin(
   if (data.handle) {
     assertHandleAvailable(data.handle);
     if (target.isOfficial && data.handle !== "relune") {
-      throw new AppError("The official RELUNE handle cannot be changed.", 403);
+      throw new AppError("The official Relune handle cannot be changed.", 403);
     }
   }
 
@@ -244,7 +247,9 @@ export async function banUser(
   });
   await writeAudit({
     actorId,
-    action: opts.permanent ? "admin.user.ban.permanent" : "admin.user.ban.temporary",
+    action: opts.permanent
+      ? "admin.user.ban.permanent"
+      : "admin.user.ban.temporary",
     target: userId,
     meta: opts,
   });
@@ -252,7 +257,11 @@ export async function banUser(
   return updated;
 }
 
-export async function unbanUser(actorId: string, actorRole: Role, userId: string) {
+export async function unbanUser(
+  actorId: string,
+  actorRole: Role,
+  userId: string,
+) {
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
   assertCanManage(actorRole, target, actorId);
@@ -270,7 +279,11 @@ export async function unbanUser(actorId: string, actorRole: Role, userId: string
   return updated;
 }
 
-export async function softDeleteUser(actorId: string, actorRole: Role, userId: string) {
+export async function softDeleteUser(
+  actorId: string,
+  actorRole: Role,
+  userId: string,
+) {
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
   assertOfficialAccountProtected(target);
@@ -303,11 +316,19 @@ export async function resetUserPassword(
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
   await prisma.deviceSession.deleteMany({ where: { userId } });
-  await writeAudit({ actorId, action: "admin.user.reset_password", target: userId });
+  await writeAudit({
+    actorId,
+    action: "admin.user.reset_password",
+    target: userId,
+  });
   return { ok: true };
 }
 
-export async function resetUser2FA(actorId: string, actorRole: Role, userId: string) {
+export async function resetUser2FA(
+  actorId: string,
+  actorRole: Role,
+  userId: string,
+) {
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
   assertCanManage(actorRole, target, actorId);
@@ -342,7 +363,11 @@ export async function setVerified(
   return updated;
 }
 
-export async function addUserNote(actorId: string, userId: string, body: string) {
+export async function addUserNote(
+  actorId: string,
+  userId: string,
+  body: string,
+) {
   const note = await prisma.userNote.create({
     data: { userId, authorId: actorId, body },
   });
@@ -377,12 +402,20 @@ export async function warnUser(
   return warning;
 }
 
-export async function logoutAllDevices(actorId: string, actorRole: Role, userId: string) {
+export async function logoutAllDevices(
+  actorId: string,
+  actorRole: Role,
+  userId: string,
+) {
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
   assertCanManage(actorRole, target, actorId);
   await prisma.deviceSession.deleteMany({ where: { userId } });
   await prisma.session.deleteMany({ where: { userId } });
-  await writeAudit({ actorId, action: "admin.user.logout_all", target: userId });
+  await writeAudit({
+    actorId,
+    action: "admin.user.logout_all",
+    target: userId,
+  });
   return { ok: true };
 }

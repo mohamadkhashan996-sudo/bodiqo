@@ -1,4 +1,4 @@
-import { fail, ok, optionalUser, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok, optionalUser } from "@/lib/api";
 import { getHashtagFeed } from "@/modules/feed/services/hashtags";
 
 export async function GET(

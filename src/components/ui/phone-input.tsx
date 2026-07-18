@@ -1,22 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { isValidPhoneNumber } from "libphonenumber-js";
 import {
-  PhoneInput as LibPhoneInput,
-  defaultCountries,
-  parseCountry,
   type CountryData,
   type CountryIso2,
+  defaultCountries,
+  parseCountry,
+  PhoneInput as LibPhoneInput,
 } from "react-international-phone";
-import "react-international-phone/style.css";
-import { isValidPhoneNumber } from "libphonenumber-js";
+
 import { useExperience } from "@/components/experience-provider";
-import { cn } from "@/lib/utils";
 import {
   detectPhoneCountry,
   isPhoneCountry,
   storePhoneCountry,
 } from "@/lib/phone";
+import { cn } from "@/lib/utils";
+
+import "react-international-phone/style.css";
 
 type PhoneInputProps = {
   value: string;
@@ -55,8 +57,7 @@ function localizeCountries(locale: string): CountryData[] {
 
   return defaultCountries.map((entry) => {
     const parsed = parseCountry(entry);
-    const localized =
-      names?.of(parsed.iso2.toUpperCase()) ?? parsed.name;
+    const localized = names?.of(parsed.iso2.toUpperCase()) ?? parsed.name;
     const next = [...entry] as CountryData;
     next[0] = localized;
     return next;

@@ -2,22 +2,16 @@
 
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  type ReactNode,
 } from "react";
-import {
-  getDictionary,
-  type Dictionary,
-} from "@/i18n/dictionaries";
-import {
-  isLocale,
-  isRtl,
-  type Locale,
-} from "@/i18n/config";
+
+import { isLocale, isRtl, type Locale } from "@/i18n/config";
+import { type Dictionary, getDictionary } from "@/i18n/dictionaries";
 
 type ThemeMode = "LIGHT" | "DARK" | "SYSTEM";
 
@@ -74,7 +68,11 @@ export function ExperienceProvider({
       const storedLocale = localStorage.getItem("relune.locale");
       const storedTheme = localStorage.getItem("relune.theme");
       if (isLocale(storedLocale)) setLocaleState(storedLocale);
-      if (storedTheme === "LIGHT" || storedTheme === "DARK" || storedTheme === "SYSTEM") {
+      if (
+        storedTheme === "LIGHT" ||
+        storedTheme === "DARK" ||
+        storedTheme === "SYSTEM"
+      ) {
         setThemeState(storedTheme);
       }
     } catch {
@@ -133,12 +131,15 @@ export function ExperienceProvider({
   );
 
   return (
-    <ExperienceContext.Provider value={value}>{children}</ExperienceContext.Provider>
+    <ExperienceContext.Provider value={value}>
+      {children}
+    </ExperienceContext.Provider>
   );
 }
 
 export function useExperience() {
   const ctx = useContext(ExperienceContext);
-  if (!ctx) throw new Error("useExperience must be used within ExperienceProvider");
+  if (!ctx)
+    throw new Error("useExperience must be used within ExperienceProvider");
   return ctx;
 }

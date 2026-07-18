@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+
 import { PostCard } from "@/components/feed/post-card";
-import { EmptyState, Skeleton } from "@/components/ui/card";
 import { PageTransition } from "@/components/motion/primitives";
+import { EmptyState, Skeleton } from "@/components/ui/card";
 import type { FeedPost } from "@/types/feed";
 
 export default function PostPageClient() {
@@ -26,10 +27,15 @@ export default function PostPageClient() {
 
   return (
     <PageTransition className="page-shell max-w-3xl">
-      {loading ? <Skeleton className="h-96 w-full rounded-[var(--radius-2xl)]" /> : null}
+      {loading ? (
+        <Skeleton className="h-96 w-full rounded-[var(--radius-2xl)]" />
+      ) : null}
       {!loading && post ? <PostCard post={post} /> : null}
       {!loading && !post ? (
-        <EmptyState title="Post unavailable" description={error ?? "This post may be private or removed."} />
+        <EmptyState
+          title="Post unavailable"
+          description={error ?? "This post may be private or removed."}
+        />
       ) : null}
     </PageTransition>
   );

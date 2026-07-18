@@ -1,6 +1,6 @@
-# Contributing to BODIQO
+# Contributing to Relune
 
-Thanks for helping improve the BODIQO storefront.
+Thanks for helping improve the Relune storefront.
 
 ## Branch workflow
 

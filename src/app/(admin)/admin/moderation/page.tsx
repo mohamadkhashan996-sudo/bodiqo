@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import Link from "next/link";
+
 import {
   AdminPageHeader,
+  adminPatch,
   Panel,
   StatCard,
-  adminPatch,
   useAdminJson,
 } from "@/components/admin/admin-ui";
 
@@ -180,7 +181,7 @@ export default function AdminModerationPage() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+                      <p className="text-xs tracking-[0.14em] text-[var(--muted)] uppercase">
                         {r.status} · {r.targetType} · {r.category}
                       </p>
                       <p className="mt-1 font-medium">{r.reason}</p>

@@ -1,14 +1,15 @@
+import { headers } from "next/headers";
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { verifyPassword } from "@/modules/auth/password";
+import { rateLimit } from "@/lib/rate-limit";
 import { createAuthChallenge } from "@/modules/auth/challenges";
-import { trackLogin } from "@/modules/auth/session-track";
+import { verifyPassword } from "@/modules/auth/password";
 import { isProviderEnabled } from "@/modules/auth/provider-settings";
 import { getAuthSecurityPolicy } from "@/modules/auth/security-policy";
-import { rateLimit } from "@/lib/rate-limit";
-import { headers } from "next/headers";
+import { trackLogin } from "@/modules/auth/session-track";
 
 async function requestMeta() {
   try {
@@ -24,6 +25,8 @@ async function requestMeta() {
     return { ip: null, ua: null };
   }
 }
+
+const GENERIC_FAIL = "Unable to sign in with those credentials";
 
 export async function POST(request: Request) {
   try {
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
     const meta = await requestMeta();
     const user = await prisma.user.findUnique({ where: { email: normalized } });
     if (!user?.passwordHash) {
-      throw new AppError("Incorrect email or password", 401);
+      throw new AppError(GENERIC_FAIL, 401);
     }
 
     if (
@@ -64,7 +67,7 @@ export async function POST(request: Request) {
         ip: meta.ip,
         ua: meta.ua,
       });
-      throw new AppError("This account isn’t available right now", 403);
+      throw new AppError(GENERIC_FAIL, 401);
     }
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
@@ -75,18 +78,8 @@ export async function POST(request: Request) {
         ip: meta.ip,
         ua: meta.ua,
       });
-      throw new AppError("Account temporarily locked. Try again later.", 423);
-    }
-
-    if (!user.emailVerified) {
-      await trackLogin({
-        userId: user.id,
-        success: false,
-        provider: "credentials",
-        ip: meta.ip,
-        ua: meta.ua,
-      });
-      throw new AppError("EMAIL_NOT_VERIFIED", 403);
+      // Same status as bad password to avoid lockout oracle; rate limit still applies.
+      throw new AppError(GENERIC_FAIL, 401);
     }
 
     const okPw = await verifyPassword(password, user.passwordHash);
@@ -108,7 +101,19 @@ export async function POST(request: Request) {
         ip: meta.ip,
         ua: meta.ua,
       });
-      throw new AppError("Incorrect email or password", 401);
+      throw new AppError(GENERIC_FAIL, 401);
+    }
+
+    // Password is correct — safe to surface verify UX (attacker already knows the password).
+    if (!user.emailVerified) {
+      await trackLogin({
+        userId: user.id,
+        success: false,
+        provider: "credentials",
+        ip: meta.ip,
+        ua: meta.ua,
+      });
+      throw new AppError("EMAIL_NOT_VERIFIED", 403);
     }
 
     await prisma.user.update({

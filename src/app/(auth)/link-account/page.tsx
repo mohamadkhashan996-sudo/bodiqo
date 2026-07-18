@@ -1,12 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { FormEvent } from "react";
+
 import { PageTransition } from "@/components/motion/primitives";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 function LinkAccountForm() {
   const params = useSearchParams();
@@ -35,7 +37,9 @@ function LinkAccountForm() {
         setReady(true);
       })
       .catch((e) =>
-        setError(e instanceof Error ? e.message : "This link is no longer valid."),
+        setError(
+          e instanceof Error ? e.message : "This link is no longer valid.",
+        ),
       );
   }, [token]);
 
@@ -71,15 +75,25 @@ function LinkAccountForm() {
         });
         const loginData = await pre.json().catch(() => ({}));
         if (!pre.ok) {
-          setError(loginData.error || "Accounts linked. Please sign in to continue.");
+          setError(
+            loginData.error || "Accounts linked. Please sign in to continue.",
+          );
           setLoading(false);
           router.push("/sign-in");
           return;
         }
         if (loginData.requires2fa) {
           setLoading(false);
+          try {
+            sessionStorage.setItem(
+              "relune.2faChallenge",
+              String(loginData.token),
+            );
+          } catch {
+            /* ignore */
+          }
           router.push(
-            `/sign-in/2fa?token=${encodeURIComponent(loginData.token)}&callbackUrl=${encodeURIComponent("/settings#accounts")}`,
+            `/sign-in/2fa?callbackUrl=${encodeURIComponent("/settings#accounts")}`,
           );
           return;
         }
@@ -107,7 +121,9 @@ function LinkAccountForm() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const password = String(new FormData(e.currentTarget).get("password") || "");
+    const password = String(
+      new FormData(e.currentTarget).get("password") || "",
+    );
     await confirmLink(password);
   }
 
@@ -117,14 +133,14 @@ function LinkAccountForm() {
         Link your accounts
       </h1>
       <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-        We found an existing Relune account with this email. Confirm ownership to
-        securely connect {label || "this provider"} — we never create duplicate
-        accounts.
+        We found an existing Relune account with this email. Confirm ownership
+        to securely connect {label || "this provider"} — we never create
+        duplicate accounts.
       </p>
 
       {ready ? (
         <div className="mt-8 rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+          <p className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
             Account
           </p>
           <p className="mt-2 text-sm font-medium text-[var(--ink)]">{email}</p>
@@ -135,7 +151,7 @@ function LinkAccountForm() {
       {ready && hasPassword ? (
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <label className="block">
-            <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+            <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
               Password
             </span>
             <Input
@@ -147,7 +163,11 @@ function LinkAccountForm() {
               className="mt-2"
             />
           </label>
-          <Button type="submit" disabled={loading} className="w-full py-3.5 text-[11px]">
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 text-[11px]"
+          >
             {loading ? "Linking…" : "Confirm and link"}
           </Button>
         </form>
@@ -171,7 +191,7 @@ function LinkAccountForm() {
           ) : (
             <Link
               href={`/sign-in?callbackUrl=${encodeURIComponent(`/link-account?token=${token}`)}`}
-              className="inline-flex w-full items-center justify-center rounded-full bg-[var(--signal-deep)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-[var(--shadow-sm)]"
+              className="inline-flex w-full items-center justify-center rounded-full bg-[var(--signal-deep)] px-6 py-3.5 text-[11px] font-semibold tracking-[0.2em] text-white uppercase shadow-[var(--shadow-sm)]"
             >
               Sign in to confirm
             </Link>
@@ -189,7 +209,10 @@ function LinkAccountForm() {
       ) : null}
 
       <p className="mt-8 text-sm text-[var(--muted)]">
-        <Link href="/sign-in" className="text-[var(--signal-deep)] hover:underline">
+        <Link
+          href="/sign-in"
+          className="text-[var(--signal-deep)] hover:underline"
+        >
           Back to sign in
         </Link>
       </p>
@@ -199,7 +222,9 @@ function LinkAccountForm() {
 
 export default function LinkAccountPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+    <Suspense
+      fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
+    >
       <LinkAccountForm />
     </Suspense>
   );

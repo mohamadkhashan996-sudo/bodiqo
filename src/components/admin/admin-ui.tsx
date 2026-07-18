@@ -63,7 +63,7 @@ export function StatCard({
 }) {
   return (
     <div className="rounded-3xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur">
-      <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
+      <p className="text-[10px] tracking-[0.18em] text-[var(--muted)] uppercase">
         {label}
       </p>
       <p className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight text-[var(--ink)]">
@@ -83,7 +83,7 @@ export function AdminPageHeader({
 }) {
   return (
     <header className="mb-8">
-      <p className="text-[10px] uppercase tracking-[0.22em] text-[var(--muted)]">
+      <p className="text-[10px] tracking-[0.22em] text-[var(--muted)] uppercase">
         Relune Admin
       </p>
       <h1 className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-semibold tracking-tight md:text-4xl">
@@ -109,7 +109,7 @@ export function SparkBars({
   return (
     <div>
       {label ? (
-        <p className="mb-3 text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+        <p className="mb-3 text-xs tracking-[0.14em] text-[var(--muted)] uppercase">
           {label}
         </p>
       ) : null}

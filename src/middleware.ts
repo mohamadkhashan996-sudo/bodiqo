@@ -1,6 +1,8 @@
 import { getToken } from "next-auth/jwt";
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
+
 import { isMemberOnlyPath, safeCallbackUrl } from "@/lib/guest/paths";
+import { isJwtSessionActive } from "@/modules/auth/session-validity";
 
 function applySecurityHeaders(response: NextResponse, request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -13,9 +15,12 @@ function applySecurityHeaders(response: NextResponse, request: NextRequest) {
     path.startsWith("/notifications") ||
     path.startsWith("/explore") ||
     path.startsWith("/shorts") ||
+    path.startsWith("/live") ||
+    path.startsWith("/saved") ||
     path.startsWith("/communities") ||
     path.startsWith("/post/") ||
     path.startsWith("/search") ||
+    path.startsWith("/hashtag") ||
     path.startsWith("/trending");
 
   response.headers.set("X-Frame-Options", "DENY");
@@ -30,16 +35,14 @@ function applySecurityHeaders(response: NextResponse, request: NextRequest) {
       ? "camera=(self), microphone=(self), display-capture=(self), geolocation=(), interest-cohort=()"
       : "camera=(), microphone=(), display-capture=(), geolocation=(), interest-cohort=()",
   );
-  // Avoid CSP nonces on React-rendered <script> tags — browsers strip nonce from the
-  // DOM after parse, which causes a hydration mismatch and can blank the client tree.
   const isProd = process.env.NODE_ENV === "production";
   response.headers.set(
     "Content-Security-Policy",
     [
       "default-src 'self'",
       isProd
-        ? "script-src 'self' 'unsafe-inline'"
-        : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        ? "script-src 'self' 'unsafe-inline' https://plausible.io"
+        : "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://plausible.io",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "media-src 'self' blob: https:",
@@ -76,7 +79,8 @@ async function hasSession(request: NextRequest) {
     "authjs.session-token",
   ]) {
     const token = await getToken({ req: request, secret, cookieName });
-    if (token?.sub) return true;
+    if (!token?.sub) continue;
+    if (await isJwtSessionActive(token)) return true;
   }
   return false;
 }
@@ -109,7 +113,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  runtime: "nodejs",
   matcher: [
-    "/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|_next/webpack-hmr|socket\\.io|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

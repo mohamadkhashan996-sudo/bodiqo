@@ -1,7 +1,9 @@
 import { ThemePreference } from "@prisma/client";
 import { z } from "zod";
-import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
+
+import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
+import { assertOptionalOwnedMedia } from "@/lib/media-asset";
 import { optionalMediaUrlSchema } from "@/lib/media-url";
 import { prisma } from "@/lib/prisma";
 import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
@@ -34,6 +36,9 @@ export async function POST(r: Request) {
         select: { id: true },
       });
       if (existing) throw new AppError("Handle already in use", 409);
+    }
+    if (d.image) {
+      await assertOptionalOwnedMedia(u.id, d.image, { kinds: ["IMAGE"] });
     }
     const { interestIds, ...profile } = d;
     await prisma.user.update({

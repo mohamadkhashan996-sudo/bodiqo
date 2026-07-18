@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { cached } from "@/lib/cache";
+import { prisma } from "@/lib/prisma";
 
 function startOfDay(d = new Date()) {
   const x = new Date(d);
@@ -151,7 +151,10 @@ export async function getAnalytics(rangeDays = 30) {
       })),
       popularFeatures: [
         { feature: "Feed", score: days.reduce((s, d) => s + d.posts, 0) },
-        { feature: "Messages", score: days.reduce((s, d) => s + d.messages, 0) },
+        {
+          feature: "Messages",
+          score: days.reduce((s, d) => s + d.messages, 0),
+        },
         { feature: "Stories", score: days.reduce((s, d) => s + d.stories, 0) },
         { feature: "Videos", score: days.reduce((s, d) => s + d.videos, 0) },
       ].sort((a, b) => b.score - a.score),

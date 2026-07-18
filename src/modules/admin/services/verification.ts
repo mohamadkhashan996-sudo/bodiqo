@@ -1,16 +1,24 @@
-import { VerificationRequestStatus } from "@prisma/client";
+import type { VerificationRequestStatus } from "@prisma/client";
+
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+
 import { writeAudit } from "./audit";
 
 export async function createVerificationRequest(
   userId: string,
-  data: { fullName: string; category: string; evidenceUrls?: string[]; notes?: string },
+  data: {
+    fullName: string;
+    category: string;
+    evidenceUrls?: string[];
+    notes?: string;
+  },
 ) {
   const pending = await prisma.verificationRequest.findFirst({
     where: { userId, status: { in: ["PENDING", "NEEDS_INFO"] } },
   });
-  if (pending) throw new AppError("You already have an open verification request", 409);
+  if (pending)
+    throw new AppError("You already have an open verification request", 409);
 
   return prisma.verificationRequest.create({
     data: {

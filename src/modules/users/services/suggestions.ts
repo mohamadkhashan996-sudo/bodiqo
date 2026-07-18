@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { cached } from "@/lib/cache";
+import { prisma } from "@/lib/prisma";
 import { blockedIdsFor } from "@/modules/users/services/visibility";
 
 const userSelect = {
@@ -40,9 +40,7 @@ async function loadSuggestedUsers(take: number, viewerId?: string) {
     followersCount: number;
   }> = [];
 
-  function pushUnique(
-    users: typeof results,
-  ) {
+  function pushUnique(users: typeof results) {
     for (const user of users) {
       if (exclude.has(user.id) || results.length >= take) continue;
       exclude.add(user.id);
@@ -85,15 +83,14 @@ async function loadSuggestedUsers(take: number, viewerId?: string) {
           where: {
             id: { in: fof.map((row) => row.followingId) },
             status: "ACTIVE",
+            isPrivate: false,
           },
           select: userSelect,
         });
         const rank = new Map(
           fof.map((row) => [row.followingId, row._count.followingId]),
         );
-        users.sort(
-          (a, b) => (rank.get(b.id) ?? 0) - (rank.get(a.id) ?? 0),
-        );
+        users.sort((a, b) => (rank.get(b.id) ?? 0) - (rank.get(a.id) ?? 0));
         pushUnique(users);
       }
     }
@@ -108,6 +105,7 @@ async function loadSuggestedUsers(take: number, viewerId?: string) {
         const byInterest = await prisma.user.findMany({
           where: {
             status: "ACTIVE",
+            isPrivate: false,
             id: { notIn: [...exclude] },
             interests: { some: { interestId: { in: interestIds } } },
           },

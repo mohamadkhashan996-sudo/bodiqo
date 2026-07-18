@@ -30,6 +30,9 @@ export const en: Dictionary = {
     settings: "Settings",
     profile: "Profile",
     admin: "Admin",
+    saved: "Saved",
+    live: "Live",
+    more: "More",
   },
   common: {
     save: "Save",
@@ -77,11 +80,14 @@ export const en: Dictionary = {
     unread: "Unread",
     mentions: "Mentions",
     social: "Social",
+    messages: "Messages",
+    calls: "Calls",
     empty: "You're all caught up.",
   },
   settings: {
     title: "Settings",
-    subtitle: "Shape how Relune feels — profile, privacy, security, and presence.",
+    subtitle:
+      "Shape how Relune feels — profile, privacy, security, and presence.",
     profile: "Profile",
     privacy: "Privacy",
     security: "Security",
@@ -98,7 +104,8 @@ export const en: Dictionary = {
     downloads: "Downloads",
     data: "Data usage & storage",
     account: "Account",
-    dataHint: "Request a copy of your data or clear cached media on this device.",
+    dataHint:
+      "Request a copy of your data or clear cached media on this device.",
     accountHint: "Deactivate temporarily or permanently delete your account.",
     exportData: "Request data export",
     clearCache: "Clear cache",
@@ -146,11 +153,15 @@ const overlays: Partial<Record<string, Partial<Dictionary>>> = {
       communities: "المجتمعات",
       calls: "المكالمات",
       shorts: "مقاطع",
+      trending: "الرائج",
       notifications: "الإشعارات",
       search: "بحث",
       settings: "الإعدادات",
       profile: "الملف",
       admin: "الإدارة",
+      saved: "المحفوظ",
+      live: "مباشر",
+      more: "المزيد",
     },
     common: {
       save: "حفظ",
@@ -224,6 +235,8 @@ const overlays: Partial<Record<string, Partial<Dictionary>>> = {
       unread: "غير مقروء",
       mentions: "الإشارات",
       social: "اجتماعي",
+      messages: "الرسائل",
+      calls: "المكالمات",
       empty: "أنت على اطلاع بكل شيء.",
     },
     profile: {
@@ -235,6 +248,7 @@ const overlays: Partial<Record<string, Partial<Dictionary>>> = {
       about: "حول",
       followers: "المتابعون",
       following: "يتابع",
+      highlights: "المميزات",
     },
     ai: {
       caption: "اقترح تعليقًا",
@@ -319,7 +333,10 @@ const overlays: Partial<Record<string, Partial<Dictionary>>> = {
     },
   },
   it: {
-    brand: { name: "Relune", tagline: "Presenza, meravigliosamente condivisa." },
+    brand: {
+      name: "Relune",
+      tagline: "Presenza, meravigliosamente condivisa.",
+    },
     nav: {
       home: "Home",
       explore: "Esplora",
@@ -576,7 +593,10 @@ const overlays: Partial<Record<string, Partial<Dictionary>>> = {
   },
 };
 
-function deepMerge<T extends Record<string, unknown>>(base: T, overlay?: Partial<T>): T {
+function deepMerge<T extends Record<string, unknown>>(
+  base: T,
+  overlay?: Partial<T>,
+): T {
   if (!overlay) return base;
   const out = { ...base };
   for (const key of Object.keys(overlay) as Array<keyof T>) {

@@ -3,6 +3,7 @@
 Relune ships structured logging, health probes, Prometheus metrics, and optional Sentry forwarding.
 
 ## Logging
+
 - Module: `src/lib/logger.ts`
 - JSON lines to stdout/stderr: `ts`, `level`, `service`, `message`, plus meta
 - `LOG_LEVEL` = `debug` | `info` | `warn` | `error` (default `info`)
@@ -11,19 +12,22 @@ Relune ships structured logging, health probes, Prometheus metrics, and optional
 Ship logs with your platform (Fly log drain, Docker → Loki/CloudWatch, etc.).
 
 ## Health
-| Mode | Path | Meaning |
-| --- | --- | --- |
-| live | `/api/health?mode=live` | Process up |
-| health | `/api/health` | DB reachable |
-| ready | `/api/health?mode=ready` | DB + Redis (when configured) |
+
+| Mode   | Path                     | Meaning                      |
+| ------ | ------------------------ | ---------------------------- |
+| live   | `/api/health?mode=live`  | Process up                   |
+| health | `/api/health`            | DB reachable                 |
+| ready  | `/api/health?mode=ready` | DB + Redis (when configured) |
 
 Used by Docker `HEALTHCHECK`, Fly, and Render.
 
 ## Metrics
+
 - `GET /api/metrics` — Prometheus text
 - `GET /api/metrics?format=json` — counters + recent errors
 
 Auth:
+
 1. `Authorization: Bearer $METRICS_TOKEN` only (query-string tokens are not accepted), or
 2. Staff session with `monitoring:read`
 
@@ -39,6 +43,7 @@ Example scrape:
 ```
 
 ## Error tracking
+
 - Server: `captureException` via `src/lib/error-tracking.ts` (API `fail()`, process handlers)
 - Client: `ClientErrorReporter` + `/api/errors` ingest; `app/error.tsx` reports digests
 - Optional Sentry: set `SENTRY_DSN` (and optionally `SENTRY_ENVIRONMENT`, `APP_VERSION`)
@@ -46,4 +51,5 @@ Example scrape:
 Without Sentry, errors still appear as structured logs and in `/api/metrics?format=json`.
 
 ## Admin UI
+
 `/admin/monitoring` — DB-backed snapshot (uptime, memory, security events).

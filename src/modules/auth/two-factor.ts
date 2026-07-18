@@ -1,12 +1,13 @@
+import { verify } from "otplib";
+
+import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { openSecret, sealSecret } from "@/lib/secret-box";
 import {
   hashOpaque,
   hashOpaqueLegacy,
   randomRecoveryCode,
 } from "@/modules/auth/password";
-import { AppError } from "@/lib/errors";
-import { verify } from "otplib";
-import { openSecret, sealSecret } from "@/lib/secret-box";
 
 export async function generateBackupCodes(userId: string, count = 10) {
   const plain = Array.from({ length: count }, () => randomRecoveryCode());

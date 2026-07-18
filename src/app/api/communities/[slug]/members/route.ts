@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { setMemberRole } from "@/modules/communities/services/communities";
 
@@ -16,12 +17,7 @@ export async function PATCH(
     const user = await requireUser();
     const { slug } = await context.params;
     const input = await body(request, roleSchema);
-    const member = await setMemberRole(
-      user.id,
-      slug,
-      input.userId,
-      input.role,
-    );
+    const member = await setMemberRole(user.id, slug, input.userId, input.role);
     return ok({ member });
   } catch (error) {
     return fail(error);

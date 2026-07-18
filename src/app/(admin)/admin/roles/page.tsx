@@ -1,17 +1,23 @@
 "use client";
 
 import { useState } from "react";
+
 import {
   AdminPageHeader,
-  Panel,
   adminPost,
+  Panel,
   useAdminJson,
 } from "@/components/admin/admin-ui";
 
 export default function AdminRolesPage() {
   const { data, loading, error, reload } = useAdminJson<{
     system: Array<{ role: string; rank: number; permissions: string[] }>;
-    custom: Array<{ id: string; name: string; description: string | null; permissions: unknown }>;
+    custom: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      permissions: unknown;
+    }>;
   }>("/api/admin/roles");
   const [name, setName] = useState("");
 
@@ -21,7 +27,12 @@ export default function AdminRolesPage() {
       action: "upsert",
       name: name.trim(),
       description: "Custom staff role",
-      permissions: ["admin:access", "users:read", "reports:read", "content:read"],
+      permissions: [
+        "admin:access",
+        "users:read",
+        "reports:read",
+        "content:read",
+      ],
     });
     setName("");
     await reload();
@@ -42,14 +53,20 @@ export default function AdminRolesPage() {
           placeholder="Custom role name"
           className="rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-2 text-sm"
         />
-        <button type="button" className="rounded-full bg-[var(--ink)] px-4 py-2 text-xs text-[var(--cloud)]" onClick={() => void createRole()}>
+        <button
+          type="button"
+          className="rounded-full bg-[var(--ink)] px-4 py-2 text-xs text-[var(--cloud)]"
+          onClick={() => void createRole()}
+        >
           Create custom role
         </button>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         {data?.system.map((r) => (
           <Panel key={r.role}>
-            <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold">{r.role}</h2>
+            <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold">
+              {r.role}
+            </h2>
             <p className="text-xs text-[var(--muted)]">Rank {r.rank}</p>
             <p className="mt-3 text-xs leading-5 text-[var(--muted)]">
               {r.permissions.join(", ") || "No admin permissions"}
@@ -57,7 +74,9 @@ export default function AdminRolesPage() {
           </Panel>
         ))}
       </div>
-      <h2 className="mt-8 font-[family-name:var(--font-syne)] text-xl font-semibold">Custom roles</h2>
+      <h2 className="mt-8 font-[family-name:var(--font-syne)] text-xl font-semibold">
+        Custom roles
+      </h2>
       <div className="mt-3 space-y-3">
         {data?.custom.map((c) => (
           <Panel key={c.id} className="flex items-center justify-between gap-3">
@@ -68,7 +87,12 @@ export default function AdminRolesPage() {
             <button
               type="button"
               className="text-xs text-[var(--ember)] underline"
-              onClick={() => void adminPost("/api/admin/roles", { action: "delete", id: c.id }).then(reload)}
+              onClick={() =>
+                void adminPost("/api/admin/roles", {
+                  action: "delete",
+                  id: c.id,
+                }).then(reload)
+              }
             >
               Delete
             </button>

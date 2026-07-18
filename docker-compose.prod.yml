@@ -21,14 +21,7 @@ services:
         "${REDIS_PASSWORD:?Set REDIS_PASSWORD}",
       ]
     healthcheck:
-      test:
-        [
-          "CMD",
-          "redis-cli",
-          "-a",
-          "${REDIS_PASSWORD}",
-          "ping",
-        ]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
 
   app:
     restart: always
@@ -45,4 +38,5 @@ services:
       - "${PORT:-3000}:3000"
     volumes:
       - relune_uploads:/app/public/uploads
+      - relune_private_media:/app/storage/private
       - relune_backups:/app/data/backups

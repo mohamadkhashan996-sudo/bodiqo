@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Clapperboard,
@@ -12,15 +12,17 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { Tabs } from "@/components/ui/tabs";
+import type { FormEvent } from "react";
+
+import { VerificationBadge } from "@/components/brand/official-badge";
 import { PostCard } from "@/components/feed/post-card";
-import { Avatar } from "@/components/ui/avatar";
-import { Card, EmptyState, Skeleton } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { PageTransition } from "@/components/motion/primitives";
 import { FollowButton } from "@/components/social/follow-button";
-import { VerificationBadge } from "@/components/brand/official-badge";
+import { Avatar } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card, EmptyState, Skeleton } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs } from "@/components/ui/tabs";
 import type { FeedPost } from "@/types/feed";
 
 type SearchUser = {
@@ -74,10 +76,27 @@ const TABS = [
   "Hashtags",
 ] as const;
 
+const TAB_TO_TYPE: Record<(typeof TABS)[number], string> = {
+  All: "all",
+  People: "users",
+  Posts: "posts",
+  Videos: "videos",
+  Communities: "communities",
+  Hashtags: "hashtags",
+};
+
+type SuggestData = {
+  users?: SearchUser[];
+  hashtags?: TagHit[];
+  recent?: Array<{ id: string; query: string }>;
+};
+
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [data, setData] = useState<SearchData>({});
   const [suggested, setSuggested] = useState<SearchUser[]>([]);
+  const [suggest, setSuggest] = useState<SuggestData>({});
+  const [showSuggest, setShowSuggest] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [tab, setTab] = useState<(typeof TABS)[number]>("All");
@@ -99,14 +118,17 @@ export default function SearchPage() {
     ]).catch(() => {});
   }, []);
 
-  async function runSearch(q: string) {
+  async function runSearch(q: string, opts?: { record?: boolean; type?: string }) {
     const trimmed = q.trim();
     if (!trimmed) return;
     setLoading(true);
     setSearched(true);
+    setShowSuggest(false);
     try {
+      const type = opts?.type ?? TAB_TO_TYPE[tab];
+      const record = opts?.record === false ? "0" : "1";
       const result = await fetch(
-        `/api/search?q=${encodeURIComponent(trimmed)}`,
+        `/api/search?q=${encodeURIComponent(trimmed)}&type=${type}&record=${record}`,
       ).then((r) => r.json());
       setData(result);
     } finally {
@@ -116,36 +138,63 @@ export default function SearchPage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    await runSearch(query);
+    await runSearch(query, { record: true });
   }
 
   async function clearHistory() {
     await fetch("/api/search", { method: "DELETE" });
     setData((prev) => ({ ...prev, recent: [] }));
+    setSuggest((prev) => ({ ...prev, recent: [] }));
   }
 
-  // Live search with debounce while typing after first submit.
+  // Autocomplete while typing (does not write history).
+  useEffect(() => {
+    const q = query.trim();
+    if (searched || q.length < 1) {
+      if (q.length < 1) setSuggest({});
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      void fetch(`/api/search/suggest?q=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          setSuggest(d);
+          setShowSuggest(true);
+        })
+        .catch(() => undefined);
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [query, searched]);
+
+  // Live search with debounce while typing after first submit (no history spam).
+  // Also re-runs when the type tab changes.
   useEffect(() => {
     if (!searched) return;
     const q = query.trim();
     if (q.length < 2) return;
     const timer = window.setTimeout(() => {
-      void runSearch(q);
+      void runSearch(q, { record: false });
     }, 320);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [query, tab, searched]);
 
   const users = data.users ?? [];
   const posts = data.posts ?? [];
   const videos = data.videos ?? [];
   const communities = data.communities ?? [];
-  const tags = useMemo(
-    () => data.hashtags ?? data.trending ?? [],
-    [data],
-  );
+  const tags = useMemo(() => data.hashtags ?? data.trending ?? [], [data]);
   const recent = data.recent ?? [];
   const trending = data.trending ?? [];
+  const suggestUsers = suggest.users ?? [];
+  const suggestTags = suggest.hashtags ?? [];
+  const suggestRecent = suggest.recent ?? [];
+  const hasSuggest =
+    showSuggest &&
+    !searched &&
+    (suggestUsers.length > 0 ||
+      suggestTags.length > 0 ||
+      suggestRecent.length > 0);
 
   const totals = {
     People: users.length,
@@ -178,20 +227,102 @@ export default function SearchPage() {
           Ranked results across creators, public posts, reels, communities, and
           hashtags.
         </p>
-        <form onSubmit={submit} className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search people, posts, videos, communities, or #topics"
-            className="flex-1"
-            autoFocus
-          />
+        <form
+          onSubmit={submit}
+          className="relative mt-8 flex flex-col gap-3 sm:flex-row"
+        >
+          <div className="relative min-w-0 flex-1">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => {
+                if (!searched && query.trim()) setShowSuggest(true);
+              }}
+              placeholder="Search people, posts, videos, communities, or #topics"
+              className="w-full"
+              autoFocus
+              autoComplete="off"
+            />
+            {hasSuggest ? (
+              <div className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-20 max-h-80 overflow-auto rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-2 shadow-[var(--shadow-md)]">
+                {suggestRecent.length ? (
+                  <div className="mb-2">
+                    <p className="px-2 py-1 text-[11px] font-semibold tracking-wide text-[var(--muted)] uppercase">
+                      Recent
+                    </p>
+                    {suggestRecent.map((row) => (
+                      <button
+                        key={row.id}
+                        type="button"
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-[var(--mist)]"
+                        onClick={() => {
+                          setQuery(row.query);
+                          void runSearch(row.query, { record: true });
+                        }}
+                      >
+                        <History className="size-3.5 shrink-0 text-[var(--muted)]" />
+                        {row.query}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {suggestUsers.length ? (
+                  <div className="mb-2">
+                    <p className="px-2 py-1 text-[11px] font-semibold tracking-wide text-[var(--muted)] uppercase">
+                      People
+                    </p>
+                    {suggestUsers.map((user) => (
+                      <Link
+                        key={user.id}
+                        href={`/u/${user.handle}`}
+                        className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-[var(--mist)]"
+                        onClick={() => setShowSuggest(false)}
+                      >
+                        <Avatar
+                          src={user.image}
+                          name={user.displayName ?? user.name}
+                          className="size-7"
+                        />
+                        <span className="min-w-0 truncate font-semibold">
+                          {user.displayName ?? user.name}
+                        </span>
+                        <span className="truncate text-[var(--muted)]">
+                          @{user.handle}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
+                {suggestTags.length ? (
+                  <div>
+                    <p className="px-2 py-1 text-[11px] font-semibold tracking-wide text-[var(--muted)] uppercase">
+                      Hashtags
+                    </p>
+                    {suggestTags.map((tag) => {
+                      const name = tag.tag ?? tag.name ?? "";
+                      return (
+                        <Link
+                          key={tag.id ?? name}
+                          href={`/hashtag/${encodeURIComponent(name)}`}
+                          className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-[var(--mist)]"
+                          onClick={() => setShowSuggest(false)}
+                        >
+                          <Hash className="size-3.5 text-[var(--signal)]" />
+                          #{name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
           <Button type="submit" className="px-6">
             <Search className="size-4" />
             Search
           </Button>
         </form>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-6 grid min-w-0 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
           {[
             { Icon: Users, title: "People" },
             { Icon: Compass, title: "Posts" },
@@ -201,7 +332,7 @@ export default function SearchPage() {
           ].map(({ Icon, title }) => (
             <div
               key={title}
-              className="rounded-[var(--radius-xl)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]"
+              className="min-w-0 rounded-[var(--radius-xl)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]"
             >
               <Icon className="size-5 text-[var(--signal)]" />
               <p className="mt-3 text-sm font-semibold">{title}</p>
@@ -234,7 +365,7 @@ export default function SearchPage() {
                     type="button"
                     onClick={() => {
                       setQuery(row.query);
-                      void runSearch(row.query);
+                      void runSearch(row.query, { record: true });
                     }}
                     className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-2 text-sm"
                   >
@@ -302,7 +433,9 @@ export default function SearchPage() {
                         </small>
                       </span>
                     </Link>
-                    {u.handle ? <FollowButton handle={u.handle} /> : null}
+                    {u.handle ? (
+                      <FollowButton handle={u.handle} userId={u.id} />
+                    ) : null}
                   </Card>
                 ))}
               </div>
@@ -401,6 +534,7 @@ export default function SearchPage() {
                     {u.handle ? (
                       <FollowButton
                         handle={u.handle}
+                        userId={u.id}
                         initialRelation={u.relation ?? "none"}
                       />
                     ) : null}

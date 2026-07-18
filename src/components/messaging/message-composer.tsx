@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   FileUp,
   ImagePlus,
@@ -13,7 +13,10 @@ import {
   Video,
   X,
 } from "lucide-react";
+import type { FormEvent } from "react";
+
 import { Button } from "@/components/ui/button";
+import { ACCEPT_BY_PURPOSE } from "@/lib/media-accept";
 import { uploadFile } from "@/lib/upload-client";
 
 type PendingMedia = {
@@ -161,7 +164,7 @@ export function MessageComposer({
             <button
               type="button"
               onClick={onCancelReply}
-              className="min-h-10 shrink-0 px-2 font-semibold text-[var(--ink)] touch-manipulation"
+              className="min-h-10 shrink-0 touch-manipulation px-2 font-semibold text-[var(--ink)]"
             >
               Cancel
             </button>
@@ -170,9 +173,29 @@ export function MessageComposer({
 
         {media ? (
           <div className="surface-subtle mb-2 flex items-center justify-between gap-3 rounded-[var(--radius-lg)] px-3 py-2 text-sm">
-            <span className="truncate text-[var(--muted)]">
-              {media.kind}: {media.name}
-            </span>
+            <div className="flex min-w-0 items-center gap-3">
+              {media.kind === "IMAGE" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={media.url}
+                  alt=""
+                  className="size-12 shrink-0 rounded-[0.75rem] object-cover"
+                />
+              ) : media.kind === "VIDEO" ? (
+                <video
+                  src={media.url}
+                  className="size-12 shrink-0 rounded-[0.75rem] object-cover"
+                  muted
+                />
+              ) : null}
+              <span className="truncate text-[var(--muted)]">
+                {media.kind === "IMAGE"
+                  ? "Photo ready to send"
+                  : media.kind === "VIDEO"
+                    ? "Video ready to send"
+                    : `${media.kind}: ${media.name}`}
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setMedia(null)}
@@ -261,7 +284,7 @@ export function MessageComposer({
           <input
             ref={imageRef}
             type="file"
-            accept="image/*"
+            accept={ACCEPT_BY_PURPOSE.image}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -272,7 +295,7 @@ export function MessageComposer({
           <input
             ref={videoRef}
             type="file"
-            accept="video/*"
+            accept={ACCEPT_BY_PURPOSE.video}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -283,6 +306,7 @@ export function MessageComposer({
           <input
             ref={fileRef}
             type="file"
+            accept={ACCEPT_BY_PURPOSE.document}
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];

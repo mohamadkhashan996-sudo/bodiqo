@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import type { Role } from "@prisma/client";
-import { auth } from "@/modules/auth";
+import type { z } from "zod";
+
+import { site } from "@/config/site";
 import { AppError, toErrorResponse } from "@/lib/errors";
 import { can, isStaff, type Permission } from "@/lib/permissions";
 import { rateLimit } from "@/lib/rate-limit";
 import { writeSecurityEvent } from "@/modules/admin/services/audit";
-import { site } from "@/config/site";
+import { auth } from "@/modules/auth";
 
 export async function requireUser() {
   const session = await auth();
@@ -73,7 +74,10 @@ export function clientIp(request: Request) {
   if (trustProxy) {
     const forwarded = request.headers.get("x-forwarded-for");
     if (forwarded) {
-      const parts = forwarded.split(",").map((p) => p.trim()).filter(Boolean);
+      const parts = forwarded
+        .split(",")
+        .map((p) => p.trim())
+        .filter(Boolean);
       if (parts[0]) return parts[0];
     }
     const realIp = request.headers.get("x-real-ip");

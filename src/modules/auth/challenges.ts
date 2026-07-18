@@ -1,8 +1,9 @@
+import type { Prisma } from "@prisma/client";
 import { randomBytes } from "crypto";
-import { Prisma } from "@prisma/client";
+
+import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { hashOpaque, hashOpaqueLegacy } from "@/modules/auth/password";
-import { AppError } from "@/lib/errors";
 
 const challengeUserSelect = {
   id: true,
@@ -39,7 +40,12 @@ async function findChallenge(token: string) {
 
 export async function consumeAuthChallenge(token: string, purpose: string) {
   const row = await findChallenge(token);
-  if (!row || row.usedAt || row.expiresAt < new Date() || row.purpose !== purpose) {
+  if (
+    !row ||
+    row.usedAt ||
+    row.expiresAt < new Date() ||
+    row.purpose !== purpose
+  ) {
     throw new AppError("This challenge is invalid or expired", 400);
   }
   await prisma.authChallenge.update({
@@ -51,7 +57,12 @@ export async function consumeAuthChallenge(token: string, purpose: string) {
 
 export async function peekAuthChallenge(token: string, purpose: string) {
   const row = await findChallenge(token);
-  if (!row || row.usedAt || row.expiresAt < new Date() || row.purpose !== purpose) {
+  if (
+    !row ||
+    row.usedAt ||
+    row.expiresAt < new Date() ||
+    row.purpose !== purpose
+  ) {
     return null;
   }
   return row;

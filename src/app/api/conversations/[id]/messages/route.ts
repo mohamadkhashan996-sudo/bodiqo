@@ -1,13 +1,18 @@
+import { MessageType, type Prisma } from "@prisma/client";
 import { z } from "zod";
-import { MessageType } from "@prisma/client";
-import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
+
+import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { optionalMediaUrlSchema } from "@/lib/media-url";
+import { broadcastMessageNew } from "@/modules/messaging/services/broadcast";
 import {
   listMessages,
   sendMessage,
   type SendMessageInput,
 } from "@/modules/messaging/services/messages";
-import { broadcastMessageNew } from "@/modules/messaging/services/broadcast";
+
+const jsonValue = z.custom<Prisma.InputJsonValue>(
+  (value) => value !== undefined,
+);
 
 export async function GET(
   request: Request,
@@ -37,26 +42,22 @@ export async function POST(
     await guardApiAbuse(request, "conversations:id:messages:post");
     const user = await requireUser();
     const conversationId = (await params).id;
-    const input = await body(
+    const input: SendMessageInput = await body(
       request,
       z.object({
         type: z.nativeEnum(MessageType).default("TEXT"),
         body: z.string().max(10000).default(""),
         mediaUrl: optionalMediaUrlSchema,
         replyToId: z.string().optional(),
-        mediaMeta: z.unknown().optional(),
-        linkPreview: z.unknown().optional(),
+        mediaMeta: jsonValue.optional(),
+        linkPreview: jsonValue.optional(),
         isEncrypted: z.boolean().optional(),
         ciphertext: z.string().max(200000).optional(),
         nonce: z.string().max(128).optional(),
         senderEphemeralKey: z.string().max(4000).optional(),
       }),
     );
-    const message = await sendMessage(
-      user.id,
-      conversationId,
-      input as unknown as SendMessageInput,
-    );
+    const message = await sendMessage(user.id, conversationId, input);
     await broadcastMessageNew(conversationId, user.id, message);
     return ok({ message }, 201);
   } catch (error) {

@@ -1,16 +1,39 @@
 "use client";
 
-import { useEffect, type Dispatch, type SetStateAction } from "react";
-import { useSocket } from "@/hooks/use-socket";
+import { type Dispatch, type SetStateAction, useEffect } from "react";
+
 import type { ConversationRow } from "@/components/messaging/conversation-list";
+import { useSocket } from "@/hooks/use-socket";
 
 type InboxMessage = {
   id: string;
   body?: string;
+  type?: string;
+  mediaUrl?: string | null;
+  isEncrypted?: boolean;
   createdAt?: string;
   conversationId?: string;
   senderId?: string;
 };
+
+function messagePreviewFromInbox(message: InboxMessage) {
+  if (message.isEncrypted) return "Encrypted message";
+  const body = message.body?.trim();
+  if (body) return body;
+  switch (message.type) {
+    case "IMAGE":
+      return "Photo";
+    case "VIDEO":
+      return "Video";
+    case "AUDIO":
+      return "Voice note";
+    case "FILE":
+    case "DOCUMENT":
+      return "File";
+    default:
+      return "New message";
+  }
+}
 
 /** Keep conversation list previews + unread badges live. */
 export function useInboxRealtime(
@@ -70,9 +93,13 @@ export function useInboxRealtime(
           return rows;
         }
         const row = rows[idx];
-        const preview = {
-          body: message.body || "New message",
+        if (!row) return rows;
+        const preview: ConversationRow["conversation"]["messages"][number] = {
+          body: messagePreviewFromInbox(message),
           createdAt: message.createdAt || new Date().toISOString(),
+          type: message.type,
+          isEncrypted: message.isEncrypted,
+          mediaUrl: message.mediaUrl,
         };
         const bumpUnread =
           senderId &&
@@ -83,9 +110,7 @@ export function useInboxRealtime(
           unreadCount: bumpUnread ? row.unreadCount + 1 : row.unreadCount,
           conversation: {
             ...row.conversation,
-            messages: [
-              preview as ConversationRow["conversation"]["messages"][0],
-            ],
+            messages: [preview],
           },
         };
         const rest = rows.filter((_, i) => i !== idx);

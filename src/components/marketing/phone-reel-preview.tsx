@@ -27,7 +27,8 @@ const REELS = [
     avatar: "/brand/mark.png",
     scene: {
       base: "linear-gradient(165deg, #071412 0%, #0f3d38 28%, #1f9b8e 55%, #d98a4e 82%, #12141a 100%)",
-      accent: "radial-gradient(circle at 70% 28%, rgba(255,255,255,0.28), transparent 34%)",
+      accent:
+        "radial-gradient(circle at 70% 28%, rgba(255,255,255,0.28), transparent 34%)",
     },
   },
   {
@@ -43,7 +44,8 @@ const REELS = [
     avatar: null,
     scene: {
       base: "linear-gradient(168deg, #120e18 0%, #243846 34%, #8a6a4a 62%, #d98a4e 84%, #0a0c10 100%)",
-      accent: "radial-gradient(circle at 32% 22%, rgba(255,220,180,0.35), transparent 36%)",
+      accent:
+        "radial-gradient(circle at 32% 22%, rgba(255,220,180,0.35), transparent 36%)",
     },
   },
   {
@@ -59,7 +61,8 @@ const REELS = [
     avatar: null,
     scene: {
       base: "linear-gradient(158deg, #0a1218 0%, #14363a 36%, #157a6f 58%, #c58a2d 86%, #12141a 100%)",
-      accent: "radial-gradient(circle at 60% 18%, rgba(180,240,230,0.22), transparent 40%)",
+      accent:
+        "radial-gradient(circle at 60% 18%, rgba(180,240,230,0.22), transparent 40%)",
     },
   },
 ] as const;
@@ -71,7 +74,7 @@ export function PhoneReelPreview() {
   const [saved, setSaved] = useState(false);
   const [progress, setProgress] = useState(0);
   const [heartBurst, setHeartBurst] = useState(false);
-  const reel = REELS[index];
+  const reel = REELS[index] ?? REELS[0]!;
 
   useEffect(() => {
     if (reduce) {
@@ -110,7 +113,7 @@ export function PhoneReelPreview() {
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-[21.5rem]">
+    <div className="relative mx-auto w-full max-w-[min(21.5rem,100%)]">
       <div
         aria-hidden
         className="pointer-events-none absolute -inset-12 -z-10 rounded-full bg-[radial-gradient(circle_at_center,color-mix(in_srgb,var(--signal)_26%,transparent),transparent_70%)] blur-3xl"
@@ -126,15 +129,15 @@ export function PhoneReelPreview() {
         {/* Side buttons */}
         <div
           aria-hidden
-          className="absolute -left-[3px] top-[18%] h-10 w-[3px] rounded-l-full bg-[#2a2e36]"
+          className="absolute top-[18%] -left-[3px] h-10 w-[3px] rounded-l-full bg-[#2a2e36]"
         />
         <div
           aria-hidden
-          className="absolute -left-[3px] top-[28%] h-16 w-[3px] rounded-l-full bg-[#2a2e36]"
+          className="absolute top-[28%] -left-[3px] h-16 w-[3px] rounded-l-full bg-[#2a2e36]"
         />
         <div
           aria-hidden
-          className="absolute -right-[3px] top-[24%] h-20 w-[3px] rounded-r-full bg-[#2a2e36]"
+          className="absolute top-[24%] -right-[3px] h-20 w-[3px] rounded-r-full bg-[#2a2e36]"
         />
 
         <div className="relative overflow-hidden rounded-[2.75rem] bg-[#0b0d12] p-[10px] shadow-[var(--shadow-xl)] ring-1 ring-white/15">
@@ -194,7 +197,7 @@ export function PhoneReelPreview() {
                 {!reduce ? (
                   <>
                     <motion.div
-                      className="absolute -left-1/4 top-[12%] h-[55%] w-[70%] rotate-12 rounded-full bg-white/10 blur-3xl"
+                      className="absolute top-[12%] -left-1/4 h-[55%] w-[70%] rotate-12 rounded-full bg-white/10 blur-3xl"
                       animate={{ x: [0, 36, 0], opacity: [0.35, 0.55, 0.35] }}
                       transition={{
                         duration: 7.5,
@@ -203,7 +206,7 @@ export function PhoneReelPreview() {
                       }}
                     />
                     <motion.div
-                      className="absolute bottom-[18%] right-[-10%] h-40 w-40 rounded-full bg-[var(--ember)]/25 blur-3xl"
+                      className="absolute right-[-10%] bottom-[18%] h-40 w-40 rounded-full bg-[var(--ember)]/25 blur-3xl"
                       animate={{ y: [0, -18, 0], scale: [1, 1.08, 1] }}
                       transition={{
                         duration: 6.2,
@@ -216,8 +219,8 @@ export function PhoneReelPreview() {
 
                 {/* Soft horizon / scene geometry */}
                 <div className="absolute inset-x-[-10%] bottom-[22%] h-[38%] rounded-[100%] bg-black/25 blur-2xl" />
-                <div className="absolute left-[12%] top-[34%] h-24 w-24 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm" />
-                <div className="absolute right-[16%] top-[42%] h-16 w-16 rounded-full border border-white/10 bg-white/8" />
+                <div className="absolute top-[34%] left-[12%] h-24 w-24 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm" />
+                <div className="absolute top-[42%] right-[16%] h-16 w-16 rounded-full border border-white/10 bg-white/8" />
               </motion.div>
             </AnimatePresence>
 
@@ -231,13 +234,16 @@ export function PhoneReelPreview() {
                   transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
                   className="pointer-events-none absolute inset-0 z-40 grid place-items-center"
                 >
-                  <Heart className="size-20 text-[#ff5d6c]" fill="currentColor" />
+                  <Heart
+                    className="size-20 text-[#ff5d6c]"
+                    fill="currentColor"
+                  />
                 </motion.div>
               ) : null}
             </AnimatePresence>
 
             {/* Top chrome */}
-            <div className="pointer-events-none absolute inset-x-0 top-[3.4rem] z-20 flex items-center justify-center gap-8 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85">
+            <div className="pointer-events-none absolute inset-x-0 top-[3.4rem] z-20 flex items-center justify-center gap-8 text-[11px] font-semibold tracking-[0.2em] text-white/85 uppercase">
               <span>Following</span>
               <span className="relative text-white">
                 For You
@@ -256,6 +262,7 @@ export function PhoneReelPreview() {
                           src={reel.avatar}
                           alt=""
                           fill
+                          sizes="44px"
                           className="object-cover"
                         />
                       ) : (
@@ -278,7 +285,9 @@ export function PhoneReelPreview() {
                           />
                         )}
                       </div>
-                      <p className="truncate text-xs font-medium text-white/90">{reel.name}</p>
+                      <p className="truncate text-xs font-medium text-white/90">
+                        {reel.name}
+                      </p>
                     </div>
                   </div>
 
@@ -358,7 +367,7 @@ function Action({
       }}
       className="group flex flex-col items-center gap-1.5 text-[10px] font-semibold tracking-wide text-white transition active:scale-95"
     >
-      <span className="grid size-11 place-items-center rounded-full border-2 border-white/70 bg-[rgba(12,14,20,0.72)] shadow-[0_8px_20px_rgba(0,0,0,0.35)] backdrop-blur-md transition group-hover:border-white group-hover:bg-[rgba(20,24,34,0.88)] group-hover:scale-105">
+      <span className="grid size-11 place-items-center rounded-full border-2 border-white/70 bg-[rgba(12,14,20,0.72)] shadow-[0_8px_20px_rgba(0,0,0,0.35)] backdrop-blur-md transition group-hover:scale-105 group-hover:border-white group-hover:bg-[rgba(20,24,34,0.88)]">
         {children}
       </span>
       {count ? <span className="tabular-nums">{count}</span> : null}

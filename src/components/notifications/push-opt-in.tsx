@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BellRing, BellOff } from "lucide-react";
+import { BellOff, BellRing } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 
 function urlBase64ToUint8Array(base64: string) {
@@ -76,7 +77,9 @@ export function PushOptIn({ compact = false }: { compact?: boolean }) {
       setSubscribed(true);
       setMessage("Push notifications enabled.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not enable push");
+      setMessage(
+        error instanceof Error ? error.message : "Could not enable push",
+      );
     } finally {
       setBusy(false);
     }
@@ -113,7 +116,11 @@ export function PushOptIn({ compact = false }: { compact?: boolean }) {
         disabled={busy || (!configured && !subscribed)}
         onClick={() => void (subscribed ? disable() : enable())}
       >
-        {subscribed ? <BellOff className="size-4" /> : <BellRing className="size-4" />}
+        {subscribed ? (
+          <BellOff className="size-4" />
+        ) : (
+          <BellRing className="size-4" />
+        )}
         {subscribed ? "Mute push" : "Enable push"}
       </Button>
     );
@@ -139,7 +146,11 @@ export function PushOptIn({ compact = false }: { compact?: boolean }) {
           disabled={busy || (!configured && !subscribed)}
           onClick={() => void (subscribed ? disable() : enable())}
         >
-          {subscribed ? <BellOff className="size-4" /> : <BellRing className="size-4" />}
+          {subscribed ? (
+            <BellOff className="size-4" />
+          ) : (
+            <BellRing className="size-4" />
+          )}
           {busy ? "Working…" : subscribed ? "Disable" : "Enable"}
         </Button>
       </div>

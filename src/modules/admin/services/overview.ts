@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { cached } from "@/lib/cache";
+import { prisma } from "@/lib/prisma";
 
 function startOfDay(d = new Date()) {
   const x = new Date(d);
@@ -52,10 +52,7 @@ export async function getDashboardOverview() {
       }),
       prisma.user.count({
         where: {
-          OR: [
-            { presence: "ONLINE" },
-            { lastSeenAt: { gte: onlineCutoff } },
-          ],
+          OR: [{ presence: "ONLINE" }, { lastSeenAt: { gte: onlineCutoff } }],
         },
       }),
       prisma.user.count({ where: { createdAt: { gte: day } } }),

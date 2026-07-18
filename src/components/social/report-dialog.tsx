@@ -1,11 +1,13 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
+
+import { useGuest } from "@/components/auth/guest-provider";
 import { Button } from "@/components/ui/button";
+import { StateBanner } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import { StateBanner } from "@/components/ui/card";
-import { useGuest } from "@/components/auth/guest-provider";
 
 const REASONS = [
   "Spam",
@@ -80,7 +82,8 @@ export function ReportDialog({
       ) : (
         <form onSubmit={submit} className="space-y-4">
           <p className="text-sm text-[var(--muted)]">
-            Reports are confidential. Choose the reason that best matches what you saw.
+            Reports are confidential. Choose the reason that best matches what
+            you saw.
           </p>
           <div className="space-y-2">
             {REASONS.map((item) => (
@@ -111,7 +114,12 @@ export function ReportDialog({
           />
           {error ? <StateBanner tone="error">{error}</StateBanner> : null}
           <div className="flex gap-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={onClose}
+            >
               Cancel
             </Button>
             <Button type="submit" className="flex-1" disabled={loading}>

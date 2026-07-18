@@ -1,4 +1,4 @@
-import { fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
+import { fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { muteUser, unmuteUser } from "@/modules/users/services/social";

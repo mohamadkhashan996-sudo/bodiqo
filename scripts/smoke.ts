@@ -3,7 +3,10 @@
  * Lightweight smoke checks against a running Relune server.
  * Usage: BASE_URL=http://localhost:3000 npm run test:smoke
  */
-const base = (process.env.BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+const base = (process.env.BASE_URL || "http://localhost:3000").replace(
+  /\/$/,
+  "",
+);
 
 async function check(path: string, expect: number | number[] = 200) {
   const res = await fetch(`${base}${path}`);
@@ -30,7 +33,8 @@ async function main() {
   };
   if (!body.ok) throw new Error("health not ok");
   if (body.database !== "up") throw new Error(`database ${body.database}`);
-  if (body.service !== "relune") console.warn("warn: service name", body.service);
+  if (body.service !== "relune")
+    console.warn("warn: service name", body.service);
   await check("/api/health?mode=live");
   await check("/api/health?mode=ready");
   await check("/sign-in");

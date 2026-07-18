@@ -1,5 +1,5 @@
-import { getRedis } from "@/lib/redis";
 import { AppError } from "@/lib/errors";
+import { getRedis } from "@/lib/redis";
 
 type Bucket = { count: number; resetAt: number };
 
@@ -39,7 +39,11 @@ export async function rateLimit(
       return { ok: true, remaining: Math.max(0, limit - count) };
     } catch {
       if (process.env.NODE_ENV === "production") {
-        throw new AppError("Rate limiter unavailable", 503, "RATE_LIMITER_DOWN");
+        throw new AppError(
+          "Rate limiter unavailable",
+          503,
+          "RATE_LIMITER_DOWN",
+        );
       }
     }
   } else if (process.env.NODE_ENV === "production") {

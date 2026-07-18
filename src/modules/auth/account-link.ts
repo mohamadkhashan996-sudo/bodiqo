@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
+import { prisma } from "@/lib/prisma";
 import { hashToken, randomToken } from "@/lib/tokens";
 import type { OAuthProviderId } from "@/modules/auth/providers";
 
@@ -76,7 +76,10 @@ export async function getPendingOAuthLink(rawToken: string) {
   }
 }
 
-export async function confirmPendingOAuthLink(rawToken: string, userId: string) {
+export async function confirmPendingOAuthLink(
+  rawToken: string,
+  userId: string,
+) {
   const pending = await getPendingOAuthLink(rawToken);
   if (!pending || pending.row.userId !== userId) {
     throw new AppError("This link is invalid or expired", 400);

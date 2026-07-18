@@ -1,9 +1,13 @@
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
-import { verifyTotpOrBackup, generateBackupCodes } from "@/modules/auth/two-factor";
+import { prisma } from "@/lib/prisma";
 import { sendSecurityAlert } from "@/modules/auth/security";
+import {
+  generateBackupCodes,
+  verifyTotpOrBackup,
+} from "@/modules/auth/two-factor";
 
 export async function GET() {
   try {

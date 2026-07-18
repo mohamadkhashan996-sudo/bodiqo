@@ -1,6 +1,7 @@
-import { prisma } from "@/lib/prisma";
-import { logger } from "@/lib/logger";
 import type { Prisma } from "@prisma/client";
+
+import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 
 export async function writeAudit(input: {
   actorId?: string | null;
@@ -20,7 +21,10 @@ export async function writeAudit(input: {
       },
     });
   } catch (error) {
-    logger.error("audit_write_failed", { error: String(error), action: input.action });
+    logger.error("audit_write_failed", {
+      error: String(error),
+      action: input.action,
+    });
   }
 }
 
@@ -44,7 +48,10 @@ export async function writeSecurityEvent(input: {
       },
     });
   } catch (error) {
-    logger.error("security_event_failed", { error: String(error), type: input.type });
+    logger.error("security_event_failed", {
+      error: String(error),
+      type: input.type,
+    });
   }
 }
 
@@ -58,9 +65,7 @@ export async function listAuditLogs(opts: {
     where: opts.action ? { action: opts.action } : undefined,
     orderBy: { createdAt: "desc" },
     take,
-    ...(opts.cursor
-      ? { skip: 1, cursor: { id: opts.cursor } }
-      : {}),
+    ...(opts.cursor ? { skip: 1, cursor: { id: opts.cursor } } : {}),
   });
 }
 

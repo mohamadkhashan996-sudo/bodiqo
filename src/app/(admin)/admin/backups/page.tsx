@@ -2,8 +2,8 @@
 
 import {
   AdminPageHeader,
-  Panel,
   adminPost,
+  Panel,
   useAdminJson,
 } from "@/components/admin/admin-ui";
 
@@ -39,17 +39,40 @@ export default function AdminBackupsPage() {
         subtitle="Daily, weekly, and manual database/media backups with download and restore."
       />
       <div className="mb-4 flex flex-wrap gap-2">
-        <button type="button" className="rounded-full bg-[var(--ink)] px-4 py-2 text-xs text-[var(--cloud)]" onClick={() => void create("DATABASE")}>Manual DB backup</button>
-        <button type="button" className="rounded-full border px-4 py-2 text-xs" onClick={() => void create("MEDIA")}>Media backup</button>
-        <button type="button" className="rounded-full border px-4 py-2 text-xs" onClick={() => void create("FULL")}>Full backup</button>
+        <button
+          type="button"
+          className="rounded-full bg-[var(--ink)] px-4 py-2 text-xs text-[var(--cloud)]"
+          onClick={() => void create("DATABASE")}
+        >
+          Manual DB backup
+        </button>
+        <button
+          type="button"
+          className="rounded-full border px-4 py-2 text-xs"
+          onClick={() => void create("MEDIA")}
+        >
+          Media backup
+        </button>
+        <button
+          type="button"
+          className="rounded-full border px-4 py-2 text-xs"
+          onClick={() => void create("FULL")}
+        >
+          Full backup
+        </button>
       </div>
       {loading ? <p className="text-sm text-[var(--muted)]">Loading…</p> : null}
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}
       <div className="space-y-3">
         {data?.backups.map((b) => (
-          <Panel key={b.id} className="flex flex-wrap items-center justify-between gap-3">
+          <Panel
+            key={b.id}
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
             <div>
-              <p className="font-medium">{b.type} · {b.scope} · {b.status}</p>
+              <p className="font-medium">
+                {b.type} · {b.scope} · {b.status}
+              </p>
               <p className="text-xs text-[var(--muted)]">
                 {new Date(b.startedAt).toLocaleString()} · {b.sizeBytes} bytes
                 {b.note ? ` · ${b.note}` : ""}
@@ -58,8 +81,19 @@ export default function AdminBackupsPage() {
             <div className="flex gap-2">
               {b.status === "COMPLETED" ? (
                 <>
-                  <a className="rounded-full border px-3 py-1.5 text-xs" href={`/api/admin/backups?download=${b.id}`}>Download</a>
-                  <button type="button" className="rounded-full border px-3 py-1.5 text-xs" onClick={() => void restore(b.id)}>Restore</button>
+                  <a
+                    className="rounded-full border px-3 py-1.5 text-xs"
+                    href={`/api/admin/backups?download=${b.id}`}
+                  >
+                    Download
+                  </a>
+                  <button
+                    type="button"
+                    className="rounded-full border px-3 py-1.5 text-xs"
+                    onClick={() => void restore(b.id)}
+                  >
+                    Restore
+                  </button>
                 </>
               ) : null}
             </div>

@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import {
   AdminPageHeader,
+  adminPatch,
   Panel,
   StatCard,
-  adminPatch,
   useAdminJson,
 } from "@/components/admin/admin-ui";
 import {
-  OAUTH_PROVIDER_ORDER,
-  PROVIDER_SHORT,
   type AuthProviderFlags,
+  OAUTH_PROVIDER_ORDER,
   type OAuthProviderId,
+  PROVIDER_SHORT,
 } from "@/modules/auth/providers";
 
 type AuthConfig = {
@@ -70,10 +71,7 @@ export default function AdminAuthPage() {
     }
   }
 
-  const providerKeys = [
-    ...OAUTH_PROVIDER_ORDER,
-    "credentials" as const,
-  ];
+  const providerKeys = [...OAUTH_PROVIDER_ORDER, "credentials" as const];
 
   return (
     <div>
@@ -112,7 +110,8 @@ export default function AdminAuthPage() {
             Login providers
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Toggle availability. Providers without env credentials stay inactive.
+            Toggle availability. Providers without env credentials stay
+            inactive.
           </p>
           <ul className="mt-5 space-y-3">
             {providerKeys.map((key) => {
@@ -127,13 +126,15 @@ export default function AdminAuthPage() {
                   <div>
                     <p className="text-sm font-medium">{PROVIDER_SHORT[key]}</p>
                     <p className="text-xs text-[var(--muted)]">
-                      {envOk ? "Credentials configured" : "Missing env credentials"}
+                      {envOk
+                        ? "Credentials configured"
+                        : "Missing env credentials"}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => void toggle(key)}
-                    className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wider ${
+                    className={`rounded-full px-4 py-1.5 text-xs font-semibold tracking-wider uppercase ${
                       enabled
                         ? "bg-[var(--signal)] text-[var(--ink)]"
                         : "bg-[var(--mist)] text-[var(--muted)]"
@@ -153,27 +154,30 @@ export default function AdminAuthPage() {
           </h2>
           <ul className="mt-4 space-y-2">
             {(stats.data?.loginsByProvider ?? []).length === 0 ? (
-              <li className="text-sm text-[var(--muted)]">No recent logins yet.</li>
+              <li className="text-sm text-[var(--muted)]">
+                No recent logins yet.
+              </li>
             ) : (
               stats.data?.loginsByProvider.map((row) => (
-                <li
-                  key={row.provider}
-                  className="flex justify-between text-sm"
-                >
+                <li key={row.provider} className="flex justify-between text-sm">
                   <span>{row.provider}</span>
-                  <span className="tabular-nums text-[var(--muted)]">
+                  <span className="text-[var(--muted)] tabular-nums">
                     {row.count}
                   </span>
                 </li>
               ))
             )}
           </ul>
-          <h3 className="mt-6 text-sm font-semibold">Connected OAuth accounts</h3>
+          <h3 className="mt-6 text-sm font-semibold">
+            Connected OAuth accounts
+          </h3>
           <ul className="mt-2 space-y-2">
             {(stats.data?.oauthAccounts ?? []).map((row) => (
               <li key={row.provider} className="flex justify-between text-sm">
                 <span>{row.provider}</span>
-                <span className="tabular-nums text-[var(--muted)]">{row.count}</span>
+                <span className="text-[var(--muted)] tabular-nums">
+                  {row.count}
+                </span>
               </li>
             ))}
           </ul>
@@ -187,7 +191,10 @@ export default function AdminAuthPage() {
           </h2>
           <ul className="mt-4 max-h-80 space-y-3 overflow-auto">
             {(stats.data?.recentLogins ?? []).map((row) => (
-              <li key={row.id} className="border-b-2 border-[var(--mist-strong)] pb-2 text-sm">
+              <li
+                key={row.id}
+                className="border-b-2 border-[var(--mist-strong)] pb-2 text-sm"
+              >
                 <p className="font-medium">
                   {row.user.handle ? `@${row.user.handle}` : row.user.email}
                 </p>
@@ -206,11 +213,14 @@ export default function AdminAuthPage() {
           </h2>
           <ul className="mt-4 max-h-80 space-y-3 overflow-auto">
             {(stats.data?.failedLogins ?? []).map((row) => (
-              <li key={row.id} className="border-b-2 border-[var(--mist-strong)] pb-2 text-sm">
+              <li
+                key={row.id}
+                className="border-b-2 border-[var(--mist-strong)] pb-2 text-sm"
+              >
                 <p className="font-medium">
                   {row.user?.handle
                     ? `@${row.user.handle}`
-                    : row.user?.email ?? "Unknown account"}
+                    : (row.user?.email ?? "Unknown account")}
                 </p>
                 <p className="text-xs text-[var(--muted)]">
                   {row.provider ?? "credentials"} ·{" "}

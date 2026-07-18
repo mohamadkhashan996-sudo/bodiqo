@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 
 /** Soft cleanup jobs — expired stories, scheduled posts, old search history, revoked sessions */
 export async function runAutomaticCleanup() {
@@ -8,14 +8,15 @@ export async function runAutomaticCleanup() {
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60_000);
 
   try {
-    const { publishScheduledPosts } = await import(
-      "@/modules/feed/services/posts"
-    );
+    const { publishScheduledPosts } =
+      await import("@/modules/feed/services/posts");
     const scheduled = await publishScheduledPosts(now);
     const { expireStories } = await import("@/modules/media/services/stories");
     const expiredStories = await expireStories(now);
     const [search, sessions, media] = await Promise.all([
-      prisma.searchHistory.deleteMany({ where: { createdAt: { lt: thirtyDaysAgo } } }),
+      prisma.searchHistory.deleteMany({
+        where: { createdAt: { lt: thirtyDaysAgo } },
+      }),
       prisma.deviceSession.deleteMany({
         where: { revokedAt: { not: null, lt: thirtyDaysAgo } },
       }),

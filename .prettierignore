@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+build
+coverage
+android
+ios
+package-lock.json
+*.min.js
+public
+.next-types

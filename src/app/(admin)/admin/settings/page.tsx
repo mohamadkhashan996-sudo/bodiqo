@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import {
   AdminPageHeader,
-  Panel,
   adminPatch,
+  Panel,
   useAdminJson,
 } from "@/components/admin/admin-ui";
 
@@ -46,7 +47,7 @@ function Field({
 }) {
   return (
     <label className="block space-y-1.5 text-sm">
-      <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+      <span className="text-xs font-semibold tracking-[0.12em] text-[var(--muted)] uppercase">
         {label}
       </span>
       {children}
@@ -106,12 +107,14 @@ export default function AdminSettingsPage() {
       />
       {loading ? <p className="text-sm text-[var(--muted)]">Loading…</p> : null}
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}
-      {msg ? <p className="mb-3 text-sm text-[var(--signal-deep)]">{msg}</p> : null}
+      {msg ? (
+        <p className="mb-3 text-sm text-[var(--signal-deep)]">{msg}</p>
+      ) : null}
 
       {!advanced ? (
         <div className="space-y-4">
           <Panel className="grid gap-4 md:grid-cols-2">
-            <h2 className="md:col-span-2 font-[family-name:var(--font-syne)] text-lg font-semibold">
+            <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold md:col-span-2">
               Website
             </h2>
             <Field label="Name">
@@ -145,7 +148,7 @@ export default function AdminSettingsPage() {
           </Panel>
 
           <Panel className="grid gap-4 md:grid-cols-2">
-            <h2 className="md:col-span-2 font-[family-name:var(--font-syne)] text-lg font-semibold">
+            <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold md:col-span-2">
               Maintenance & registration
             </h2>
             <label className="flex items-center gap-2 text-sm">
@@ -183,19 +186,22 @@ export default function AdminSettingsPage() {
               Invite only
             </label>
             <p className="text-xs text-[var(--muted-strong)]">
-              Bot protection uses honeypot fields and rate limits (no captcha provider wired).
+              Bot protection uses honeypot fields and rate limits (no captcha
+              provider wired).
             </p>
             <Field label="Maintenance message">
               <input
                 className={inputClass}
                 value={form.maintenanceMessage ?? ""}
-                onChange={(e) => setNested("maintenanceMessage", e.target.value)}
+                onChange={(e) =>
+                  setNested("maintenanceMessage", e.target.value)
+                }
               />
             </Field>
           </Panel>
 
           <Panel className="grid gap-4 md:grid-cols-2">
-            <h2 className="md:col-span-2 font-[family-name:var(--font-syne)] text-lg font-semibold">
+            <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold md:col-span-2">
               Security
             </h2>
             <label className="flex items-center gap-2 text-sm">
@@ -253,7 +259,7 @@ export default function AdminSettingsPage() {
           </Panel>
 
           <Panel className="grid gap-4 md:grid-cols-2">
-            <h2 className="md:col-span-2 font-[family-name:var(--font-syne)] text-lg font-semibold">
+            <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold md:col-span-2">
               Delivery & storage
             </h2>
             <label className="flex items-center gap-2 text-sm">
@@ -261,7 +267,10 @@ export default function AdminSettingsPage() {
                 type="checkbox"
                 checked={Boolean(form.email?.enabled)}
                 onChange={(e) =>
-                  setNested("email", { ...form.email, enabled: e.target.checked })
+                  setNested("email", {
+                    ...form.email,
+                    enabled: e.target.checked,
+                  })
                 }
               />
               Email enabled

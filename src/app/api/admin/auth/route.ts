@@ -1,12 +1,13 @@
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireStaff } from "@/lib/api";
+import { writeAudit } from "@/modules/admin/services/audit";
+import { getAuthAdminStats } from "@/modules/admin/services/auth-stats";
 import {
   getAuthProviderFlags,
   setAuthProviderFlags,
 } from "@/modules/auth/provider-settings";
-import { getAuthAdminStats } from "@/modules/admin/services/auth-stats";
 import { providerEnvReady } from "@/modules/auth/providers";
-import { writeAudit } from "@/modules/admin/services/audit";
 
 export async function GET(request: Request) {
   try {

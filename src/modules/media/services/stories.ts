@@ -1,11 +1,13 @@
-import { MediaKind } from "@prisma/client";
+import type { MediaKind } from "@prisma/client";
+
 import { AppError } from "@/lib/errors";
+import { assertOwnedReadyAsset } from "@/lib/media-asset";
 import { prisma } from "@/lib/prisma";
+import { createNotification } from "@/modules/notifications/services/notify";
 import {
   canSeeStories,
   filterVisibleStoryAuthors,
-} from "@/modules/messaging/services/privacy-gate";
-import { createNotification } from "@/modules/notifications/services/notify";
+} from "@/modules/users/services/privacy-gate";
 
 const authorSelect = {
   id: true,
@@ -19,6 +21,9 @@ export async function createStory(
   authorId: string,
   data: { mediaUrl: string; mediaKind?: MediaKind; textOverlay?: string },
 ) {
+  await assertOwnedReadyAsset(authorId, data.mediaUrl, {
+    kinds: ["IMAGE", "GIF", "VIDEO"],
+  });
   return prisma.$transaction(async (tx) => {
     const story = await tx.story.create({
       data: {
@@ -98,7 +103,8 @@ export async function listPublicStories(viewerId?: string) {
     }
     const reactionCounts: Record<string, number> = {};
     for (const reaction of story.reactions) {
-      reactionCounts[reaction.emoji] = (reactionCounts[reaction.emoji] ?? 0) + 1;
+      reactionCounts[reaction.emoji] =
+        (reactionCounts[reaction.emoji] ?? 0) + 1;
     }
     filtered.push({
       id: story.id,

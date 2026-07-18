@@ -1,11 +1,13 @@
 # Release preparation
 
 ## Versioning
+
 - Semver in `package.json` (current: **1.0.0**)
 - Git tags: `v1.0.0`, `v1.0.1`, …
 - Docker images: `ghcr.io/<org>/<repo>:<version>` via `.github/workflows/release.yml`
 
 ## Cut a release
+
 ```bash
 npm run release:check
 npm run typecheck
@@ -17,6 +19,7 @@ git push origin v1.0.0
 Tag push builds and publishes the container image when GHCR is enabled.
 
 ## Go-live sequence
+
 1. Provision Postgres + Redis (managed or `docker compose`)
 2. Fill production secrets (see `.env.example` Production block)
 3. `npm run db:migrate` (or rely on Docker entrypoint)
@@ -28,16 +31,18 @@ Tag push builds and publishes the container image when GHCR is enabled.
 9. Soft launch: invite-only / maintenance off → monitor `/admin/monitoring`
 
 ## Rollback
+
 1. Redeploy previous container tag
 2. Restore DB from `pg_dump` if schema migrated forward-incompatibly
 3. Keep `MAINTENANCE_MODE=true` during recovery if needed
 
 ## Sign-off
-| Area | Owner check |
-| --- | --- |
-| Auth (email, OAuth, 2FA) | ☐ |
-| Feed / messaging / calls | ☐ |
-| Admin moderation | ☐ |
-| Backups scheduled | ☐ |
-| Legal pages live | ☐ |
-| Mobile TestFlight / internal track | ☐ |
+
+| Area                               | Owner check |
+| ---------------------------------- | ----------- |
+| Auth (email, OAuth, 2FA)           | ☐           |
+| Feed / messaging / calls           | ☐           |
+| Admin moderation                   | ☐           |
+| Backups scheduled                  | ☐           |
+| Legal pages live                   | ☐           |
+| Mobile TestFlight / internal track | ☐           |

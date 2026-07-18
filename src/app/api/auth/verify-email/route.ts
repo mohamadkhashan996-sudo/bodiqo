@@ -1,7 +1,8 @@
 import { z } from "zod";
-import { body, fail, ok, guardApiAbuse} from "@/lib/api";
-import { consumeEmailToken } from "@/modules/auth/email-tokens";
+
+import { body, fail, guardApiAbuse, ok } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { consumeEmailToken } from "@/modules/auth/email-tokens";
 import { officialFollowNewUser } from "@/modules/platform/official-account";
 export async function POST(r: Request) {
   try {

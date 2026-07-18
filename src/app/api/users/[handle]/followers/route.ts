@@ -1,4 +1,4 @@
-import { fail, ok, optionalUser, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok, optionalUser } from "@/lib/api";
 import { listFollowers } from "@/modules/users/services/lists";
 
 export async function GET(

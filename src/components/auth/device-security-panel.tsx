@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -32,6 +33,13 @@ export function DeviceSecurityPanel() {
   const [devices, setDevices] = useState<DeviceRow[]>([]);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
+  const [msgTone, setMsgTone] = useState<"ok" | "err">("ok");
+  const [busy, setBusy] = useState(false);
+
+  function flash(text: string, tone: "ok" | "err" = "ok") {
+    setMsg(text);
+    setMsgTone(tone);
+  }
 
   async function refresh() {
     const [s, d, h] = await Promise.all([
@@ -45,12 +53,37 @@ export function DeviceSecurityPanel() {
   }
 
   useEffect(() => {
-    void refresh().catch(() => undefined);
+    void refresh().catch(() => {
+      flash("Could not load devices and sessions.", "err");
+    });
   }, []);
+
+  async function revokeSessions(
+    body: Record<string, unknown>,
+  ): Promise<boolean> {
+    const res = await fetch("/api/auth/sessions", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      flash(data.error || "Could not update sessions", "err");
+      return false;
+    }
+    return true;
+  }
 
   return (
     <div className="space-y-8">
-      {msg ? <p className="text-sm text-[var(--signal-deep)]">{msg}</p> : null}
+      {msg ? (
+        <p
+          className={`text-sm ${msgTone === "err" ? "text-[var(--danger)]" : "text-[var(--signal-deep)]"}`}
+          role="status"
+        >
+          {msg}
+        </p>
+      ) : null}
 
       <section>
         <h3 className="text-sm font-semibold">Active devices</h3>
@@ -58,7 +91,9 @@ export function DeviceSecurityPanel() {
           Revoke any session that isn’t yours.
         </p>
         {sessions.length === 0 ? (
-          <p className="mt-3 text-sm text-[var(--muted)]">No active sessions.</p>
+          <p className="mt-3 text-sm text-[var(--muted)]">
+            No active sessions.
+          </p>
         ) : null}
         {sessions.map((s) => (
           <div
@@ -69,7 +104,7 @@ export function DeviceSecurityPanel() {
               <p>
                 {s.deviceLabel ?? "Unknown device"}
                 {s.current ? (
-                  <span className="ml-2 text-[11px] uppercase tracking-[0.14em] text-[var(--signal-deep)]">
+                  <span className="ml-2 text-[11px] tracking-[0.14em] text-[var(--signal-deep)] uppercase">
                     This device
                   </span>
                 ) : null}
@@ -90,14 +125,16 @@ export function DeviceSecurityPanel() {
             ) : (
               <button
                 type="button"
-                className="text-[var(--signal)]"
+                className="text-[var(--signal)] disabled:opacity-50"
+                disabled={busy}
                 onClick={async () => {
-                  await fetch("/api/auth/sessions", {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id: s.id }),
-                  });
-                  setSessions((old) => old.filter((x) => x.id !== s.id));
+                  setBusy(true);
+                  const ok = await revokeSessions({ id: s.id });
+                  if (ok) {
+                    setSessions((old) => old.filter((x) => x.id !== s.id));
+                    flash("Session revoked.");
+                  }
+                  setBusy(false);
                 }}
               >
                 Revoke
@@ -113,21 +150,38 @@ export function DeviceSecurityPanel() {
           Trusted devices skip new-login alerts.
         </p>
         {devices.length === 0 ? (
-          <p className="mt-3 text-sm text-[var(--muted)]">No trusted devices yet.</p>
+          <p className="mt-3 text-sm text-[var(--muted)]">
+            No trusted devices yet.
+          </p>
         ) : null}
         {devices.map((d) => (
           <div key={d.id} className="mt-2 flex justify-between text-sm">
             <span>{d.label ?? "Trusted device"}</span>
             <button
               type="button"
-              className="text-[var(--signal)]"
+              className="text-[var(--signal)] disabled:opacity-50"
+              disabled={busy}
               onClick={async () => {
-                await fetch("/api/auth/trusted-devices", {
-                  method: "DELETE",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ id: d.id }),
-                });
-                setDevices((old) => old.filter((x) => x.id !== d.id));
+                if (!window.confirm("Remove this trusted device?")) return;
+                setBusy(true);
+                try {
+                  const res = await fetch("/api/auth/trusted-devices", {
+                    method: "DELETE",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: d.id }),
+                  });
+                  if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    flash(data.error || "Could not remove device", "err");
+                    return;
+                  }
+                  setDevices((old) => old.filter((x) => x.id !== d.id));
+                  flash("Trusted device removed.");
+                } catch {
+                  flash("Could not remove device", "err");
+                } finally {
+                  setBusy(false);
+                }
               }}
             >
               Remove
@@ -146,7 +200,9 @@ export function DeviceSecurityPanel() {
             <p key={item.id} className="text-sm text-[var(--muted)]">
               <span
                 className={
-                  item.success ? "text-[var(--signal-deep)]" : "text-[var(--danger)]"
+                  item.success
+                    ? "text-[var(--signal-deep)]"
+                    : "text-[var(--danger)]"
                 }
               >
                 {item.success ? "Success" : "Failed"}
@@ -168,14 +224,27 @@ export function DeviceSecurityPanel() {
         <Button
           variant="outline"
           type="button"
+          disabled={busy}
           onClick={async () => {
-            await fetch("/api/auth/trusted-devices", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ label: "This device" }),
-            });
-            setMsg("This device is now trusted.");
-            await refresh();
+            setBusy(true);
+            try {
+              const res = await fetch("/api/auth/trusted-devices", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ label: "This device" }),
+              });
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                flash(data.error || "Could not trust device", "err");
+                return;
+              }
+              flash("This device is now trusted.");
+              await refresh();
+            } catch {
+              flash("Could not trust device", "err");
+            } finally {
+              setBusy(false);
+            }
           }}
         >
           Trust this device
@@ -183,14 +252,16 @@ export function DeviceSecurityPanel() {
         <Button
           variant="outline"
           type="button"
+          disabled={busy}
           onClick={async () => {
-            await fetch("/api/auth/sessions", {
-              method: "DELETE",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ others: true }),
-            });
-            setSessions((old) => old.filter((s) => s.current));
-            setMsg("Other devices were signed out.");
+            if (!window.confirm("Sign out of all other devices?")) return;
+            setBusy(true);
+            const ok = await revokeSessions({ others: true });
+            if (ok) {
+              setSessions((old) => old.filter((s) => s.current));
+              flash("Other devices were signed out.");
+            }
+            setBusy(false);
           }}
         >
           Log out other devices
@@ -198,14 +269,22 @@ export function DeviceSecurityPanel() {
         <Button
           variant="outline"
           type="button"
+          disabled={busy}
           onClick={async () => {
-            await fetch("/api/auth/sessions", {
-              method: "DELETE",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ all: true }),
-            });
-            setSessions([]);
-            await signOut({ callbackUrl: "/sign-in" });
+            if (
+              !window.confirm(
+                "Sign out of every device, including this one? You will need to sign in again.",
+              )
+            ) {
+              return;
+            }
+            setBusy(true);
+            const ok = await revokeSessions({ all: true });
+            if (ok) {
+              setSessions([]);
+              await signOut({ callbackUrl: "/sign-in" });
+            }
+            setBusy(false);
           }}
         >
           Log out from all devices

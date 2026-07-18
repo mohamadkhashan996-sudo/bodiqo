@@ -1,19 +1,22 @@
 # Installation
 
 ## Requirements
+
 - Node.js 20+
 - npm 10+
 - Docker (recommended for Postgres + Redis)
 
 ## Quick start
+
 ```bash
 git clone <repo-url>
-cd bodiqo
+cd relune
 git checkout social-platform
 cp .env.example .env   # or let `npm run up` create a minimal .env
 npm install
 npm run up             # Postgres + Redis + migrate + seed + server
 ```
+
 Open http://localhost:3000
 
 `npm run up` starts embedded Postgres/Redis when Docker is unavailable (uses `pgserver` + `redislite`). With Docker:
@@ -28,13 +31,16 @@ npm run dev
 > **Note:** Relune uses PostgreSQL. `npm run up` writes `DATABASE_URL` / `REDIS_URL` into `.env` automatically for the embedded stack.
 
 ## Verify
+
 ```bash
 npm run test:smoke
 npm run test:verify   # auth + feed + messaging + socket.io
 ```
 
 ## Demo accounts (development only)
+
 Password for all: `cirqua1234`
+
 - `maya@cirqua.local`
 - `leo@cirqua.local`
 - `sana@cirqua.local`
@@ -43,6 +49,7 @@ Password for all: `cirqua1234`
 Demo seeds are **blocked in production** unless `ALLOW_DEMO_SEEDS=true`.
 
 ## Production
+
 See `docs/DEPLOY.md`, `docs/PRODUCTION.md`, and `docs/RELEASE.md`.
 
 ```bash
@@ -53,6 +60,7 @@ docker compose up -d --build
 ```
 
 ## Mobile (iOS / Android)
+
 See `docs/MOBILE.md`.
 
 ```bash
@@ -62,18 +70,20 @@ npm run mobile:sync
 ```
 
 ## Scripts
-| Script | Purpose |
-| --- | --- |
-| `npm run dev` | Custom server (Next + Socket.io) |
-| `npm run build` | Production build |
-| `npm start` | Production server |
-| `npm run db:migrate` | Apply migrations (production) |
-| `npm run db:migrate:dev` | Create/apply migrations locally |
-| `npm run typecheck` | TypeScript |
-| `npm run lint` | ESLint |
-| `npm run up` | One-command local boot (infra + migrate + seed + server) |
-| `npm run test:smoke` | Local API smoke checks |
-| `npm run test:verify` | Auth, feed, messaging, socket.io verification |
+
+| Script                   | Purpose                                                  |
+| ------------------------ | -------------------------------------------------------- |
+| `npm run dev`            | Custom server (Next + Socket.io)                         |
+| `npm run build`          | Production build                                         |
+| `npm start`              | Production server                                        |
+| `npm run db:migrate`     | Apply migrations (production)                            |
+| `npm run db:migrate:dev` | Create/apply migrations locally                          |
+| `npm run typecheck`      | TypeScript                                               |
+| `npm run lint`           | ESLint                                                   |
+| `npm run up`             | One-command local boot (infra + migrate + seed + server) |
+| `npm run test:smoke`     | Local API smoke checks                                   |
+| `npm run test:verify`    | Auth, feed, messaging, socket.io verification            |
 
 ## Brand note
-Product brand is **Relune**. The `bodiqo-store-backup` git branch is an unrelated store snapshot — do not modify it for Relune work.
+
+Product brand is **Relune**. The `relune-store-backup` git branch is an unrelated store snapshot — do not modify it for Relune work.

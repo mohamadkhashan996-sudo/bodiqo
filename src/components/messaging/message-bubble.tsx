@@ -4,12 +4,16 @@ import { useEffect, useState } from "react";
 import {
   Check,
   CheckCheck,
+  Copy,
   FileText,
+  Forward,
   Lock,
   MoreHorizontal,
   Reply,
   Smile,
+  Trash2,
 } from "lucide-react";
+
 import { decryptFromPeer } from "@/lib/e2e-crypto";
 
 export type ChatMessage = {
@@ -38,6 +42,7 @@ export type ChatMessage = {
     body: string;
     sender: { name: string | null; handle: string | null };
   } | null;
+  forwardedFromId?: string | null;
   reactions: { emoji: string; userId: string }[];
 };
 
@@ -46,17 +51,23 @@ const REACTIONS = ["✨", "🤍", "🔥", "👏", "😂"];
 export function MessageBubble({
   message,
   mine,
+  showReceipts = true,
   onReply,
   onReact,
   onEdit,
   onDelete,
+  onCopy,
+  onForward,
 }: {
   message: ChatMessage;
   mine: boolean;
+  showReceipts?: boolean;
   onReply: () => void;
   onReact: (emoji: string) => void;
   onEdit: () => void;
   onDelete: () => void;
+  onCopy?: () => void;
+  onForward?: () => void;
 }) {
   const [body, setBody] = useState(message.body);
   const [reactOpen, setReactOpen] = useState(false);
@@ -99,19 +110,33 @@ export function MessageBubble({
         }`}
       >
         {!mine ? (
-          <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--signal)]">
-            {message.sender.displayName ?? message.sender.name ?? message.sender.handle}
+          <p className="mb-1 text-[11px] font-bold tracking-[0.14em] text-[var(--signal)] uppercase">
+            {message.sender.displayName ??
+              message.sender.name ??
+              message.sender.handle}
           </p>
         ) : null}
         {message.replyTo ? (
           <div
             className={`mb-2 border-l-2 pl-2 text-xs ${
-              mine ? "border-[var(--ember)] text-white/90" : "border-[var(--signal)] text-[var(--muted-strong)]"
+              mine
+                ? "border-[var(--ember)] text-white/90"
+                : "border-[var(--signal)] text-[var(--muted-strong)]"
             }`}
           >
-            Replying to {message.replyTo.sender.name ?? message.replyTo.sender.handle}:{" "}
+            Replying to{" "}
+            {message.replyTo.sender.name ?? message.replyTo.sender.handle}:{" "}
             {message.replyTo.body}
           </div>
+        ) : null}
+        {message.forwardedFromId ? (
+          <p
+            className={`mb-1 text-[10px] font-semibold tracking-wide uppercase ${
+              mine ? "text-white/70" : "text-[var(--muted)]"
+            }`}
+          >
+            Forwarded
+          </p>
         ) : null}
         {message.deletedForAll ? (
           <p className="italic opacity-60">This message was removed.</p>
@@ -133,9 +158,14 @@ export function MessageBubble({
               />
             ) : null}
             {message.mediaUrl && message.type === "AUDIO" ? (
-              <audio src={message.mediaUrl} controls className="mb-2 w-full min-w-0 max-w-[16rem] sm:min-w-[14rem]" />
+              <audio
+                src={message.mediaUrl}
+                controls
+                className="mb-2 w-full max-w-[16rem] min-w-0 sm:min-w-[14rem]"
+              />
             ) : null}
-            {message.mediaUrl && (message.type === "FILE" || message.type === "DOCUMENT") ? (
+            {message.mediaUrl &&
+            (message.type === "FILE" || message.type === "DOCUMENT") ? (
               <a
                 href={message.mediaUrl}
                 target="_blank"
@@ -151,7 +181,7 @@ export function MessageBubble({
               </a>
             ) : null}
             {body ? (
-              <p className="whitespace-pre-wrap text-sm leading-6">
+              <p className="text-sm leading-6 whitespace-pre-wrap">
                 {message.isEncrypted ? (
                   <span className="mr-1.5 inline-flex align-middle text-[var(--signal)]">
                     <Lock className="size-3" />
@@ -171,7 +201,7 @@ export function MessageBubble({
             {message.isEdited && "edited · "}
             {time}
           </span>
-          {mine ? (
+          {mine && showReceipts ? (
             message.delivery === "SEEN" ? (
               <CheckCheck className="size-3 text-[var(--ember)]" />
             ) : message.delivery === "DELIVERED" ? (
@@ -185,7 +215,9 @@ export function MessageBubble({
           <div
             className={`absolute -bottom-3 ${mine ? "right-2" : "left-2"} flex rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-2 py-0.5 text-xs shadow-[var(--shadow-sm)]`}
           >
-            {[...new Set(message.reactions.map((reaction) => reaction.emoji))].join(" ")}
+            {[
+              ...new Set(message.reactions.map((reaction) => reaction.emoji)),
+            ].join(" ")}
           </div>
         ) : null}
         <div
@@ -201,6 +233,26 @@ export function MessageBubble({
           >
             <Reply className="size-3" />
           </button>
+          {onCopy && body ? (
+            <button
+              type="button"
+              onClick={onCopy}
+              aria-label="Copy"
+              className="icon-button size-7"
+            >
+              <Copy className="size-3" />
+            </button>
+          ) : null}
+          {onForward && !message.isEncrypted ? (
+            <button
+              type="button"
+              onClick={onForward}
+              aria-label="Forward"
+              className="icon-button size-7"
+            >
+              <Forward className="size-3" />
+            </button>
+          ) : null}
           <div className="relative">
             <button
               type="button"
@@ -228,7 +280,7 @@ export function MessageBubble({
               </div>
             ) : null}
           </div>
-          {mine ? (
+          {mine && !message.isEncrypted ? (
             <button
               type="button"
               onClick={onEdit}
@@ -244,7 +296,7 @@ export function MessageBubble({
             aria-label="Delete"
             className="icon-button size-7"
           >
-            <MoreHorizontal className="size-3" />
+            <Trash2 className="size-3" />
           </button>
         </div>
       </div>

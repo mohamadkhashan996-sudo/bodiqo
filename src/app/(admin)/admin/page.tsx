@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { AdminPageHeader, Panel, StatCard, useAdminJson } from "@/components/admin/admin-ui";
+
+import {
+  AdminPageHeader,
+  Panel,
+  StatCard,
+  useAdminJson,
+} from "@/components/admin/admin-ui";
 
 type Overview = {
   totals: Record<string, number>;
@@ -37,7 +43,9 @@ const shortcuts = [
 ];
 
 export default function AdminOverviewPage() {
-  const { data, error, loading } = useAdminJson<Overview>("/api/admin/overview");
+  const { data, error, loading } = useAdminJson<Overview>(
+    "/api/admin/overview",
+  );
 
   return (
     <div>
@@ -50,27 +58,39 @@ export default function AdminOverviewPage() {
           <Link
             key={item.href}
             href={item.href}
-            className="rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-2 text-xs uppercase tracking-[0.12em] hover:border-[var(--signal)]"
+            className="rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-2 text-xs tracking-[0.12em] uppercase hover:border-[var(--signal)]"
           >
             {item.label}
           </Link>
         ))}
       </div>
-      {loading ? <p className="text-sm text-[var(--muted)]">Loading overview…</p> : null}
+      {loading ? (
+        <p className="text-sm text-[var(--muted)]">Loading overview…</p>
+      ) : null}
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}
       {data ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Total users" value={data.totals.users} />
-            <StatCard label="Active users" value={data.totals.activeUsers} hint="Seen in 7 days" />
-            <StatCard label="Online now" value={data.totals.onlineUsers} />
-            <StatCard label="New today" value={data.totals.newUsers} />
-            <StatCard label="Posts" value={data.totals.posts} />
-            <StatCard label="Stories" value={data.totals.stories} />
-            <StatCard label="Videos" value={data.totals.videos} />
-            <StatCard label="Communities" value={data.totals.communities} />
-            <StatCard label="Messages" value={data.totals.messages} />
-            <StatCard label="Open reports" value={data.totals.openReports} />
+            <StatCard label="Total users" value={data.totals.users ?? 0} />
+            <StatCard
+              label="Active users"
+              value={data.totals.activeUsers ?? 0}
+              hint="Seen in 7 days"
+            />
+            <StatCard label="Online now" value={data.totals.onlineUsers ?? 0} />
+            <StatCard label="New today" value={data.totals.newUsers ?? 0} />
+            <StatCard label="Posts" value={data.totals.posts ?? 0} />
+            <StatCard label="Stories" value={data.totals.stories ?? 0} />
+            <StatCard label="Videos" value={data.totals.videos ?? 0} />
+            <StatCard
+              label="Communities"
+              value={data.totals.communities ?? 0}
+            />
+            <StatCard label="Messages" value={data.totals.messages ?? 0} />
+            <StatCard
+              label="Open reports"
+              value={data.totals.openReports ?? 0}
+            />
             <StatCard
               label="Banned users"
               value={data.totals.bannedUsers ?? 0}
@@ -81,7 +101,7 @@ export default function AdminOverviewPage() {
             />
             <StatCard
               label="Verification queue"
-              value={data.totals.verificationPending}
+              value={data.totals.verificationPending ?? 0}
             />
             <StatCard
               label="Revenue ready"
@@ -122,13 +142,13 @@ export default function AdminOverviewPage() {
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <Panel>
               <h2 className="text-sm font-medium">Server health</h2>
-              <p className="mt-2 capitalize text-[var(--signal-deep)]">
+              <p className="mt-2 text-[var(--signal-deep)] capitalize">
                 {data.health.server}
               </p>
             </Panel>
             <Panel>
               <h2 className="text-sm font-medium">Database health</h2>
-              <p className="mt-2 capitalize text-[var(--signal-deep)]">
+              <p className="mt-2 text-[var(--signal-deep)] capitalize">
                 {data.health.database}
               </p>
             </Panel>

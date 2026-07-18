@@ -1,9 +1,10 @@
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
-import { createEmailToken } from "@/modules/auth/email-tokens";
 import { resetPasswordEmail, sendMail } from "@/lib/mail";
+import { prisma } from "@/lib/prisma";
 import { absoluteUrl } from "@/lib/url";
+import { createEmailToken } from "@/modules/auth/email-tokens";
 
 export async function POST(r: Request) {
   try {

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+
 import { SecuritySettings } from "@/components/auth/security-settings";
 import { PageTransition } from "@/components/motion/primitives";
 
@@ -18,8 +19,8 @@ export default function SecuritySettingsPage() {
           Security
         </h1>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Two-factor authentication, device management, login history, encryption, and
-          account protection.
+          Two-factor authentication, device management, login history,
+          encryption, and account protection.
         </p>
       </div>
       <div className="surface-panel-strong rounded-[var(--radius-2xl)] p-6 md:p-8">

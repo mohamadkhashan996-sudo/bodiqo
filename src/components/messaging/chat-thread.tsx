@@ -4,31 +4,47 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
+  Archive,
+  Bell,
+  BellOff,
   Lock,
   LogOut,
   Phone,
+  Pin,
   Search,
   UserPlus,
   Users,
   Video,
   X,
 } from "lucide-react";
-import { useSocket } from "@/hooks/use-socket";
-import { MessageBubble, type ChatMessage } from "./message-bubble";
-import { MessageComposer } from "./message-composer";
-import { TypingIndicator } from "./typing-indicator";
-import { Input } from "@/components/ui/input";
+
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useSocket } from "@/hooks/use-socket";
+import { dispatchCallStart } from "@/lib/call-events";
 import {
-  ensureIdentityKeys,
   encryptForPeer,
+  ensureIdentityKeys,
   fetchPeerPublicKey,
 } from "@/lib/e2e-crypto";
+import { emitAck } from "@/lib/socket-client";
+
+import { type ChatMessage, MessageBubble } from "./message-bubble";
+import { MessageComposer } from "./message-composer";
+import { TypingIndicator } from "./typing-indicator";
 
 type Conversation = {
   id: string;
   title: string | null;
   type: string;
+  membership?: {
+    isPinned?: boolean;
+    isMuted?: boolean;
+    isArchived?: boolean;
+    isFavorite?: boolean;
+    isRequest?: boolean;
+    unreadCount?: number;
+  };
   members: {
     userId: string;
     role?: string;
@@ -48,6 +64,8 @@ type SearchHit = ChatMessage & {
   conversationId: string;
 };
 
+const TYPING_CLEAR_MS = 3500;
+
 export function ChatThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -55,7 +73,11 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
   const { socket } = useSocket();
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [typingUserId, setTypingUserId] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<Map<string, number>>(
+    () => new Map(),
+  );
   const [reply, setReply] = useState<ChatMessage | null>(null);
   const [e2eReady, setE2eReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -72,7 +94,15 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
       name?: string | null;
     }[]
   >([]);
+  const [muted, setMuted] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const [archived, setArchived] = useState(false);
+  const [isRequest, setIsRequest] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
+  const topSentinel = useRef<HTMLDivElement>(null);
+  const typingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
 
   useEffect(() => {
     void ensureIdentityKeys()
@@ -81,23 +111,105 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
   }, []);
 
   useEffect(() => {
+    const timers = typingTimers.current;
     socket?.emit("conversation:join", { conversationId });
+    setMessages([]);
+    setNextCursor(null);
     void Promise.all([
       fetch(`/api/conversations/${conversationId}`).then((r) => r.json()),
-      fetch(`/api/conversations/${conversationId}/messages`).then((r) =>
-        r.json(),
+      fetch(`/api/conversations/${conversationId}/messages?limit=40`).then(
+        (r) => r.json(),
       ),
     ]).then(([thread, history]) => {
       setConversation(thread.conversation ?? null);
+      setMuted(Boolean(thread.conversation?.membership?.isMuted));
+      setPinned(Boolean(thread.conversation?.membership?.isPinned));
+      setArchived(Boolean(thread.conversation?.membership?.isArchived));
+      setIsRequest(Boolean(thread.conversation?.membership?.isRequest));
       setMessages(history.messages ?? []);
+      setNextCursor(history.nextCursor ?? null);
       socket?.emit("message:seen", { conversationId });
       socket?.emit("message:delivered", { conversationId });
     });
     return () => {
       socket?.emit("conversation:leave", { conversationId });
       socket?.emit("typing:stop", { conversationId });
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+      setTypingUsers(new Map());
     };
   }, [conversationId, socket]);
+
+  const loadOlder = useCallback(async () => {
+    if (!nextCursor || loadingOlder) return;
+    setLoadingOlder(true);
+    try {
+      const res = await fetch(
+        `/api/conversations/${conversationId}/messages?cursor=${nextCursor}&limit=40`,
+      );
+      const data = await res.json();
+      if (!res.ok) return;
+      const older = (data.messages ?? []) as ChatMessage[];
+      setMessages((old) => {
+        const ids = new Set(old.map((m) => m.id));
+        return [...older.filter((m) => !ids.has(m.id)), ...old];
+      });
+      setNextCursor(data.nextCursor ?? null);
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [conversationId, nextCursor, loadingOlder]);
+
+  useEffect(() => {
+    const el = topSentinel.current;
+    if (!el || !nextCursor) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) void loadOlder();
+      },
+      { rootMargin: "120px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [nextCursor, loadOlder]);
+
+  function bumpTypingUser(userId: string) {
+    setTypingUsers((prev) => {
+      const next = new Map(prev);
+      next.set(userId, Date.now());
+      return next;
+    });
+    const existing = typingTimers.current.get(userId);
+    if (existing) clearTimeout(existing);
+    typingTimers.current.set(
+      userId,
+      setTimeout(() => {
+        setTypingUsers((prev) => {
+          const next = new Map(prev);
+          next.delete(userId);
+          return next;
+        });
+        typingTimers.current.delete(userId);
+      }, TYPING_CLEAR_MS),
+    );
+  }
+
+  function clearTypingUser(userId?: string) {
+    if (!userId) {
+      setTypingUsers(new Map());
+      for (const timer of typingTimers.current.values()) clearTimeout(timer);
+      typingTimers.current.clear();
+      return;
+    }
+    setTypingUsers((prev) => {
+      const next = new Map(prev);
+      next.delete(userId);
+      return next;
+    });
+    const timer = typingTimers.current.get(userId);
+    if (timer) clearTimeout(timer);
+    typingTimers.current.delete(userId);
+  }
 
   useEffect(() => {
     const append = (message: ChatMessage) => {
@@ -151,11 +263,17 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
       userId: string;
     }) => {
       if (id === conversationId && userId !== currentUserId) {
-        setTypingUserId(userId);
+        bumpTypingUser(userId);
       }
     };
-    const stop = ({ conversationId: id }: { conversationId: string }) => {
-      if (id === conversationId) setTypingUserId(null);
+    const stop = ({
+      conversationId: id,
+      userId,
+    }: {
+      conversationId: string;
+      userId?: string;
+    }) => {
+      if (id === conversationId) clearTypingUser(userId);
     };
     const reaction = ({
       messageId,
@@ -172,9 +290,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
               ...item,
               reactions: item.reactions.filter(
                 (r) =>
-                  !(
-                    r.userId === reaction.userId && r.emoji === reaction.emoji
-                  ),
+                  !(r.userId === reaction.userId && r.emoji === reaction.emoji),
               ),
             };
           }
@@ -268,7 +384,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typingUserId]);
+  }, [messages.length, typingUsers.size]);
 
   useEffect(() => {
     if (!searchOpen || !searchQuery.trim()) {
@@ -307,12 +423,51 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     [conversation, currentUserId],
   );
 
-  const typingName = useMemo(() => {
-    if (!typingUserId || !conversation) return undefined;
-    const member = conversation.members.find((m) => m.userId === typingUserId)
-      ?.user;
-    return member?.displayName ?? member?.name ?? member?.handle ?? undefined;
-  }, [conversation, typingUserId]);
+  const typingNames = useMemo(() => {
+    if (!conversation || !typingUsers.size) return [];
+    return [...typingUsers.keys()]
+      .map((userId) => {
+        const member = conversation.members.find(
+          (m) => m.userId === userId,
+        )?.user;
+        return (
+          member?.displayName ?? member?.name ?? member?.handle ?? "Someone"
+        );
+      })
+      .filter(Boolean);
+  }, [conversation, typingUsers]);
+
+  async function toggleFlag(flag: "isMuted" | "isPinned" | "isArchived") {
+    const next =
+      flag === "isMuted"
+        ? !muted
+        : flag === "isPinned"
+          ? !pinned
+          : !archived;
+    if (flag === "isMuted") setMuted(next);
+    if (flag === "isPinned") setPinned(next);
+    if (flag === "isArchived") setArchived(next);
+    await fetch(`/api/conversations/${conversationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [flag]: next }),
+    });
+    if (flag === "isArchived" && next) router.push("/messages");
+  }
+
+  async function respondRequest(action: "accept_request" | "decline_request") {
+    const res = await fetch(`/api/conversations/${conversationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) return;
+    if (action === "decline_request") {
+      router.push("/messages");
+      return;
+    }
+    setIsRequest(false);
+  }
 
   async function send(payload: {
     body: string;
@@ -344,7 +499,10 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
           input.body = "";
         }
       } catch {
-        /* fall back to plaintext */
+        window.alert(
+          "Couldn’t encrypt this message. It was not sent. Try again.",
+        );
+        return;
       }
     }
 
@@ -374,30 +532,32 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     [socket, conversationId],
   );
 
-  function invite(type: "AUDIO" | "VIDEO") {
-    const callees =
-      conversation?.type === "GROUP"
-        ? conversation.members
-            .filter((m) => m.userId !== currentUserId)
-            .map((m) => m.userId)
-        : peer
-          ? [peer.id]
-          : [];
-    if (!callees.length) return;
-    socket?.emit(
-      "call:invite",
-      { conversationId, calleeIds: callees, type },
-      (result: { ok: boolean; data?: unknown }) => {
-        if (result.ok && result.data) {
-          window.dispatchEvent(
-            new CustomEvent("relune:call-start", { detail: result.data }),
-          );
-        }
-      },
-    );
+  async function invite(type: "AUDIO" | "VIDEO") {
+    if (conversation?.type === "GROUP") {
+      window.alert(
+        "Group calls aren’t available yet. Open a direct chat to call someone.",
+      );
+      return;
+    }
+    const callees = peer ? [peer.id] : [];
+    if (!callees.length || !socket) return;
+    const result = await emitAck(socket, "call:invite", {
+      conversationId,
+      calleeIds: callees,
+      type,
+    });
+    if (!result.ok) {
+      window.alert(result.error || "Could not start the call");
+      return;
+    }
+    if (result.data) dispatchCallStart(result.data);
   }
 
   async function edit(message: ChatMessage) {
+    if (message.isEncrypted) {
+      window.alert("Encrypted messages can’t be edited yet.");
+      return;
+    }
     const next = window.prompt("Edit your message", message.body);
     if (!next?.trim()) return;
     const payload = await fetch(`/api/messages/${message.id}`, {
@@ -422,20 +582,37 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
         return {
           ...item,
           reactions: exists
-            ? item.reactions
+            ? item.reactions.filter(
+                (r) => !(r.userId === currentUserId && r.emoji === emoji),
+              )
             : [...item.reactions, { emoji, userId: currentUserId }],
         };
       }),
     );
-    await fetch(`/api/messages/${message.id}/react`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emoji }),
-    });
+    const exists = message.reactions.some(
+      (r) => r.userId === currentUserId && r.emoji === emoji,
+    );
+    await fetch(
+      exists
+        ? `/api/messages/${message.id}/react?emoji=${encodeURIComponent(emoji)}`
+        : `/api/messages/${message.id}/react`,
+      {
+        method: exists ? "DELETE" : "POST",
+        headers: exists
+          ? undefined
+          : { "Content-Type": "application/json" },
+        body: exists ? undefined : JSON.stringify({ emoji }),
+      },
+    );
   }
 
   async function removeMessage(message: ChatMessage) {
-    const forEveryone = message.senderId === currentUserId;
+    let forEveryone = false;
+    if (message.senderId === currentUserId) {
+      forEveryone = window.confirm(
+        "Delete for everyone?\n\nOK = delete for everyone\nCancel = delete only for you",
+      );
+    }
     setMessages((old) => {
       if (forEveryone) {
         return old.map((item) =>
@@ -448,6 +625,52 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     });
     await fetch(`/api/messages/${message.id}?forEveryone=${forEveryone}`, {
       method: "DELETE",
+    });
+  }
+
+  async function copyMessage(message: ChatMessage) {
+    const text = message.isEncrypted ? "" : message.body;
+    if (!text.trim()) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function forwardMessage(message: ChatMessage) {
+    if (message.isEncrypted) {
+      window.alert("Encrypted messages can’t be forwarded.");
+      return;
+    }
+    const list = await fetch("/api/conversations")
+      .then((r) => r.json())
+      .catch(() => ({ conversations: [] }));
+    const options = (list.conversations ?? []) as Array<{
+      conversationId: string;
+      conversation: { id: string; title: string | null; type: string };
+    }>;
+    const targets = options.filter((row) => row.conversationId !== conversationId);
+    if (!targets.length) {
+      window.alert("No other chats to forward to.");
+      return;
+    }
+    const labels = targets.map((row, i) => {
+      const title =
+        row.conversation.title ||
+        (row.conversation.type === "GROUP" ? "Group" : "Chat");
+      return `${i + 1}. ${title}`;
+    });
+    const pick = window.prompt(
+      `Forward to which chat?\n${labels.join("\n")}\n\nEnter a number`,
+    );
+    const idx = Number(pick) - 1;
+    if (!Number.isFinite(idx) || idx < 0 || idx >= targets.length) return;
+    const targetId = targets[idx]!.conversationId;
+    await fetch(`/api/messages/${message.id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "forward", conversationId: targetId }),
     });
   }
 
@@ -494,11 +717,13 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
   ).length;
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-2xl)] bg-[radial-gradient(circle_at_80%_0%,color-mix(in_srgb,var(--ember)_22%,transparent),transparent_34%),transparent] max-md:min-h-[min(100dvh,100%)] md:min-h-[min(560px,70dvh)]">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-2xl)] bg-[radial-gradient(circle_at_80%_0%,color-mix(in_srgb,var(--ember)_22%,transparent),transparent_34%),transparent] md:min-h-[min(560px,70dvh)]">
       <header className="surface-subtle flex items-center justify-between gap-2 border-b border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] px-3 py-3 backdrop-blur-xl sm:px-5 sm:py-4">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 truncate font-[family-name:var(--font-display)] text-lg tracking-tight sm:text-xl">
-            {isGroup ? <Users className="size-4 shrink-0 text-[var(--signal)]" /> : null}
+            {isGroup ? (
+              <Users className="size-4 shrink-0 text-[var(--signal)]" />
+            ) : null}
             <span className="truncate">{name}</span>
           </h2>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
@@ -518,6 +743,37 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
         <div className="flex shrink-0 gap-1 sm:gap-2">
           <button
             type="button"
+            onClick={() => void toggleFlag("isMuted")}
+            className="icon-button size-11 touch-manipulation sm:size-10"
+            aria-label={muted ? "Unmute chat" : "Mute chat"}
+            title={muted ? "Unmute" : "Mute"}
+          >
+            {muted ? (
+              <BellOff className="size-4" />
+            ) : (
+              <Bell className="size-4" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => void toggleFlag("isPinned")}
+            className={`icon-button size-11 touch-manipulation sm:size-10 ${pinned ? "text-[var(--signal-deep)]" : ""}`}
+            aria-label={pinned ? "Unpin chat" : "Pin chat"}
+            title={pinned ? "Unpin" : "Pin"}
+          >
+            <Pin className="size-4" fill={pinned ? "currentColor" : "none"} />
+          </button>
+          <button
+            type="button"
+            onClick={() => void toggleFlag("isArchived")}
+            className={`icon-button size-11 touch-manipulation sm:size-10 ${archived ? "text-[var(--signal-deep)]" : ""}`}
+            aria-label={archived ? "Unarchive chat" : "Archive chat"}
+            title={archived ? "Unarchive" : "Archive"}
+          >
+            <Archive className="size-4" />
+          </button>
+          <button
+            type="button"
             onClick={() => setSearchOpen((v) => !v)}
             className="icon-button size-11 touch-manipulation sm:size-10"
             aria-label="Search messages"
@@ -533,25 +789,53 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
             >
               <UserPlus className="size-4" />
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => invite("AUDIO")}
-            className="icon-button size-11 touch-manipulation sm:size-10"
-            aria-label="Voice call"
-          >
-            <Phone className="size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => invite("VIDEO")}
-            className="icon-button size-11 touch-manipulation sm:size-10"
-            aria-label="Video call"
-          >
-            <Video className="size-4" />
-          </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => invite("AUDIO")}
+                className="icon-button size-11 touch-manipulation sm:size-10"
+                aria-label="Voice call"
+              >
+                <Phone className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => invite("VIDEO")}
+                className="icon-button size-11 touch-manipulation sm:size-10"
+                aria-label="Video call"
+              >
+                <Video className="size-4" />
+              </button>
+            </>
+          )}
         </div>
       </header>
+
+      {isRequest ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] px-5 py-3">
+          <p className="text-sm text-[var(--muted)]">
+            Message request — accept to move this chat into your inbox.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void respondRequest("accept_request")}
+            >
+              Accept
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => void respondRequest("decline_request")}
+            >
+              Decline
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {searchOpen ? (
         <div className="border-b border-[color:color-mix(in_srgb,var(--mist)_75%,transparent)] px-5 py-3">
@@ -570,7 +854,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
                 setSearchOpen(false);
                 setSearchQuery("");
               }}
-              className="absolute end-2 top-1/2 -translate-y-1/2 icon-button size-8"
+              className="icon-button absolute end-2 top-1/2 size-8 -translate-y-1/2"
               aria-label="Close search"
             >
               <X className="size-3.5" />
@@ -587,12 +871,10 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
                     type="button"
                     className="block w-full rounded-[var(--radius-lg)] px-3 py-2 text-left text-sm hover:bg-[var(--mist)]/40"
                     onClick={() => {
-                      document
-                        .getElementById(`msg-${hit.id}`)
-                        ?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "center",
-                        });
+                      document.getElementById(`msg-${hit.id}`)?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                      });
                     }}
                   >
                     <span className="font-medium">
@@ -691,19 +973,38 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
       ) : null}
 
       <div className="flex-1 space-y-5 overflow-y-auto px-3 py-4 sm:px-5 sm:py-6">
+        <div ref={topSentinel} className="h-1" />
+        {nextCursor || loadingOlder ? (
+          <p className="text-center text-xs text-[var(--muted)]">
+            {loadingOlder
+              ? "Loading earlier messages…"
+              : "Scroll up for earlier messages"}
+          </p>
+        ) : null}
         {messages.map((message) => (
           <div key={message.id} id={`msg-${message.id}`}>
             <MessageBubble
               message={message}
               mine={message.senderId === currentUserId}
+              showReceipts={!isGroup}
               onReply={() => setReply(message)}
               onReact={(emoji) => void react(message, emoji)}
               onEdit={() => void edit(message)}
               onDelete={() => void removeMessage(message)}
+              onCopy={() => void copyMessage(message)}
+              onForward={() => void forwardMessage(message)}
             />
           </div>
         ))}
-        {typingUserId ? <TypingIndicator name={typingName} /> : null}
+        {typingNames.length ? (
+          <TypingIndicator
+            name={
+              typingNames.length === 1
+                ? typingNames[0]
+                : `${typingNames.length} people`
+            }
+          />
+        ) : null}
         <div ref={bottom} />
       </div>
       <MessageComposer

@@ -8,7 +8,10 @@
  */
 import { io } from "socket.io-client";
 
-const base = (process.env.BASE_URL || "http://localhost:3000").replace(/\/$/, "");
+const base = (process.env.BASE_URL || "http://localhost:3000").replace(
+  /\/$/,
+  "",
+);
 const email = process.env.VERIFY_EMAIL || "maya@cirqua.local";
 const password = process.env.VERIFY_PASSWORD || "cirqua1234";
 
@@ -56,10 +59,15 @@ async function req(
   if (init.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
-  const res = await fetch(`${base}${path}`, { ...init, headers, redirect: "manual" });
-  const raw = typeof res.headers.getSetCookie === "function"
-    ? res.headers.getSetCookie()
-    : [];
+  const res = await fetch(`${base}${path}`, {
+    ...init,
+    headers,
+    redirect: "manual",
+  });
+  const raw =
+    typeof res.headers.getSetCookie === "function"
+      ? res.headers.getSetCookie()
+      : [];
   if (jar) {
     for (const c of raw) parseSetCookie(c, jar);
     // fallback
@@ -69,7 +77,9 @@ async function req(
   const allowed = Array.isArray(expect) ? expect : [expect];
   if (!allowed.includes(res.status)) {
     const text = await res.text().catch(() => "");
-    fail(`${init.method || "GET"} ${path} → ${res.status} (expected ${allowed.join("|")}) ${text.slice(0, 180)}`);
+    fail(
+      `${init.method || "GET"} ${path} → ${res.status} (expected ${allowed.join("|")}) ${text.slice(0, 180)}`,
+    );
   } else {
     ok(`${init.method || "GET"} ${path} → ${res.status}`);
   }
@@ -110,7 +120,10 @@ async function csrfLogin(jar: Jar) {
     body,
     redirect: "manual",
   });
-  const set = typeof res.headers.getSetCookie === "function" ? res.headers.getSetCookie() : [];
+  const set =
+    typeof res.headers.getSetCookie === "function"
+      ? res.headers.getSetCookie()
+      : [];
   for (const c of set) parseSetCookie(c, jar);
   parseSetCookie(res.headers.get("set-cookie"), jar);
   if (res.status >= 400) {
@@ -170,7 +183,9 @@ async function checkPages(jar?: Jar) {
 
 async function checkApis(jar: Jar) {
   const health = await req("/api/health?mode=ready", { jar });
-  const h = await json<{ ok?: boolean; database?: string; redis?: string }>(health);
+  const h = await json<{ ok?: boolean; database?: string; redis?: string }>(
+    health,
+  );
   if (!h?.ok) fail("health not ok");
   if (h?.database !== "up") fail(`database ${h?.database}`);
   if (h?.redis && h.redis !== "up" && h.redis !== "not_configured") {
@@ -205,7 +220,11 @@ async function checkApis(jar: Jar) {
   if (!postId) {
     fail("post create missing id");
   } else {
-    await req(`/api/posts/${postId}/like`, { jar, method: "POST", expect: [200, 201] });
+    await req(`/api/posts/${postId}/like`, {
+      jar,
+      method: "POST",
+      expect: [200, 201],
+    });
     await req(`/api/posts/${postId}/comments`, {
       jar,
       method: "POST",
@@ -226,7 +245,9 @@ async function checkApis(jar: Jar) {
       body: JSON.stringify({ type: "DIRECT", userId: leoId }),
       expect: [200, 201],
     });
-    const dmBody = await json<{ conversation?: { id?: string }; id?: string }>(dm);
+    const dmBody = await json<{ conversation?: { id?: string }; id?: string }>(
+      dm,
+    );
     const conversationId = dmBody?.conversation?.id || dmBody?.id;
     if (conversationId) {
       await req(`/api/conversations/${conversationId}/messages`, {
@@ -235,7 +256,10 @@ async function checkApis(jar: Jar) {
         body: JSON.stringify({ body: `verify-msg-${Date.now()}` }),
         expect: [200, 201],
       });
-      await req(`/messages/${conversationId}`, { jar, expect: [200, 307, 308] });
+      await req(`/messages/${conversationId}`, {
+        jar,
+        expect: [200, 307, 308],
+      });
     } else {
       fail("DM create missing conversation id");
     }

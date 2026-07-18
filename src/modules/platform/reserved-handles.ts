@@ -41,22 +41,27 @@ export function normalizeHandleCandidate(raw: string) {
 }
 
 function levenshtein(a: string, b: string) {
-  const matrix = Array.from({ length: a.length + 1 }, () =>
-    new Array<number>(b.length + 1).fill(0),
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const matrix: number[][] = Array.from({ length: rows }, (_, i) =>
+    Array.from({ length: cols }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
   );
-  for (let i = 0; i <= a.length; i++) matrix[i][0] = i;
-  for (let j = 0; j <= b.length; j++) matrix[0][j] = j;
-  for (let i = 1; i <= a.length; i++) {
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[i][j] = Math.min(
-        matrix[i - 1][j] + 1,
-        matrix[i][j - 1] + 1,
-        matrix[i - 1][j - 1] + cost,
+
+  for (let i = 1; i < rows; i++) {
+    const prev = matrix[i - 1] ?? [];
+    const curr = matrix[i] ?? [];
+    for (let j = 1; j < cols; j++) {
+      const cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+      curr[j] = Math.min(
+        (prev[j] ?? 0) + 1,
+        (curr[j - 1] ?? 0) + 1,
+        (prev[j - 1] ?? 0) + cost,
       );
     }
+    matrix[i] = curr;
   }
-  return matrix[a.length][b.length];
+
+  return matrix[a.length]?.[b.length] ?? 0;
 }
 
 /** Returns a user-facing error if the handle is reserved for the platform */
@@ -75,7 +80,10 @@ export function reservedHandleReason(raw: string): string | null {
     return "Usernames similar to the official RELUNE account are not available.";
   }
 
-  if (normalized.endsWith(RESERVED_ROOT) && normalized.length <= RESERVED_ROOT.length + 2) {
+  if (
+    normalized.endsWith(RESERVED_ROOT) &&
+    normalized.length <= RESERVED_ROOT.length + 2
+  ) {
     return "Usernames similar to the official RELUNE account are not available.";
   }
 
@@ -83,7 +91,10 @@ export function reservedHandleReason(raw: string): string | null {
     return "This username is too similar to the official RELUNE account.";
   }
 
-  if (normalized.includes(RESERVED_ROOT) && normalized.length <= RESERVED_ROOT.length + 3) {
+  if (
+    normalized.includes(RESERVED_ROOT) &&
+    normalized.length <= RESERVED_ROOT.length + 3
+  ) {
     return "Usernames containing “relune” are reserved for the platform.";
   }
 

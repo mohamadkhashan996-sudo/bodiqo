@@ -1,7 +1,11 @@
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { filterVisiblePostIds } from "@/modules/users/services/visibility";
+import { uniqueById } from "@/lib/utils";
 import { serializePosts } from "@/modules/feed/services/posts";
+import {
+  blockedIdsFor,
+  filterVisiblePostIds,
+} from "@/modules/users/services/visibility";
 
 const include = {
   author: {
@@ -21,6 +25,7 @@ const include = {
     select: {
       id: true,
       url: true,
+      thumbUrl: true,
       kind: true,
       width: true,
       height: true,
@@ -38,17 +43,24 @@ export async function getHashtagFeed(
   limit = 20,
 ) {
   const normalized = tag.toLowerCase().replace(/^#/, "");
-  const hashtag = await prisma.hashtag.findUnique({ where: { tag: normalized } });
+  const hashtag = await prisma.hashtag.findUnique({
+    where: { tag: normalized },
+  });
   if (!hashtag) throw new AppError("Hashtag not found", 404);
 
   const take = Math.min(Math.max(limit, 1), 50);
+  const blocked = viewerId ? await blockedIdsFor(viewerId) : [];
   const posts = await prisma.post.findMany({
     where: {
       status: "PUBLISHED",
       deletedAt: null,
       visibility: "PUBLIC",
       hashtags: { some: { hashtagId: hashtag.id } },
-      author: { status: "ACTIVE" },
+      author: {
+        status: "ACTIVE",
+        ...(blocked.length ? { id: { notIn: blocked } } : {}),
+      },
+      ...(blocked.length ? { authorId: { notIn: blocked } } : {}),
     },
     include,
     orderBy: { publishedAt: "desc" },
@@ -56,9 +68,9 @@ export async function getHashtagFeed(
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
 
-  const visible = await filterVisiblePostIds(viewerId, posts);
+  const visible = uniqueById(await filterVisiblePostIds(viewerId, posts));
   const page = visible.slice(0, take);
-  const nextCursor = visible.length > take ? visible[take].id : null;
+  const nextCursor = visible.length > take ? (visible[take]?.id ?? null) : null;
 
   return {
     hashtag,

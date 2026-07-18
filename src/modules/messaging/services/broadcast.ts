@@ -1,5 +1,5 @@
-import { getIo } from "@/lib/socket";
 import { prisma } from "@/lib/prisma";
+import { getIo, usersViewingConversation } from "@/lib/socket";
 import { createNotification } from "@/modules/notifications/services/notify";
 
 async function ensureMembersInRoom(conversationId: string, userIds: string[]) {
@@ -15,16 +15,47 @@ async function ensureMembersInRoom(conversationId: string, userIds: string[]) {
   );
 }
 
+function messagePreview(message: {
+  body?: string | null;
+  type?: string;
+  mediaUrl?: string | null;
+  isEncrypted?: boolean;
+}) {
+  if (message.isEncrypted) return "Encrypted message";
+  const body = message.body?.trim();
+  if (body) return body.slice(0, 180);
+  switch (message.type) {
+    case "IMAGE":
+      return "Photo";
+    case "VIDEO":
+      return "Video";
+    case "AUDIO":
+      return "Voice note";
+    case "FILE":
+    case "DOCUMENT":
+      return "File";
+    default:
+      return "New message";
+  }
+}
+
 export async function broadcastMessageNew(
   conversationId: string,
   senderId: string,
-  message: { body?: string | null; id: string; [key: string]: unknown },
+  message: {
+    body?: string | null;
+    id: string;
+    type?: string;
+    mediaUrl?: string | null;
+    isEncrypted?: boolean;
+    [key: string]: unknown;
+  },
 ) {
   const io = getIo();
   if (!io) return;
   const members = await prisma.conversationMember.findMany({
     where: { conversationId, leftAt: null },
-    select: { userId: true },
+    select: { userId: true, isMuted: true },
   });
   await ensureMembersInRoom(
     conversationId,
@@ -39,36 +70,48 @@ export async function broadcastMessageNew(
       senderId,
     });
   }
-  const preview = (message.body || "New message").slice(0, 180);
+
+  const preview = messagePreview(message);
+  const recipients = members.filter((m) => m.userId !== senderId && !m.isMuted);
+  const viewingIds = usersViewingConversation(conversationId);
+
   await Promise.all(
-    members
-      .filter((m) => m.userId !== senderId)
-      .map((m) =>
-        createNotification({
-          userId: m.userId,
-          actorId: senderId,
-          type: "MESSAGE",
-          body: preview,
-          href: `/messages/${conversationId}`,
-        }),
-      ),
+    recipients.map(async (m) => {
+      if (viewingIds.has(m.userId)) return;
+      await createNotification({
+        userId: m.userId,
+        actorId: senderId,
+        type: "MESSAGE",
+        body: preview,
+        href: `/messages/${conversationId}`,
+      });
+    }),
   );
 }
 
-export function broadcastMessageUpdated(conversationId: string, message: unknown) {
-  getIo()?.to(`conversation:${conversationId}`).emit("message:updated", message);
+export function broadcastMessageUpdated(
+  conversationId: string,
+  message: unknown,
+) {
+  getIo()
+    ?.to(`conversation:${conversationId}`)
+    .emit("message:updated", message);
 }
 
 export function broadcastMessageDeleted(
   conversationId: string,
   payload: { messageId: string; forEveryone: boolean; userId: string },
 ) {
-  getIo()?.to(`conversation:${conversationId}`).emit("message:deleted", payload);
+  getIo()
+    ?.to(`conversation:${conversationId}`)
+    .emit("message:deleted", payload);
 }
 
 export function broadcastMessageReaction(
   conversationId: string,
   payload: { messageId: string; reaction: unknown },
 ) {
-  getIo()?.to(`conversation:${conversationId}`).emit("message:reaction", payload);
+  getIo()
+    ?.to(`conversation:${conversationId}`)
+    .emit("message:reaction", payload);
 }

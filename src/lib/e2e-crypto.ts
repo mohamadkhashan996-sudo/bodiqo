@@ -102,7 +102,10 @@ export type EncryptedPayload = {
   senderEphemeralKey: string;
 };
 
-export async function encryptForPeer(plaintext: string, peerPublicJwk: string): Promise<EncryptedPayload> {
+export async function encryptForPeer(
+  plaintext: string,
+  peerPublicJwk: string,
+): Promise<EncryptedPayload> {
   const aes = await deriveAesKey(peerPublicJwk);
   const nonce = crypto.getRandomValues(new Uint8Array(12));
   const encrypted = await crypto.subtle.encrypt(
@@ -122,7 +125,11 @@ export async function encryptForPeer(plaintext: string, peerPublicJwk: string): 
 }
 
 export async function decryptFromPeer(
-  payload: { ciphertext: string; nonce: string; senderEphemeralKey?: string | null },
+  payload: {
+    ciphertext: string;
+    nonce: string;
+    senderEphemeralKey?: string | null;
+  },
   peerPublicJwk?: string | null,
 ) {
   const jwk = peerPublicJwk || payload.senderEphemeralKey;
@@ -160,4 +167,3 @@ export async function callSafetyNumber(peerPublicJwk: string) {
   }
   return groups.join(" ");
 }
-

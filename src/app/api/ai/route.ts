@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
@@ -13,7 +14,6 @@ import {
   suggestComment,
   suggestHashtags,
   translateAssist,
-  trendingPrediction,
 } from "@/modules/ai/services/intelligence";
 import { getSmartRecommendations } from "@/modules/ai/services/recommend";
 
@@ -25,7 +25,8 @@ export async function GET(request: Request) {
     const kind = searchParams.get("kind") ?? "recommend";
 
     if (kind === "recommend") {
-      return ok(await getSmartRecommendations(user.id));
+      const fresh = searchParams.get("fresh") === "1";
+      return ok(await getSmartRecommendations(user.id, { fresh }));
     }
 
     if (kind === "search") {
@@ -34,22 +35,16 @@ export async function GET(request: Request) {
     }
 
     if (kind === "trending") {
-      const posts = await prisma.post.findMany({
-        where: { status: "PUBLISHED", body: { contains: "#" } },
-        select: { body: true },
-        take: 300,
-        orderBy: { createdAt: "desc" },
-      });
-      const counts = new Map<string, number>();
-      for (const p of posts) {
-        for (const tag of p.body.match(/#[\w]+/g) ?? []) {
-          const key = tag.toLowerCase();
-          counts.set(key, (counts.get(key) ?? 0) + 1);
-        }
-      }
-      const topics = [...counts.entries()].map(([tag, count]) => ({
-        tag,
-        count,
+      const { getWindowedTrendingHashtags } = await import(
+        "@/modules/feed/services/trending"
+      );
+      const { trendingPrediction } = await import(
+        "@/modules/ai/services/intelligence"
+      );
+      const tags = await getWindowedTrendingHashtags(24);
+      const topics = tags.map((tag) => ({
+        tag: `#${tag.tag}`,
+        count: "recentCount" in tag ? Number(tag.recentCount) || tag.postCount : tag.postCount,
       }));
       return ok({ predictions: trendingPrediction(topics).slice(0, 12) });
     }

@@ -4,20 +4,27 @@ import Credentials from "next-auth/providers/credentials";
 import Facebook from "next-auth/providers/facebook";
 import Google from "next-auth/providers/google";
 import Twitter from "next-auth/providers/twitter";
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import { headers } from "next/headers";
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import { z } from "zod";
+
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
-import { trackLogin, upsertDeviceSession } from "@/modules/auth/session-track";
 import { createPendingOAuthLink } from "@/modules/auth/account-link";
-import { isProviderEnabled } from "@/modules/auth/provider-settings";
-import { providerEnvReady, type OAuthProviderId } from "@/modules/auth/providers";
+import {
+  consumeAuthChallenge,
+  createAuthChallenge,
+} from "@/modules/auth/challenges";
 import { verifyPassword } from "@/modules/auth/password";
-import { verifyTotpOrBackup } from "@/modules/auth/two-factor";
-import { createAuthChallenge, consumeAuthChallenge } from "@/modules/auth/challenges";
+import { isProviderEnabled } from "@/modules/auth/provider-settings";
+import {
+  type OAuthProviderId,
+  providerEnvReady,
+} from "@/modules/auth/providers";
 import { alertNewLogin } from "@/modules/auth/security";
 import { getAuthSecurityPolicy } from "@/modules/auth/security-policy";
+import { trackLogin, upsertDeviceSession } from "@/modules/auth/session-track";
+import { verifyTotpOrBackup } from "@/modules/auth/two-factor";
 import { officialFollowNewUser } from "@/modules/platform/official-account";
 
 const credentialsSchema = z.object({
@@ -78,7 +85,8 @@ function buildOAuthProviders() {
     list.push(
       Twitter({
         clientId: process.env.AUTH_TWITTER_ID || process.env.AUTH_X_ID!,
-        clientSecret: process.env.AUTH_TWITTER_SECRET || process.env.AUTH_X_SECRET!,
+        clientSecret:
+          process.env.AUTH_TWITTER_SECRET || process.env.AUTH_X_SECRET!,
       }),
     );
   }
@@ -130,10 +138,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
     maxAge:
-      Math.min(
-        365,
-        Math.max(1, Number(process.env.SESSION_DAYS) || 30),
-      ) *
+      Math.min(365, Math.max(1, Number(process.env.SESSION_DAYS) || 30)) *
       24 *
       60 *
       60,
@@ -205,7 +210,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        const ok = await verifyPassword(parsed.data.password, user.passwordHash);
+        const ok = await verifyPassword(
+          parsed.data.password,
+          user.passwordHash,
+        );
         if (!ok) {
           const policy = await getAuthSecurityPolicy();
           const fails = user.failedLoginCount + 1;
@@ -330,8 +338,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
 
           await consumeAuthChallenge(parsed.data.token, pending.purpose);
-          const metaProvider =
-            (pending.meta as { provider?: string } | null)?.provider;
+          const metaProvider = (pending.meta as { provider?: string } | null)
+            ?.provider;
           await trackLogin({
             userId: user.id,
             success: true,
@@ -368,7 +376,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       if (!account) return true;
 
-      if (account.provider === "credentials" || account.provider === "challenge") {
+      if (
+        account.provider === "credentials" ||
+        account.provider === "challenge"
+      ) {
         return true;
       }
 
@@ -476,7 +487,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       } else if (typeof token.exp === "number") {
         const policy = await getAuthSecurityPolicy();
-        const max = Math.floor(Date.now() / 1000) + policy.sessionDays * 24 * 60 * 60;
+        const max =
+          Math.floor(Date.now() / 1000) + policy.sessionDays * 24 * 60 * 60;
         if (token.exp > max) {
           token.exp = max;
         }
@@ -533,17 +545,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     session({ session, token }) {
       if (!token?.sub) {
-        return { ...session, user: undefined as never };
+        return session;
       }
       if (session.user) {
-        session.user.id = token.sub || "";
-        session.user.role = (token.role as string) || "USER";
-        session.user.handle = (token.handle as string | null) ?? null;
+        session.user.id = token.sub;
+        session.user.role =
+          typeof token.role === "string" ? token.role : "USER";
+        session.user.handle =
+          typeof token.handle === "string" || token.handle === null
+            ? token.handle
+            : null;
         session.user.onboardingDone = Boolean(token.onboardingDone);
         session.user.image =
-          (token.image as string | null) ?? session.user.image;
-        (session as { deviceSessionId?: string }).deviceSessionId =
-          (token.deviceSessionId as string | undefined) ?? undefined;
+          typeof token.image === "string" || token.image === null
+            ? token.image
+            : (session.user.image ?? null);
+        session.deviceSessionId =
+          typeof token.deviceSessionId === "string"
+            ? token.deviceSessionId
+            : undefined;
       }
       return session;
     },

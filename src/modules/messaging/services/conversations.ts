@@ -1,12 +1,33 @@
 import { ConversationType } from "@prisma/client";
+
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { canMessage } from "./privacy-gate";
+
+import { canMessage, canRequestMessage } from "./privacy-gate";
 
 const memberSelect = {
-  id: true, userId: true, role: true, isPinned: true, isMuted: true, isArchived: true,
-  isFavorite: true, unreadCount: true, lastReadAt: true, leftAt: true,
-  user: { select: { id: true, handle: true, name: true, displayName: true, image: true, presence: true, lastSeenAt: true } },
+  id: true,
+  userId: true,
+  role: true,
+  isPinned: true,
+  isMuted: true,
+  isArchived: true,
+  isFavorite: true,
+  isRequest: true,
+  unreadCount: true,
+  lastReadAt: true,
+  leftAt: true,
+  user: {
+    select: {
+      id: true,
+      handle: true,
+      name: true,
+      displayName: true,
+      image: true,
+      presence: true,
+      lastSeenAt: true,
+    },
+  },
 } as const;
 const messageInclude = {
   sender: { select: { id: true, handle: true, name: true, image: true } },
@@ -30,7 +51,9 @@ async function maskPresenceForViewer<T extends MemberWithUser>(
   viewerId: string,
   members: T[],
 ): Promise<T[]> {
-  const others = members.filter((m) => m.userId !== viewerId).map((m) => m.userId);
+  const others = members
+    .filter((m) => m.userId !== viewerId)
+    .map((m) => m.userId);
   // Invert: for each peer, check if viewer may see THAT peer's status.
   // filterOnlineStatusViewers(target, candidates) answers who may see target —
   // here viewer is fixed, so batch per unique peer via privacy of each peer.
@@ -100,27 +123,51 @@ async function maskPresenceForViewer<T extends MemberWithUser>(
   });
 }
 
-export async function assertConversationMember(userId: string, conversationId: string) {
+export async function assertConversationMember(
+  userId: string,
+  conversationId: string,
+) {
   const membership = await prisma.conversationMember.findUnique({
     where: { conversationId_userId: { conversationId, userId } },
   });
-  if (!membership || membership.leftAt) throw new AppError("Conversation not found", 404);
+  if (!membership || membership.leftAt)
+    throw new AppError("Conversation not found", 404);
   return membership;
 }
 
-export async function listConversations(userId: string, cursor?: string, limit = 30) {
+export async function listConversations(
+  userId: string,
+  cursor?: string,
+  limit = 30,
+  opts?: { archived?: boolean; requests?: boolean },
+) {
   const take = Math.min(Math.max(limit, 1), 50);
+  const archived = Boolean(opts?.archived);
+  const requests = Boolean(opts?.requests);
   const rows = await prisma.conversationMember.findMany({
-    where: { userId, leftAt: null, isArchived: false },
+    where: {
+      userId,
+      leftAt: null,
+      isArchived: requests ? false : archived,
+      isRequest: requests,
+    },
     include: {
       conversation: {
         include: {
           members: { where: { leftAt: null }, select: memberSelect },
-          messages: { where: { deletedForAll: false }, orderBy: { createdAt: "desc" }, take: 1, include: messageInclude },
+          messages: {
+            where: { deletedForAll: false },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            include: messageInclude,
+          },
         },
       },
     },
-    orderBy: [{ isPinned: "desc" }, { conversation: { lastMessageAt: "desc" } }],
+    orderBy: [
+      { isPinned: "desc" },
+      { conversation: { lastMessageAt: "desc" } },
+    ],
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
@@ -141,7 +188,7 @@ export async function listConversations(userId: string, cursor?: string, limit =
 }
 
 export async function getConversation(userId: string, conversationId: string) {
-  await assertConversationMember(userId, conversationId);
+  const membership = await assertConversationMember(userId, conversationId);
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
     include: {
@@ -166,6 +213,14 @@ export async function getConversation(userId: string, conversationId: string) {
   if (!conversation) throw new AppError("Conversation not found", 404);
   return {
     ...conversation,
+    membership: {
+      isPinned: membership.isPinned,
+      isMuted: membership.isMuted,
+      isArchived: membership.isArchived,
+      isFavorite: membership.isFavorite,
+      isRequest: membership.isRequest,
+      unreadCount: membership.unreadCount,
+    },
     members: await maskPresenceForViewer(
       userId,
       conversation.members as MemberWithUser[],
@@ -174,14 +229,21 @@ export async function getConversation(userId: string, conversationId: string) {
 }
 
 export async function getOrCreateDirect(userId: string, otherUserId: string) {
-  if (userId === otherUserId) throw new AppError("You cannot message yourself", 400);
-  const target = await prisma.user.findUnique({ where: { id: otherUserId }, select: { id: true, status: true } });
-  if (!target || target.status !== "ACTIVE") throw new AppError("User not found", 404);
-  if (!(await canMessage(userId, otherUserId))) throw new AppError("This user is unavailable", 403);
+  if (userId === otherUserId)
+    throw new AppError("You cannot message yourself", 400);
+  const target = await prisma.user.findUnique({
+    where: { id: otherUserId },
+    select: { id: true, status: true },
+  });
+  if (!target || target.status !== "ACTIVE")
+    throw new AppError("User not found", 404);
+
   const existing = await prisma.conversation.findFirst({
     where: {
       type: ConversationType.DIRECT,
-      members: { every: { userId: { in: [userId, otherUserId] }, leftAt: null } },
+      members: {
+        every: { userId: { in: [userId, otherUserId] }, leftAt: null },
+      },
       AND: [
         { members: { some: { userId, leftAt: null } } },
         { members: { some: { userId: otherUserId, leftAt: null } } },
@@ -190,57 +252,185 @@ export async function getOrCreateDirect(userId: string, otherUserId: string) {
     include: { members: { select: memberSelect } },
   });
   if (existing && existing.members.length === 2) return existing;
-  return prisma.conversation.create({
-    data: { type: ConversationType.DIRECT, members: { create: [{ userId }, { userId: otherUserId }] } },
-    include: { members: { select: memberSelect } },
-  });
-}
 
-export async function createGroup(ownerId: string, input: { title: string; memberIds: string[]; image?: string; description?: string }) {
-  const memberIds = [...new Set([ownerId, ...input.memberIds])];
-  if (memberIds.length < 2) throw new AppError("A group needs at least two members", 400);
-  const users = await prisma.user.count({ where: { id: { in: memberIds }, status: "ACTIVE" } });
-  if (users !== memberIds.length) throw new AppError("One or more users were not found", 404);
-  const allowed = await Promise.all(memberIds.filter((id) => id !== ownerId).map((id) => canMessage(ownerId, id)));
-  if (allowed.some((value) => !value)) throw new AppError("One or more users cannot be messaged", 403);
+  const allowed = await canMessage(userId, otherUserId);
+  if (!allowed) {
+    if (!(await canRequestMessage(userId, otherUserId))) {
+      throw new AppError("This user is unavailable", 403);
+    }
+    return prisma.conversation.create({
+      data: {
+        type: ConversationType.DIRECT,
+        members: {
+          create: [
+            { userId, isRequest: false },
+            { userId: otherUserId, isRequest: true },
+          ],
+        },
+      },
+      include: { members: { select: memberSelect } },
+    });
+  }
+
   return prisma.conversation.create({
     data: {
-      type: ConversationType.GROUP, title: input.title, image: input.image, description: input.description,
-      members: { create: memberIds.map((userId) => ({ userId, role: userId === ownerId ? "OWNER" : "MEMBER" })) },
+      type: ConversationType.DIRECT,
+      members: { create: [{ userId }, { userId: otherUserId }] },
     },
     include: { members: { select: memberSelect } },
   });
 }
 
-export async function updateMemberFlags(userId: string, conversationId: string, flags: { isPinned?: boolean; isMuted?: boolean; isArchived?: boolean; isFavorite?: boolean; draftText?: string | null }) {
+export async function createGroup(
+  ownerId: string,
+  input: {
+    title: string;
+    memberIds: string[];
+    image?: string;
+    description?: string;
+  },
+) {
+  const memberIds = [...new Set([ownerId, ...input.memberIds])];
+  if (memberIds.length < 2)
+    throw new AppError("A group needs at least two members", 400);
+  const users = await prisma.user.count({
+    where: { id: { in: memberIds }, status: "ACTIVE" },
+  });
+  if (users !== memberIds.length)
+    throw new AppError("One or more users were not found", 404);
+  const allowed = await Promise.all(
+    memberIds
+      .filter((id) => id !== ownerId)
+      .map((id) => canMessage(ownerId, id)),
+  );
+  if (allowed.some((value) => !value))
+    throw new AppError("One or more users cannot be messaged", 403);
+  return prisma.conversation.create({
+    data: {
+      type: ConversationType.GROUP,
+      title: input.title,
+      image: input.image,
+      description: input.description,
+      members: {
+        create: memberIds.map((userId) => ({
+          userId,
+          role: userId === ownerId ? "OWNER" : "MEMBER",
+        })),
+      },
+    },
+    include: { members: { select: memberSelect } },
+  });
+}
+
+export async function getUnreadMessageCount(userId: string) {
+  const result = await prisma.conversationMember.aggregate({
+    where: { userId, leftAt: null, isArchived: false },
+    _sum: { unreadCount: true },
+  });
+  return result._sum.unreadCount ?? 0;
+}
+
+export async function updateMemberFlags(
+  userId: string,
+  conversationId: string,
+  flags: {
+    isPinned?: boolean;
+    isMuted?: boolean;
+    isArchived?: boolean;
+    isFavorite?: boolean;
+    draftText?: string | null;
+  },
+) {
   await assertConversationMember(userId, conversationId);
-  return prisma.conversationMember.update({ where: { conversationId_userId: { conversationId, userId } }, data: flags });
-}
-
-export async function leaveConversation(userId: string, conversationId: string) {
-  const membership = await assertConversationMember(userId, conversationId);
-  const conversation = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { type: true } });
-  if (conversation?.type === "DIRECT") return updateMemberFlags(userId, conversationId, { isArchived: true });
-  return prisma.conversationMember.update({ where: { id: membership.id }, data: { leftAt: new Date(), isArchived: true } });
-}
-
-export async function addConversationMembers(actorId: string, conversationId: string, userIds: string[]) {
-  const actor = await assertConversationMember(actorId, conversationId);
-  if (actor.role !== "OWNER" && actor.role !== "ADMIN") throw new AppError("Forbidden", 403);
-  const ids = [...new Set(userIds)].filter((id) => id !== actorId);
-  const users = await prisma.user.count({ where: { id: { in: ids }, status: "ACTIVE" } });
-  if (users !== ids.length) throw new AppError("One or more users were not found", 404);
-  await Promise.all(ids.map((userId) => prisma.conversationMember.upsert({
+  return prisma.conversationMember.update({
     where: { conversationId_userId: { conversationId, userId } },
-    create: { conversationId, userId },
-    update: { leftAt: null, isArchived: false },
-  })));
-  return prisma.conversationMember.findMany({ where: { conversationId, userId: { in: ids } }, select: memberSelect });
+    data: flags,
+  });
 }
 
-export async function removeConversationMember(actorId: string, conversationId: string, memberId: string) {
+export async function leaveConversation(
+  userId: string,
+  conversationId: string,
+) {
+  const membership = await assertConversationMember(userId, conversationId);
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { type: true },
+  });
+  if (conversation?.type === "DIRECT")
+    return updateMemberFlags(userId, conversationId, { isArchived: true });
+  return prisma.conversationMember.update({
+    where: { id: membership.id },
+    data: { leftAt: new Date(), isArchived: true },
+  });
+}
+
+export async function acceptMessageRequest(
+  userId: string,
+  conversationId: string,
+) {
+  const membership = await assertConversationMember(userId, conversationId);
+  if (!membership.isRequest) {
+    return membership;
+  }
+  return prisma.conversationMember.update({
+    where: { id: membership.id },
+    data: { isRequest: false, isArchived: false },
+  });
+}
+
+export async function declineMessageRequest(
+  userId: string,
+  conversationId: string,
+) {
+  const membership = await assertConversationMember(userId, conversationId);
+  if (!membership.isRequest) {
+    throw new AppError("Not a message request", 400);
+  }
+  return leaveConversation(userId, conversationId);
+}
+
+export async function addConversationMembers(
+  actorId: string,
+  conversationId: string,
+  userIds: string[],
+) {
   const actor = await assertConversationMember(actorId, conversationId);
-  if (actorId !== memberId && actor.role !== "OWNER" && actor.role !== "ADMIN") throw new AppError("Forbidden", 403);
+  if (actor.role !== "OWNER" && actor.role !== "ADMIN")
+    throw new AppError("Forbidden", 403);
+  const ids = [...new Set(userIds)].filter((id) => id !== actorId);
+  const users = await prisma.user.count({
+    where: { id: { in: ids }, status: "ACTIVE" },
+  });
+  if (users !== ids.length)
+    throw new AppError("One or more users were not found", 404);
+  const allowed = await Promise.all(ids.map((id) => canMessage(actorId, id)));
+  if (allowed.some((ok) => !ok)) {
+    throw new AppError("One or more users cannot be messaged", 403);
+  }
+  await Promise.all(
+    ids.map((userId) =>
+      prisma.conversationMember.upsert({
+        where: { conversationId_userId: { conversationId, userId } },
+        create: { conversationId, userId },
+        update: { leftAt: null, isArchived: false, isRequest: false },
+      }),
+    ),
+  );
+  return prisma.conversationMember.findMany({
+    where: { conversationId, userId: { in: ids } },
+    select: memberSelect,
+  });
+}
+
+export async function removeConversationMember(
+  actorId: string,
+  conversationId: string,
+  memberId: string,
+) {
+  const actor = await assertConversationMember(actorId, conversationId);
+  if (actorId !== memberId && actor.role !== "OWNER" && actor.role !== "ADMIN")
+    throw new AppError("Forbidden", 403);
   return prisma.conversationMember.update({
     where: { conversationId_userId: { conversationId, userId: memberId } },
     data: { leftAt: new Date(), isArchived: true },

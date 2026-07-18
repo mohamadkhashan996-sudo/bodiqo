@@ -2,10 +2,11 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+
 import {
   AdminPageHeader,
-  Panel,
   adminPost,
+  Panel,
   useAdminJson,
 } from "@/components/admin/admin-ui";
 
@@ -36,7 +37,9 @@ function UsersPageInner() {
     if (status) p.set("status", status);
     return `/api/admin/users?${p.toString()}`;
   }, [q, status]);
-  const { data, loading, error, reload } = useAdminJson<{ users: UserRow[] }>(url);
+  const { data, loading, error, reload } = useAdminJson<{ users: UserRow[] }>(
+    url,
+  );
   const [detailData, setDetailData] = useState<{
     user: UserRow & { bio?: string; warningCount: number };
     notes: Array<{ body: string; createdAt: string }>;
@@ -110,10 +113,10 @@ function UsersPageInner() {
       {loading ? <p className="text-sm text-[var(--muted)]">Loading…</p> : null}
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <Panel className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">
+            <thead className="text-[10px] tracking-[0.16em] text-[var(--muted)] uppercase">
               <tr>
                 <th className="pb-3">User</th>
                 <th className="pb-3">Role</th>
@@ -169,16 +172,18 @@ function UsersPageInner() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {[
-                  ["suspend", "Suspend"],
-                  ["ban", "Temp ban"],
-                  ["unban", "Unban"],
-                  ["verify", "Verify"],
-                  ["unverify", "Remove verify"],
-                  ["reset_2fa", "Reset 2FA"],
-                  ["logout_all", "Logout all"],
-                  ["delete", "Delete"],
-                ].map(([action, label]) => (
+                {(
+                  [
+                    ["suspend", "Suspend"],
+                    ["ban", "Temp ban"],
+                    ["unban", "Unban"],
+                    ["verify", "Verify"],
+                    ["unverify", "Remove verify"],
+                    ["reset_2fa", "Reset 2FA"],
+                    ["logout_all", "Logout all"],
+                    ["delete", "Delete"],
+                  ] as const
+                ).map(([action, label]) => (
                   <button
                     key={action}
                     type="button"
@@ -241,7 +246,7 @@ function UsersPageInner() {
                 </button>
               </div>
               <div>
-                <h3 className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+                <h3 className="text-xs tracking-[0.16em] text-[var(--muted)] uppercase">
                   Notes
                 </h3>
                 <ul className="mt-2 space-y-2 text-sm">
@@ -256,7 +261,7 @@ function UsersPageInner() {
                 </ul>
               </div>
               <div>
-                <h3 className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+                <h3 className="text-xs tracking-[0.16em] text-[var(--muted)] uppercase">
                   Login history
                 </h3>
                 <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-[var(--muted)]">
@@ -269,7 +274,7 @@ function UsersPageInner() {
                 </ul>
               </div>
               <div>
-                <h3 className="text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+                <h3 className="text-xs tracking-[0.16em] text-[var(--muted)] uppercase">
                   Devices
                 </h3>
                 <ul className="mt-2 max-h-40 space-y-1 overflow-auto text-xs text-[var(--muted)]">
@@ -291,7 +296,9 @@ function UsersPageInner() {
 
 export default function AdminUsersPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+    <Suspense
+      fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
+    >
       <UsersPageInner />
     </Suspense>
   );

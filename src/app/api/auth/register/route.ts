@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+
+import { assertHoneypotEmpty } from "@/lib/ai-content-gate";
+import { body, fail, guardApiAbuse } from "@/lib/api";
+import { logger } from "@/lib/logger";
+import { sendMail, welcomeEmail } from "@/lib/mail";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
-import { logger } from "@/lib/logger";
-import { body, fail, guardApiAbuse } from "@/lib/api";
-import { createEmailToken } from "@/modules/auth/email-tokens";
-import { sendMail, welcomeEmail } from "@/lib/mail";
 import { absoluteUrl } from "@/lib/url";
 import { getSetting } from "@/modules/admin/services/settings";
+import { createEmailToken } from "@/modules/auth/email-tokens";
 import { hashPassword } from "@/modules/auth/password";
 import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
-import { assertHoneypotEmpty } from "@/lib/ai-content-gate";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -24,6 +25,18 @@ const schema = z.object({
   password: z.string().min(8).max(128),
   website: z.string().max(200).optional(),
 });
+
+/** Uniform success — avoids email/handle enumeration. */
+function registerAck() {
+  return NextResponse.json(
+    {
+      ok: true,
+      message:
+        "If this email is available, we sent a verification link. Check your inbox.",
+    },
+    { status: 201 },
+  );
+}
 
 export async function POST(request: Request) {
   try {
@@ -41,18 +54,29 @@ export async function POST(request: Request) {
     }
     const data = await body(request, schema);
     assertHoneypotEmpty(data.website);
-    // Honeypot + rate limits are the active bot controls.
     assertHandleAvailable(data.handle);
     const email = data.email.toLowerCase();
-    const exists = await prisma.user.findFirst({
-      where: { OR: [{ email }, { handle: data.handle }] },
+
+    const existingEmail = await prisma.user.findUnique({
+      where: { email },
       select: { id: true },
     });
-    if (exists)
+    if (existingEmail) {
+      // Do not reveal that the email exists.
+      return registerAck();
+    }
+
+    const existingHandle = await prisma.user.findUnique({
+      where: { handle: data.handle },
+      select: { id: true },
+    });
+    if (existingHandle) {
       return NextResponse.json(
-        { error: "Email or handle already in use" },
+        { error: "Unable to create account with that handle" },
         { status: 409 },
       );
+    }
+
     const user = await prisma.user.create({
       data: {
         name: data.name,
@@ -78,16 +102,20 @@ export async function POST(request: Request) {
       html: welcome.html,
     });
     logger.info("user_registered", { userId: user.id });
-    return NextResponse.json(
-      {
-        ok: true,
-        user: { id: user.id, email: user.email, handle: user.handle },
-        ...(process.env.NODE_ENV !== "production"
-          ? { token, previewToken: mail.previewToken, verifyUrl }
-          : {}),
-      },
-      { status: 201 },
-    );
+    if (process.env.NODE_ENV !== "production") {
+      return NextResponse.json(
+        {
+          ok: true,
+          message:
+            "If this email is available, we sent a verification link. Check your inbox.",
+          token,
+          previewToken: mail.previewToken,
+          verifyUrl,
+        },
+        { status: 201 },
+      );
+    }
+    return registerAck();
   } catch (error) {
     return fail(error);
   }

@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import Link from "next/link";
 import {
   CalendarClock,
   FilePenLine,
@@ -10,50 +11,139 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { MediaKind, PostType } from "@prisma/client";
+import type { FormEvent } from "react";
+
+import { useExperience } from "@/components/experience-provider";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Tabs } from "@/components/ui/tabs";
-import { useExperience } from "@/components/experience-provider";
+import { compressImageFile, revokePreviewUrl } from "@/lib/image-compress";
+import { ACCEPT_BY_PURPOSE } from "@/lib/media-accept";
 import { uploadFile } from "@/lib/upload-client";
-import type { FeedPost } from "@/types/feed";
+import { captureVideoThumbnail, probeVideoFile } from "@/lib/video-thumbnail";
+import type { FeedPost, MediaKindName, PostTypeName } from "@/types/feed";
 
-type MediaItem = { url: string; kind: MediaKind; name: string };
+type MediaItem = {
+  url: string;
+  kind: MediaKindName;
+  name: string;
+  thumbUrl?: string;
+  width?: number;
+  height?: number;
+  duration?: number;
+  previewUrl?: string;
+};
 
-export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => void }) {
+export function PostComposer({
+  onCreated,
+}: {
+  onCreated?: (post: FeedPost) => void;
+}) {
   const { t } = useExperience();
   const [body, setBody] = useState("");
-  const [kind, setKind] = useState<"Post" | "Photo" | "Video" | "Reel" | "Poll">(
-    "Post",
-  );
+  const [kind, setKind] = useState<
+    "Post" | "Photo" | "Video" | "Reel" | "Poll"
+  >("Post");
   const [sending, setSending] = useState(false);
   const [hints, setHints] = useState<string[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [scheduleAt, setScheduleAt] = useState("");
+  const [visibility, setVisibility] = useState<
+    "PUBLIC" | "FOLLOWERS" | "PRIVATE"
+  >("PUBLIC");
+  const [locationName, setLocationName] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploadAbort = useRef<AbortController | null>(null);
 
   async function onPickFiles(files: FileList | File[]) {
     const list = Array.from(files).slice(0, 10 - media.length);
     if (!list.length) return;
+    uploadAbort.current?.abort();
+    const controller = new AbortController();
+    uploadAbort.current = controller;
     setUploading(true);
+    setUploadProgress(0);
     setHints([]);
     try {
       const uploaded: MediaItem[] = [];
       for (const file of list) {
-        const data = await uploadFile(file);
-        uploaded.push({
-          url: data.url,
-          kind: data.kind as MediaKind,
-          name: file.name,
-        });
+        if (controller.signal.aborted) break;
+        const isVideo =
+          file.type.startsWith("video/") || /\.(mp4|webm)$/i.test(file.name);
+        if (isVideo) {
+          const probe = await probeVideoFile(file);
+          try {
+            const thumbFile = await captureVideoThumbnail(
+              probe.objectUrl,
+              probe.durationSec,
+            );
+            const thumb = await uploadFile(thumbFile, {
+              purpose: kind === "Reel" ? "short-thumb" : "video-thumb",
+              signal: controller.signal,
+              onProgress: (p) => setUploadProgress(Math.round(p * 0.2)),
+            });
+            const data = await uploadFile(file, {
+              purpose: kind === "Reel" ? "short" : "video",
+              width: probe.width,
+              height: probe.height,
+              durationMs: Math.round(probe.durationSec * 1000),
+              thumbUrl: thumb.url,
+              signal: controller.signal,
+              onProgress: (p) =>
+                setUploadProgress(20 + Math.round(p * 0.8)),
+            });
+            uploaded.push({
+              url: data.url,
+              kind: data.kind as MediaKindName,
+              name: file.name,
+              thumbUrl: thumb.url,
+              width: probe.width,
+              height: probe.height,
+              duration: probe.durationSec,
+              previewUrl: probe.objectUrl,
+            });
+          } catch (error) {
+            URL.revokeObjectURL(probe.objectUrl);
+            throw error;
+          }
+        } else {
+          const compressed = await compressImageFile(file);
+          try {
+            const data = await uploadFile(compressed.file, {
+              purpose: "image",
+              width: compressed.width || undefined,
+              height: compressed.height || undefined,
+              signal: controller.signal,
+              onProgress: setUploadProgress,
+            });
+            uploaded.push({
+              url: data.url,
+              kind: data.kind as MediaKindName,
+              name: file.name,
+              width: compressed.width || undefined,
+              height: compressed.height || undefined,
+              previewUrl: compressed.previewUrl,
+            });
+          } catch (error) {
+            revokePreviewUrl(compressed.previewUrl);
+            throw error;
+          }
+        }
       }
       setMedia((prev) => [...prev, ...uploaded].slice(0, 10));
     } catch (error) {
-      setHints([error instanceof Error ? error.message : "Upload failed"]);
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setHints(["Upload cancelled"]);
+      } else {
+        setHints([error instanceof Error ? error.message : "Upload failed"]);
+      }
     } finally {
       setUploading(false);
+      setUploadProgress(null);
+      uploadAbort.current = null;
     }
   }
 
@@ -109,11 +199,14 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
       }
     }
 
-    let type: PostType = "TEXT";
+    let type: PostTypeName = "TEXT";
     if (kind === "Poll") type = "POLL";
     else if (kind === "Reel") type = "SHORT";
     else if (kind === "Video") type = "VIDEO";
-    else if (kind === "Photo" || media.some((m) => m.kind === "IMAGE" || m.kind === "GIF")) {
+    else if (
+      kind === "Photo" ||
+      media.some((m) => m.kind === "IMAGE" || m.kind === "GIF")
+    ) {
       type = media.some((m) => m.kind === "VIDEO") ? "VIDEO" : "IMAGE";
     } else if (media.some((m) => m.kind === "VIDEO")) {
       type = "VIDEO";
@@ -123,8 +216,19 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
       body,
       type,
       status,
-      media: media.map((m) => ({ url: m.url, kind: m.kind })),
+      visibility,
+      media: media.map((m) => ({
+        url: m.url,
+        kind: m.kind,
+        thumbUrl: m.thumbUrl,
+        width: m.width,
+        height: m.height,
+        duration: m.duration,
+      })),
     };
+    if (locationName.trim()) {
+      payload.locationName = locationName.trim();
+    }
     if (kind === "Poll") {
       payload.poll = { options: filledPoll };
     }
@@ -150,6 +254,8 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
       setMedia([]);
       setPollOptions(["", ""]);
       setScheduleAt("");
+      setLocationName("");
+      setVisibility("PUBLIC");
       if (status === "PUBLISHED") onCreated?.(data.post);
       else {
         setHints([
@@ -183,12 +289,12 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
 
   const accept =
     kind === "Reel"
-      ? "video/mp4,video/webm"
+      ? ACCEPT_BY_PURPOSE.short
       : kind === "Video"
-        ? "video/mp4,video/webm,image/*,image/gif"
+        ? ACCEPT_BY_PURPOSE.post
         : kind === "Photo"
-          ? "image/*,image/gif"
-          : "image/*,image/gif,video/mp4,video/webm";
+          ? ACCEPT_BY_PURPOSE.image
+          : ACCEPT_BY_PURPOSE.post;
 
   return (
     <form
@@ -220,7 +326,9 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
                 value={option}
                 onChange={(e) =>
                   setPollOptions((prev) =>
-                    prev.map((item, i) => (i === index ? e.target.value : item)),
+                    prev.map((item, i) =>
+                      i === index ? e.target.value : item,
+                    ),
                   )
                 }
                 placeholder={`Option ${index + 1}`}
@@ -270,24 +378,33 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
       ) : null}
       {media.length ? (
         <div className="mt-3 flex gap-2 overflow-x-auto px-2 pb-1">
-          {media.map((item) => (
+          {media.map((item, index) => (
             <div
-              key={item.url}
+              key={`${item.url}-${index}`}
               className="relative size-20 shrink-0 overflow-hidden rounded-2xl border-2 border-[var(--mist-strong)]"
             >
               {item.kind === "VIDEO" ? (
-                <video src={item.url} className="size-full object-cover" muted />
+                <video
+                  src={item.url}
+                  className="size-full object-cover"
+                  muted
+                />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={item.url} alt="" className="size-full object-cover" />
+                <img
+                  src={item.previewUrl || item.url}
+                  alt=""
+                  className="size-full object-cover"
+                />
               )}
               <button
                 type="button"
                 aria-label={`Remove ${item.name}`}
-                className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-[var(--ink)]/80 text-white"
-                onClick={() =>
-                  setMedia((prev) => prev.filter((m) => m.url !== item.url))
-                }
+                className="absolute top-1 right-1 grid size-6 place-items-center rounded-full bg-[var(--ink)]/80 text-white"
+                onClick={() => {
+                  revokePreviewUrl(item.previewUrl);
+                  setMedia((prev) => prev.filter((m) => m.url !== item.url));
+                }}
               >
                 <X className="size-3" />
               </button>
@@ -300,6 +417,28 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
           ) : null}
         </div>
       ) : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t-2 border-[var(--mist-strong)] px-2 pt-3">
+        <label className="text-xs text-[var(--muted)]">Visibility</label>
+        <select
+          value={visibility}
+          onChange={(e) =>
+            setVisibility(e.target.value as typeof visibility)
+          }
+          className="rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm"
+          aria-label="Post visibility"
+        >
+          <option value="PUBLIC">Public</option>
+          <option value="FOLLOWERS">Followers</option>
+          <option value="PRIVATE">Only me</option>
+        </select>
+        <Input
+          value={locationName}
+          onChange={(e) => setLocationName(e.target.value)}
+          placeholder="Location (optional)"
+          className="max-w-xs"
+          maxLength={120}
+        />
+      </div>
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t-2 border-[var(--mist-strong)] px-2 pt-3">
         <CalendarClock className="size-4 text-[var(--muted)]" />
         <Input
@@ -317,6 +456,12 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
             Clear schedule
           </button>
         ) : null}
+        <Link
+          href="/studio/posts"
+          className="ms-auto text-xs font-semibold text-[var(--signal-deep)] hover:underline"
+        >
+          Drafts & scheduled
+        </Link>
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t-2 border-[var(--mist-strong)] pt-3">
         <div className="flex flex-wrap gap-2 text-xs text-[var(--muted-strong)]">
@@ -340,12 +485,23 @@ export function PostComposer({ onCreated }: { onCreated?: (post: FeedPost) => vo
             >
               <ImagePlus className="size-4" aria-hidden />
               {uploading
-                ? "Uploading…"
+                ? uploadProgress != null
+                  ? `Uploading ${uploadProgress}%`
+                  : "Uploading…"
                 : kind === "Photo"
                   ? "Add photos / GIFs"
                   : kind === "Reel" || kind === "Video"
                     ? "Add video"
                     : "Media / GIFs"}
+            </button>
+          ) : null}
+          {uploading ? (
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-full px-2 py-1 text-[var(--danger)] hover:bg-[var(--mist)]"
+              onClick={() => uploadAbort.current?.abort()}
+            >
+              Cancel upload
             </button>
           ) : null}
           <button

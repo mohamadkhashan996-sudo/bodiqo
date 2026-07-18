@@ -1,15 +1,16 @@
 import { z } from "zod";
+
 import { body, clientIp, fail, guardApiAbuse, ok } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { getSetting } from "@/modules/admin/services/settings";
-import { consumePhoneOtp } from "@/modules/auth/phone-otp";
-import { normalizePhone, phoneAccountEmail } from "@/modules/auth/phone";
 import { createAuthChallenge } from "@/modules/auth/challenges";
+import { normalizePhone, phoneAccountEmail } from "@/modules/auth/phone";
+import { consumePhoneOtp } from "@/modules/auth/phone-otp";
 import { officialFollowNewUser } from "@/modules/platform/official-account";
 import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
-import { logger } from "@/lib/logger";
 
 const schema = z.object({
   name: z.string().trim().min(2).max(80),

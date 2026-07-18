@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { body, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
+
+import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {

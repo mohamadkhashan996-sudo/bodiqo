@@ -1,48 +1,50 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useCallback, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+
 import { PostCard } from "@/components/feed/post-card";
-import { EmptyState, Skeleton } from "@/components/ui/card";
 import { PageTransition } from "@/components/motion/primitives";
+import { EmptyState, Skeleton } from "@/components/ui/card";
+import { useCursorFeed } from "@/hooks/use-cursor-feed";
 import type { FeedPost, HashtagSummary } from "@/types/feed";
 
 export default function HashtagPage() {
   const { tag } = useParams<{ tag: string }>();
   const [hashtag, setHashtag] = useState<HashtagSummary | null>(null);
-  const [posts, setPosts] = useState<FeedPost[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const sentinel = useRef<HTMLDivElement>(null);
 
-  const load = useCallback(async (after?: string | null) => {
-    if (after) setLoadingMore(true);
-    const res = await fetch(
-      `/api/hashtags/${encodeURIComponent(tag)}${after ? `?cursor=${after}` : ""}`,
-    );
-    const data = await res.json();
-    if (res.ok) {
-      setHashtag(data.hashtag);
-      setPosts((old) => (after ? [...old, ...(data.posts ?? [])] : data.posts ?? []));
-      setCursor(data.nextCursor ?? null);
-    }
-    setLoading(false);
-    setLoadingMore(false);
-  }, [tag]);
+  const fetchPage = useCallback(
+    async (cursor: string | null) => {
+      const res = await fetch(
+        `/api/hashtags/${encodeURIComponent(tag)}${cursor ? `?cursor=${cursor}` : ""}`,
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return {
+          items: [] as FeedPost[],
+          nextCursor: null,
+          error: "Failed to load",
+        };
+      }
+      if (!cursor) setHashtag(data.hashtag ?? null);
+      return {
+        items: (data.posts ?? []) as FeedPost[],
+        nextCursor: data.nextCursor ?? null,
+      };
+    },
+    [tag],
+  );
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && cursor) void load(cursor);
-    });
-    if (sentinel.current) observer.observe(sentinel.current);
-    return () => observer.disconnect();
-  }, [cursor, load]);
+  const {
+    items: posts,
+    loading,
+    loadingMore,
+    sentinelRef,
+  } = useCursorFeed({
+    resetKey: String(tag),
+    fetchPage,
+  });
 
   return (
     <PageTransition className="page-shell page-stack">
@@ -52,9 +54,14 @@ export default function HashtagPage() {
           #{decodeURIComponent(tag)}
         </h1>
         <p className="mt-3 text-sm text-[var(--muted)]">
-          {hashtag ? `${hashtag.postCount.toLocaleString()} public posts` : "Loading topic activity…"}
+          {hashtag
+            ? `${hashtag.postCount.toLocaleString()} public posts`
+            : "Loading topic activity…"}
         </p>
-        <Link href="/trending" className="mt-4 inline-block text-sm font-semibold text-[var(--signal)]">
+        <Link
+          href="/trending"
+          className="mt-4 inline-block text-sm font-semibold text-[var(--signal)]"
+        >
           Browse trending topics →
         </Link>
       </section>
@@ -71,8 +78,10 @@ export default function HashtagPage() {
           {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
-          {loadingMore ? <Skeleton className="h-48 rounded-[var(--radius-2xl)]" /> : null}
-          <div ref={sentinel} className="h-4" />
+          {loadingMore ? (
+            <Skeleton className="h-48 rounded-[var(--radius-2xl)]" />
+          ) : null}
+          <div ref={sentinelRef} className="h-4" />
         </div>
       ) : null}
 

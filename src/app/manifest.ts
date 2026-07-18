@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+
 import { site } from "@/config/site";
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -9,26 +10,26 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/home",
     display: "standalone",
     background_color: "#F4F2EE",
-    theme_color: "#1F9B8E",
+    theme_color: "#178077",
     orientation: "portrait-primary",
     lang: "en",
     categories: ["social", "lifestyle"],
     icons: [
       {
         src: "/brand/app-icon.png",
-        sizes: "512x512",
+        sizes: "1024x1024",
         type: "image/png",
         purpose: "any",
       },
       {
         src: "/brand/app-icon.png",
-        sizes: "512x512",
+        sizes: "1024x1024",
         type: "image/png",
         purpose: "maskable",
       },
       {
         src: "/favicon.png",
-        sizes: "192x192",
+        sizes: "1024x1024",
         type: "image/png",
       },
     ],

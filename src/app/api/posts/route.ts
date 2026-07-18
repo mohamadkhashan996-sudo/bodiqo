@@ -1,4 +1,12 @@
 import {
+  MediaKind,
+  PostStatus,
+  PostType,
+  PostVisibility,
+} from "@prisma/client";
+import { z } from "zod";
+
+import {
   body,
   fail,
   guardApiAbuse,
@@ -6,23 +14,24 @@ import {
   optionalUser,
   requireUser,
 } from "@/lib/api";
+import { mediaUrlSchema } from "@/lib/media-url";
+import { clampInt, httpUrlSchema } from "@/lib/security";
 import {
   createPost,
+  type FeedMode,
   getAuthorWorkspacePosts,
   getFeed,
   getPostsByHandle,
-  type FeedMode,
 } from "@/modules/feed/services/posts";
-import { MediaKind, PostStatus, PostType, PostVisibility } from "@prisma/client";
-import { z } from "zod";
-import { mediaUrlSchema } from "@/lib/media-url";
-import { clampInt, httpUrlSchema } from "@/lib/security";
 
 const schema = z.object({
   body: z.string().max(10000).optional(),
   type: z.nativeEnum(PostType).optional(),
   visibility: z.nativeEnum(PostVisibility).optional(),
   linkUrl: httpUrlSchema.optional(),
+  locationName: z.string().trim().max(120).nullable().optional(),
+  locationLat: z.number().min(-90).max(90).nullable().optional(),
+  locationLng: z.number().min(-180).max(180).nullable().optional(),
   status: z
     .enum([PostStatus.PUBLISHED, PostStatus.DRAFT, PostStatus.SCHEDULED])
     .optional(),
@@ -32,6 +41,7 @@ const schema = z.object({
       z.object({
         url: mediaUrlSchema,
         kind: z.nativeEnum(MediaKind),
+        thumbUrl: mediaUrlSchema.optional(),
         width: z.number().int().positive().optional(),
         height: z.number().int().positive().optional(),
         duration: z.number().positive().optional(),
@@ -47,13 +57,7 @@ const schema = z.object({
     .optional(),
 });
 
-const feedModes = z.enum([
-  "home",
-  "following",
-  "latest",
-  "trending",
-  "foryou",
-]);
+const feedModes = z.enum(["home", "following", "latest", "trending", "foryou"]);
 
 export async function GET(r: Request) {
   try {
@@ -62,22 +66,36 @@ export async function GET(r: Request) {
     const q = new URL(r.url).searchParams;
     const author = q.get("author");
     const mine = q.get("mine");
-    if (mine === "drafts" || mine === "scheduled") {
+    if (mine === "drafts" || mine === "scheduled" || mine === "archived") {
       const me = await requireUser();
       return ok(
         await getAuthorWorkspacePosts(
           me.id,
-          mine === "drafts" ? "DRAFT" : "SCHEDULED",
+          mine === "drafts"
+            ? "DRAFT"
+            : mine === "scheduled"
+              ? "SCHEDULED"
+              : "ARCHIVED",
           clampInt(q.get("limit"), 30, 1, 50),
         ),
       );
     }
     if (author) {
+      const typesParam = q.get("types");
+      const types = typesParam
+        ? typesParam
+            .split(",")
+            .map((t) => t.trim().toUpperCase())
+            .filter((t): t is PostType =>
+              (Object.values(PostType) as string[]).includes(t),
+            )
+        : undefined;
       return ok(
         await getPostsByHandle(
           author,
           clampInt(q.get("limit"), 30, 1, 50),
           u?.id,
+          types?.length ? { types } : undefined,
         ),
       );
     }

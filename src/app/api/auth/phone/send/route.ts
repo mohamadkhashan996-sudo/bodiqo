@@ -1,7 +1,8 @@
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok } from "@/lib/api";
-import { issuePhoneOtp } from "@/modules/auth/phone-otp";
 import { clientIp } from "@/lib/api";
+import { issuePhoneOtp } from "@/modules/auth/phone-otp";
 
 export async function POST(request: Request) {
   try {

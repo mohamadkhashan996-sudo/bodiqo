@@ -1,7 +1,7 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Image as ImageIcon,
@@ -11,13 +11,15 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import type { FormEvent } from "react";
+
+import { useGuest } from "@/components/auth/guest-provider";
 import { PageTransition } from "@/components/motion/primitives";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/card";
-import { MediaImage } from "@/components/ui/media-image";
 import { Textarea } from "@/components/ui/input";
-import { useGuest } from "@/components/auth/guest-provider";
+import { MediaImage } from "@/components/ui/media-image";
 
 type MemberUser = {
   id: string;
@@ -126,7 +128,9 @@ export default function CommunityPage() {
     if (!requireAuth()) return;
     setBusy(true);
     setError(null);
-    const res = await fetch(`/api/communities/${slug}/join`, { method: "POST" });
+    const res = await fetch(`/api/communities/${slug}/join`, {
+      method: "POST",
+    });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
@@ -136,7 +140,10 @@ export default function CommunityPage() {
     await load();
   }
 
-  async function resolveRequest(memberId: string, action: "approve" | "reject") {
+  async function resolveRequest(
+    memberId: string,
+    action: "approve" | "reject",
+  ) {
     if (!requireAuth()) return;
     const res = await fetch(`/api/communities/${slug}/requests`, {
       method: "POST",
@@ -254,7 +261,7 @@ export default function CommunityPage() {
         <div className="p-7">
           <div className="flex flex-wrap items-end justify-between gap-5">
             <div>
-              <p className="flex items-center gap-2 text-xs uppercase tracking-[.2em] text-[var(--ember)]">
+              <p className="flex items-center gap-2 text-xs tracking-[.2em] text-[var(--ember)] uppercase">
                 {community.visibility === "PRIVATE" ? (
                   <>
                     <Lock className="size-3.5" /> Private community
@@ -270,7 +277,11 @@ export default function CommunityPage() {
                 {community.description}
               </p>
             </div>
-            <Button onClick={() => void toggleMembership()} variant="signal" disabled={busy}>
+            <Button
+              onClick={() => void toggleMembership()}
+              variant="signal"
+              disabled={busy}
+            >
               {joinLabel}
             </Button>
           </div>
@@ -278,7 +289,9 @@ export default function CommunityPage() {
             {community.membersCount} members · {community.postsCount} posts
             {pendingCount > 0 ? ` · ${pendingCount} pending` : ""}
           </p>
-          {error ? <p className="mt-3 text-sm text-[var(--danger)]">{error}</p> : null}
+          {error ? (
+            <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>
+          ) : null}
         </div>
       </section>
 
@@ -295,7 +308,7 @@ export default function CommunityPage() {
           </p>
         </Card>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
+        <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]">
           <main className="space-y-4">
             {canModerate && requests.length > 0 ? (
               <Card className="space-y-3 p-5">
@@ -417,7 +430,7 @@ export default function CommunityPage() {
                       <Pin className="size-3.5" /> Pinned
                     </p>
                   ) : null}
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7">
+                  <p className="mt-3 text-sm leading-7 whitespace-pre-wrap">
                     {postItem.body}
                   </p>
                   {postItem.mediaUrl ? (
@@ -448,7 +461,7 @@ export default function CommunityPage() {
                     key={member.user.id}
                     className="flex items-start justify-between gap-2"
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
                       <Avatar
                         src={member.user.image}
                         name={displayName(member.user)}
@@ -467,7 +480,7 @@ export default function CommunityPage() {
                             displayName(member.user)
                           )}
                         </p>
-                        <p className="text-[10px] uppercase tracking-wider text-[var(--muted)]">
+                        <p className="text-[10px] tracking-wider text-[var(--muted)] uppercase">
                           {member.role.toLowerCase()}
                         </p>
                       </div>
@@ -526,7 +539,7 @@ export default function CommunityPage() {
                   </Button>
                 </div>
               ) : (
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">
+                <p className="mt-3 text-sm leading-6 whitespace-pre-wrap text-[var(--muted)]">
                   {community.rules ?? "Bring curiosity. Leave room for others."}
                 </p>
               )}

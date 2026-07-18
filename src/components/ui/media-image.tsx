@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+
 import { cn } from "@/lib/utils";
 
 const OPTIMIZABLE_HOSTS = new Set([

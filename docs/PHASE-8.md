@@ -3,11 +3,13 @@
 Closes the remaining launch blockers after Phase 7 auth.
 
 ## Database
+
 - Prisma provider switched to **PostgreSQL**
 - Use `npm run db:migrate:dev` locally, `npm run db:migrate` in production
 - `docker compose up postgres redis -d` for local infra
 
 ## Ops
+
 - Strict production env validation (`src/config/env.ts`)
 - Redis-backed cache + rate limits when `REDIS_URL` is set
 - Socket.io CORS locked to `AUTH_URL` origins
@@ -16,20 +18,24 @@ Closes the remaining launch blockers after Phase 7 auth.
 - Health checks include Redis on `?mode=ready`
 
 ## Product
+
 - `/terms` and `/privacy` legal pages
 - Local media upload API (`POST /api/upload`) + composer integration
 - Registration respects admin `registration.open` setting
 - Demo seeds blocked in production unless `ALLOW_DEMO_SEEDS=true`
 
 ## Mail
+
 - Production requires `MAIL_PROVIDER=resend` + `RESEND_API_KEY`
 
 ## Docker & CI
+
 - `docker-compose.yml` runs Postgres, Redis, and the app
 - `Dockerfile` runs `prisma migrate deploy` on boot
 - CI template: copy `docs/ci-workflow.example.yml` → `.github/workflows/ci.yml`
 
 ## Launch checklist
+
 1. `docker compose up -d` or managed Postgres + Redis
 2. Set production `.env` (see `.env.example`)
 3. `npm run db:migrate`

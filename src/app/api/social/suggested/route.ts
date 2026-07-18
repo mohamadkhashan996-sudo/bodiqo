@@ -1,4 +1,4 @@
-import { fail, ok, optionalUser, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok, optionalUser } from "@/lib/api";
 import { getSuggestedUsers } from "@/modules/users/services/suggestions";
 
 export async function GET(request: Request) {

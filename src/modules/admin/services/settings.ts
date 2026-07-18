@@ -1,7 +1,8 @@
-import { prisma } from "@/lib/prisma";
-import { cacheDel, cached } from "@/lib/cache";
-import { writeAudit } from "./audit";
 import { site } from "@/config/env";
+import { cached, cacheDel } from "@/lib/cache";
+import { prisma } from "@/lib/prisma";
+
+import { writeAudit } from "./audit";
 
 export const DEFAULT_SETTINGS: Record<string, unknown> = {
   websiteName: site.name,
@@ -51,7 +52,8 @@ export async function getSettings() {
     const rows = await prisma.systemSetting.findMany();
     const merged = { ...DEFAULT_SETTINGS };
     for (const row of rows) {
-      merged[row.key] = row.value as unknown;
+      // Prisma Json values are assignable to our settings bag.
+      merged[row.key] = row.value;
     }
     return merged;
   });
@@ -59,7 +61,8 @@ export async function getSettings() {
 
 export async function getSetting<T = unknown>(key: string): Promise<T> {
   const all = await getSettings();
-  return (all[key] ?? DEFAULT_SETTINGS[key]) as T;
+  const value = all[key] ?? DEFAULT_SETTINGS[key];
+  return value as T;
 }
 
 export async function updateSettings(

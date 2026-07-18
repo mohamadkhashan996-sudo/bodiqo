@@ -1,4 +1,4 @@
-import { fail, ok, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok } from "@/lib/api";
 import { getPublicAuthProviders } from "@/modules/auth/provider-settings";
 
 export async function GET(request: Request) {

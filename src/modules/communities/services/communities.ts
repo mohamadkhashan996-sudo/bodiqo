@@ -1,10 +1,12 @@
-import {
+import type {
   CommunityJoinStatus,
   CommunityRole,
   CommunityVisibility,
 } from "@prisma/client";
-import { AppError } from "@/lib/errors";
+
 import { assertContentSafe } from "@/lib/ai-content-gate";
+import { AppError } from "@/lib/errors";
+import { assertOptionalOwnedMedia } from "@/lib/media-asset";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/modules/notifications/services/notify";
 
@@ -76,6 +78,13 @@ export async function createCommunity(
   if (slug.length < 2) throw new AppError("Invalid slug", 400);
   const existing = await prisma.community.findUnique({ where: { slug } });
   if (existing) throw new AppError("That slug is already taken", 409);
+
+  await assertOptionalOwnedMedia(userId, input.image, {
+    kinds: ["IMAGE", "GIF"],
+  });
+  await assertOptionalOwnedMedia(userId, input.coverImage, {
+    kinds: ["IMAGE", "GIF"],
+  });
 
   return prisma.community.create({
     data: {
@@ -189,6 +198,17 @@ export async function updateCommunity(
   const community = await prisma.community.findUnique({ where: { slug } });
   if (!community) throw new AppError("Community not found", 404);
   await assertCanModerate(actorId, community.id, ["OWNER", "ADMIN"]);
+
+  if (data.image !== undefined) {
+    await assertOptionalOwnedMedia(actorId, data.image, {
+      kinds: ["IMAGE", "GIF"],
+    });
+  }
+  if (data.coverImage !== undefined) {
+    await assertOptionalOwnedMedia(actorId, data.coverImage, {
+      kinds: ["IMAGE", "GIF"],
+    });
+  }
 
   return prisma.community.update({
     where: { id: community.id },
@@ -410,7 +430,12 @@ export async function setMemberRole(
 export async function createCommunityPost(
   userId: string,
   slug: string,
-  input: { body: string; mediaUrl?: string; isPinned?: boolean; isAnnouncement?: boolean },
+  input: {
+    body: string;
+    mediaUrl?: string;
+    isPinned?: boolean;
+    isAnnouncement?: boolean;
+  },
 ) {
   const community = await prisma.community.findUnique({ where: { slug } });
   if (!community) throw new AppError("Community not found", 404);
@@ -420,6 +445,12 @@ export async function createCommunityPost(
   }
 
   assertContentSafe(input.body, "Community post");
+
+  if (input.mediaUrl) {
+    await assertOptionalOwnedMedia(userId, input.mediaUrl, {
+      kinds: ["IMAGE", "GIF", "VIDEO"],
+    });
+  }
 
   const canPin =
     member.role === "OWNER" ||

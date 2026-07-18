@@ -31,7 +31,8 @@ function ensureVapid() {
 
 export function isWebPushConfigured() {
   return Boolean(
-    process.env.VAPID_PUBLIC_KEY?.trim() && process.env.VAPID_PRIVATE_KEY?.trim(),
+    process.env.VAPID_PUBLIC_KEY?.trim() &&
+    process.env.VAPID_PRIVATE_KEY?.trim(),
   );
 }
 
@@ -47,7 +48,15 @@ export async function sendWebPush(
         keys: { p256dh: subscription.p256dh, auth: subscription.auth },
       },
       JSON.stringify(payload),
-      { TTL: 60 * 60 * 12, urgency: payload.type === "CALL" || payload.type === "MISSED_CALL" || payload.type === "MESSAGE" ? "high" : "normal" },
+      {
+        TTL: 60 * 60 * 12,
+        urgency:
+          payload.type === "CALL" ||
+          payload.type === "MISSED_CALL" ||
+          payload.type === "MESSAGE"
+            ? "high"
+            : "normal",
+      },
     );
     return { ok: true as const, gone: false };
   } catch (error) {

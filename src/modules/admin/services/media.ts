@@ -1,6 +1,8 @@
-import { MediaKind, MediaStatus } from "@prisma/client";
+import type { MediaKind, MediaStatus } from "@prisma/client";
+
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+
 import { writeAudit } from "./audit";
 
 export async function listMediaAssets(opts: {
@@ -36,9 +38,7 @@ export async function registerMediaAsset(
   // Optimization stubs: thumbnails / compression hooks for CDN workers
   const optimizedUrl = data.originalUrl;
   const thumbUrl =
-    data.kind === "IMAGE" || data.kind === "VIDEO"
-      ? data.originalUrl
-      : null;
+    data.kind === "IMAGE" || data.kind === "VIDEO" ? data.originalUrl : null;
 
   return prisma.mediaAsset.create({
     data: {

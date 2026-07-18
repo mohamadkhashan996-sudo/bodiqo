@@ -1,21 +1,23 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { PageTransition } from "@/components/motion/primitives";
-import { safeCallbackUrl } from "@/lib/guest/paths";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { PhoneInput } from "@/components/ui/phone-input";
-import { StateBanner } from "@/components/ui/card";
+import type { FormEvent } from "react";
+
 import { AuthProviderButton } from "@/components/auth/provider-button";
+import { PageTransition } from "@/components/motion/primitives";
+import { Button } from "@/components/ui/button";
+import { StateBanner } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { safeCallbackUrl } from "@/lib/guest/paths";
 import { isValidE164 } from "@/lib/phone";
 import {
   OAUTH_PROVIDER_ORDER,
-  PROVIDER_LABELS,
   type OAuthProviderId,
+  PROVIDER_LABELS,
 } from "@/modules/auth/providers";
 
 type ProviderRow = {
@@ -30,7 +32,9 @@ type Mode = "main" | "email" | "phone";
 function SignUpForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = safeCallbackUrl(params.get("callbackUrl") ?? params.get("next"));
+  const callbackUrl = safeCallbackUrl(
+    params.get("callbackUrl") ?? params.get("next"),
+  );
   const [mode, setMode] = useState<Mode>("main");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,7 +46,9 @@ function SignUpForm() {
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneDebugCode, setPhoneDebugCode] = useState<string | null>(null);
   const [checkEmail, setCheckEmail] = useState<string | null>(null);
-  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">(
+    "idle",
+  );
   const [devVerifyUrl, setDevVerifyUrl] = useState<string | null>(null);
   const [oauth, setOauth] = useState<ProviderRow[]>([]);
 
@@ -113,7 +119,11 @@ function SignUpForm() {
       setError("Enter your name.");
       return;
     }
-    if (!/^[a-z0-9_.]{3,24}$/.test(phoneHandle.trim().toLowerCase().replace(/^@+/, ""))) {
+    if (
+      !/^[a-z0-9_.]{3,24}$/.test(
+        phoneHandle.trim().toLowerCase().replace(/^@+/, ""),
+      )
+    ) {
       setError("Handle must be 3–24 characters (letters, numbers, _, .).");
       return;
     }
@@ -192,7 +202,9 @@ function SignUpForm() {
       !/[a-z]/.test(passwordValue) ||
       !/[0-9]/.test(passwordValue)
     ) {
-      setError("Password must include upper, lower, and a number (8+ characters).");
+      setError(
+        "Password must include upper, lower, and a number (8+ characters).",
+      );
       setLoading(false);
       return;
     }
@@ -232,11 +244,12 @@ function SignUpForm() {
           Check your email
         </h1>
         <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-          We sent a verification link to <strong className="text-[var(--ink)]">{checkEmail}</strong>.
-          Verify your address, then sign in.
+          We sent a verification link to{" "}
+          <strong className="text-[var(--ink)]">{checkEmail}</strong>. Verify
+          your address, then sign in.
         </p>
         {devVerifyUrl ? (
-          <p className="mt-4 text-xs text-[var(--signal-deep)] break-all">
+          <p className="mt-4 text-xs break-all text-[var(--signal-deep)]">
             Dev verify link:{" "}
             <Link href={devVerifyUrl} className="underline">
               {devVerifyUrl}
@@ -274,7 +287,8 @@ function SignUpForm() {
         Join Relune
       </h1>
       <p className="mt-3 text-sm leading-7 text-[var(--muted)]">
-        Create your free Relune account. You’ll verify your email before signing in.
+        Create your free Relune account. You’ll verify your email before signing
+        in.
       </p>
 
       {mode === "main" ? (
@@ -322,7 +336,7 @@ function SignUpForm() {
       ) : null}
 
       {mode === "email" ? (
-        <div className="mt-8 space-y-4 rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur">
+        <div className="form-panel mt-8 space-y-4">
           <button
             type="button"
             className="text-xs text-[var(--muted)] hover:underline"
@@ -339,7 +353,13 @@ function SignUpForm() {
               placeholder="yourname"
               autoComplete="username"
             />
-            <Field label="Email" name="email" type="email" required autoComplete="email" />
+            <Field
+              label="Email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+            />
             <Field
               label="Password"
               name="password"
@@ -349,7 +369,7 @@ function SignUpForm() {
               onChange={(value) => setPassword(value)}
             />
             <div className="rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-4">
-              <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-[var(--muted)]">
+              <div className="flex items-center justify-between text-xs tracking-[0.16em] text-[var(--muted)] uppercase">
                 <span>Password strength</span>
                 <span>{strength.label}</span>
               </div>
@@ -360,7 +380,8 @@ function SignUpForm() {
                 />
               </div>
               <p className="mt-3 text-sm text-[var(--muted)]">
-                Use at least 8 characters with uppercase, lowercase, and a number.
+                Use at least 8 characters with uppercase, lowercase, and a
+                number.
               </p>
             </div>
             <Field
@@ -379,7 +400,11 @@ function SignUpForm() {
               className="absolute -left-[9999px] h-0 w-0 opacity-0"
             />
             {error ? <StateBanner tone="error">{error}</StateBanner> : null}
-            <Button type="submit" disabled={loading} className="w-full py-3.5 text-[11px]">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 text-[11px]"
+            >
               {loading ? "Creating…" : "Create account"}
             </Button>
           </form>
@@ -387,7 +412,7 @@ function SignUpForm() {
       ) : null}
 
       {mode === "phone" ? (
-        <div className="mt-8 space-y-4 rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur">
+        <div className="form-panel mt-8 space-y-4">
           <button
             type="button"
             className="text-xs text-[var(--muted)] hover:underline"
@@ -407,7 +432,7 @@ function SignUpForm() {
           {phoneStep === "details" ? (
             <form onSubmit={sendPhoneRegisterCode} className="space-y-4">
               <label className="block">
-                <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
                   Name
                 </span>
                 <Input
@@ -420,7 +445,7 @@ function SignUpForm() {
                 />
               </label>
               <label className="block">
-                <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
                   Handle
                 </span>
                 <Input
@@ -434,7 +459,7 @@ function SignUpForm() {
                 />
               </label>
               <label className="block">
-                <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
                   Phone number
                 </span>
                 <PhoneInput
@@ -448,7 +473,11 @@ function SignUpForm() {
                 We&apos;ll text you a one-time code to verify your number.
               </p>
               {error ? <StateBanner tone="error">{error}</StateBanner> : null}
-              <Button type="submit" disabled={loading} className="w-full py-3.5 text-[11px]">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 text-[11px]"
+              >
                 {loading ? "Sending…" : "Send verification code"}
               </Button>
             </form>
@@ -458,10 +487,12 @@ function SignUpForm() {
                 Enter the code sent to {phone}.
               </p>
               {phoneDebugCode ? (
-                <p className="text-xs text-[var(--signal-deep)]">Dev code: {phoneDebugCode}</p>
+                <p className="text-xs text-[var(--signal-deep)]">
+                  Dev code: {phoneDebugCode}
+                </p>
               ) : null}
               <label className="block">
-                <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
                   Verification code
                 </span>
                 <Input
@@ -475,7 +506,11 @@ function SignUpForm() {
                 />
               </label>
               {error ? <StateBanner tone="error">{error}</StateBanner> : null}
-              <Button type="submit" disabled={loading} className="w-full py-3.5 text-[11px]">
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 text-[11px]"
+              >
                 {loading ? "Creating…" : "Create account"}
               </Button>
               <button
@@ -517,7 +552,9 @@ function SignUpForm() {
 
 export default function SignUpPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+    <Suspense
+      fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
+    >
       <SignUpForm />
     </Suspense>
   );
@@ -542,7 +579,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+      <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
         {label}
       </span>
       <Input

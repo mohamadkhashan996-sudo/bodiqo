@@ -63,7 +63,11 @@ const SEARCH_SYNONYMS: Record<string, string[]> = {
 
 const TOXIC_PATTERNS: Array<{ re: RegExp; label: string; weight: number }> = [
   { re: /\b(kill yourself|kys)\b/i, label: "self_harm_threat", weight: 45 },
-  { re: /\b(i('ll| will) (kill|hurt) you)\b/i, label: "direct_threat", weight: 50 },
+  {
+    re: /\b(i('ll| will) (kill|hurt) you)\b/i,
+    label: "direct_threat",
+    weight: 50,
+  },
   { re: /\b(nigger|faggot|retard)\b/i, label: "slur", weight: 55 },
   {
     re: /\b(stupid (bitch|whore|slut)|go die|hope you die)\b/i,
@@ -76,13 +80,29 @@ const TOXIC_PATTERNS: Array<{ re: RegExp; label: string; weight: number }> = [
     label: "violent_extremism",
     weight: 45,
   },
-  { re: /\b(hate (all|every) (women|men|jews|muslims|gays))\b/i, label: "hate", weight: 42 },
+  {
+    re: /\b(hate (all|every) (women|men|jews|muslims|gays))\b/i,
+    label: "hate",
+    weight: 42,
+  },
 ];
 
 const SPAM_PATTERNS: Array<{ re: RegExp; label: string; weight: number }> = [
-  { re: /free money|crypto giveaway|click here now|earn \$\$\$/i, label: "scam_phrases", weight: 35 },
-  { re: /whatsapp\s*\+?\d|telegram\s*@|dm me for (cash|profit)/i, label: "outreach_scam", weight: 30 },
-  { re: /limited offer|act now|double your (money|btc)/i, label: "urgency_scam", weight: 28 },
+  {
+    re: /free money|crypto giveaway|click here now|earn \$\$\$/i,
+    label: "scam_phrases",
+    weight: 35,
+  },
+  {
+    re: /whatsapp\s*\+?\d|telegram\s*@|dm me for (cash|profit)/i,
+    label: "outreach_scam",
+    weight: 30,
+  },
+  {
+    re: /limited offer|act now|double your (money|btc)/i,
+    label: "urgency_scam",
+    weight: 28,
+  },
   { re: /\b(viagra|cialis|casino bonus)\b/i, label: "promo_spam", weight: 32 },
 ];
 
@@ -199,7 +219,8 @@ export function detectToxicity(text: string) {
       score += rule.weight;
     }
   }
-  const insults = text.match(/\b(idiot|moron|dumbass|asshole|bastard)\b/gi)?.length ?? 0;
+  const insults =
+    text.match(/\b(idiot|moron|dumbass|asshole|bastard)\b/gi)?.length ?? 0;
   if (insults >= 3) {
     reasons.push("insult_cluster");
     score += 28;
@@ -319,7 +340,9 @@ export function scoreContentModeration(text: string) {
   if (toxicity.reasons.some((r) => r.includes("hate") || r === "slur")) {
     categories.push("HARASSMENT");
   }
-  if (toxicity.reasons.some((r) => r.includes("threat") || r.includes("violence"))) {
+  if (
+    toxicity.reasons.some((r) => r.includes("threat") || r.includes("violence"))
+  ) {
     categories.push("VIOLENCE");
   }
   if (toxicity.toxicLikely && !categories.includes("HARASSMENT")) {
@@ -416,7 +439,9 @@ export function translateAssist(text: string, targetLocale: string) {
   };
 }
 
-export function trendingPrediction(topics: Array<{ tag: string; count: number }>) {
+export function trendingPrediction(
+  topics: Array<{ tag: string; count: number }>,
+) {
   return topics
     .map((t) => ({
       ...t,

@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+import { DeviceSecurityPanel } from "@/components/auth/device-security-panel";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
-import { DeviceSecurityPanel } from "@/components/auth/device-security-panel";
+import { ensureIdentityKeys } from "@/lib/e2e-crypto";
 import { isValidE164 } from "@/lib/phone";
-import {
-  ensureIdentityKeys,
-} from "@/lib/e2e-crypto";
 
 export function SecuritySettings({
   showDevices = true,
@@ -40,7 +39,9 @@ export function SecuritySettings({
     const p = await fetch("/api/auth/phone").then((r) => r.json());
     setPhone(p.phone ?? "");
     setPhoneVerified(Boolean(p.phoneVerified));
-    const keys = await fetch("/api/crypto/keys").then((r) => r.json()).catch(() => ({}));
+    const keys = await fetch("/api/crypto/keys")
+      .then((r) => r.json())
+      .catch(() => ({}));
     setE2eReady(Boolean(keys.publicKey));
   }
 
@@ -91,7 +92,9 @@ export function SecuritySettings({
     setOtpauthUrl("");
     setQrDataUrl("");
     setCode("");
-    setMsg("2FA enabled. Save your recovery codes now — they won’t be shown again.");
+    setMsg(
+      "2FA enabled. Save your recovery codes now — they won’t be shown again.",
+    );
     await refresh();
   }
 
@@ -132,11 +135,16 @@ export function SecuritySettings({
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="font-[family-name:var(--font-display)] text-2xl">Security</h2>
+        <h2 className="font-[family-name:var(--font-display)] text-2xl">
+          Security
+        </h2>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Password, two-factor authentication, encrypted messaging keys, devices, and login history.
+          Password, two-factor authentication, encrypted messaging keys,
+          devices, and login history.
         </p>
-        {msg ? <p className="mt-3 text-sm text-[var(--signal-deep)]">{msg}</p> : null}
+        {msg ? (
+          <p className="mt-3 text-sm text-[var(--signal-deep)]">{msg}</p>
+        ) : null}
       </div>
 
       <section>
@@ -147,14 +155,14 @@ export function SecuritySettings({
             placeholder="Current password (if set)"
             value={pwCurrent}
             onChange={(e) => setPwCurrent(e.target.value)}
-            className="w-full rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm "
+            className="w-full rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm"
           />
           <input
             type="password"
             placeholder="New password"
             value={pwNew}
             onChange={(e) => setPwNew(e.target.value)}
-            className="w-full rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm "
+            className="w-full rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm"
           />
           <Button
             type="button"
@@ -223,7 +231,7 @@ export function SecuritySettings({
             value={phoneCode}
             onChange={(e) => setPhoneCode(e.target.value)}
             placeholder="SMS code"
-            className="rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm "
+            className="rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm"
           />
           <Button
             type="button"
@@ -287,7 +295,11 @@ export function SecuritySettings({
           </Button>
           {twoFactorEnabled ? (
             <>
-              <Button type="button" variant="outline" onClick={() => void disable2fa()}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void disable2fa()}
+              >
                 Disable 2FA
               </Button>
               <Button
@@ -315,7 +327,7 @@ export function SecuritySettings({
                 height={200}
               />
             ) : null}
-            <code className="block break-all rounded-xl bg-[var(--mist)] p-3 text-sm">
+            <code className="block rounded-xl bg-[var(--mist)] p-3 text-sm break-all">
               {secret}
             </code>
             {otpauthUrl ? (
@@ -331,7 +343,7 @@ export function SecuritySettings({
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 placeholder="6-digit code"
-                className="rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 "
+                className="rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3"
               />
               <Button type="button" onClick={() => void enable2fa()}>
                 Enable
@@ -345,7 +357,7 @@ export function SecuritySettings({
               value={code}
               onChange={(e) => setCode(e.target.value)}
               placeholder="Code to disable / regenerate"
-              className="w-full rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm "
+              className="w-full rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm"
             />
           </div>
         ) : null}
@@ -361,11 +373,12 @@ export function SecuritySettings({
       <section>
         <h3 className="text-sm font-semibold">End-to-end encryption</h3>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          Status: {e2eReady ? "Identity key published" : "Not set up on this browser"}
+          Status:{" "}
+          {e2eReady ? "Identity key published" : "Not set up on this browser"}
         </p>
         <p className="mt-2 text-sm text-[var(--muted)]">
-          Direct messages and call signaling use your device identity keys. Private keys stay in
-          this browser; only the public key is uploaded.
+          Direct messages and call signaling use your device identity keys.
+          Private keys stay in this browser; only the public key is uploaded.
         </p>
         <Button
           type="button"
@@ -391,7 +404,9 @@ export function SecuritySettings({
 
       {showDevices ? (
         <section>
-          <h3 className="mb-3 text-sm font-semibold">Devices, trust & login history</h3>
+          <h3 className="mb-3 text-sm font-semibold">
+            Devices, trust & login history
+          </h3>
           <DeviceSecurityPanel />
         </section>
       ) : null}

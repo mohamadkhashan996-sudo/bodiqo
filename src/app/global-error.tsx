@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
+import Link from "next/link";
+
 import { BrandLockup } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 

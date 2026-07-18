@@ -1,13 +1,16 @@
-import { prisma } from "@/lib/prisma";
-import { sendMail, securityAlertEmail } from "@/lib/mail";
 import { logger } from "@/lib/logger";
+import { securityAlertEmail, sendMail } from "@/lib/mail";
+import { prisma } from "@/lib/prisma";
 import { hashOpaque } from "@/modules/auth/password";
+import { publishSessionVersion } from "@/modules/auth/session-validity";
 
 export async function bumpSessionVersion(userId: string) {
-  await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: userId },
     data: { sessionVersion: { increment: 1 } },
+    select: { sessionVersion: true },
   });
+  await publishSessionVersion(userId, updated.sessionVersion);
 }
 
 export async function sendSecurityAlert(userId: string, detail: string) {

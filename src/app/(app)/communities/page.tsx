@@ -1,15 +1,17 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Lock, Plus, UsersRound } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input, Textarea } from "@/components/ui/input";
-import { Card, EmptyState } from "@/components/ui/card";
-import { MediaImage } from "@/components/ui/media-image";
-import { PageTransition } from "@/components/motion/primitives";
-import { track } from "@/lib/analytics";
+
 import { useGuest } from "@/components/auth/guest-provider";
+import { PageTransition } from "@/components/motion/primitives";
+import { Button } from "@/components/ui/button";
+import { Card, EmptyState, Skeleton } from "@/components/ui/card";
+import { Input, Textarea } from "@/components/ui/input";
+import { MediaImage } from "@/components/ui/media-image";
+import { PageHeader } from "@/components/ui/page-header";
+import { track } from "@/lib/analytics";
 
 type Community = {
   slug: string;
@@ -33,10 +35,12 @@ export default function CommunitiesPage() {
   const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   async function load() {
     const data = await fetch("/api/communities").then((r) => r.json());
     setCommunities(data.communities ?? []);
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -80,32 +84,26 @@ export default function CommunitiesPage() {
   }
 
   return (
-    <PageTransition className="mx-auto max-w-6xl">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--signal)]">
-            Shared frequency
-          </p>
-          <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl tracking-tight">
-            Communities
-          </h1>
-        </div>
-        <Button
-          type="button"
-          onClick={() => {
-            if (!requireAuth()) return;
-            setOpen((v) => !v);
-          }}
-        >
-          <Plus className="size-4" /> Create space
-        </Button>
-      </div>
-      <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
-        Public rooms anyone can join, or private spaces behind a request.
-      </p>
+    <PageTransition className="page-shell page-stack">
+      <PageHeader
+        kicker="Shared frequency"
+        title="Communities"
+        description="Public rooms anyone can join, or private spaces behind a request."
+        actions={
+          <Button
+            type="button"
+            onClick={() => {
+              if (!requireAuth()) return;
+              setOpen((v) => !v);
+            }}
+          >
+            <Plus className="size-4" aria-hidden /> Create space
+          </Button>
+        }
+      />
 
       {open ? (
-        <Card className="mt-6 space-y-3">
+        <Card className="space-y-3">
           <h2 className="font-[family-name:var(--font-display)] text-xl">
             New community
           </h2>
@@ -162,7 +160,9 @@ export default function CommunitiesPage() {
               ? "People must request to join. Moderators approve access."
               : "Anyone can join and see the feed right away."}
           </p>
-          {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+          {error ? (
+            <p className="text-sm text-[var(--danger)]">{error}</p>
+          ) : null}
           <div className="flex gap-2">
             <Button
               type="button"
@@ -171,72 +171,95 @@ export default function CommunitiesPage() {
             >
               {busy ? "Creating…" : "Create"}
             </Button>
-            <Button type="button" variant="quiet" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="quiet"
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </Button>
           </div>
         </Card>
       ) : null}
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {communities.map((community) => (
-          <Link
-            href={`/communities/${community.slug}`}
-            key={community.slug}
-            className="group rounded-[2rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-6 backdrop-blur transition hover:-translate-y-1 hover:shadow-xl"
-          >
-            <div className="relative grid size-12 place-items-center overflow-hidden rounded-2xl bg-[var(--mist)] font-[family-name:var(--font-display)] text-xl">
-              {community.image ? (
-                <MediaImage
-                  src={community.image}
-                  alt=""
-                  width={96}
-                  height={96}
-                  sizes="48px"
-                  className="size-full object-cover"
-                />
-              ) : (
-                community.name.slice(0, 1)
-              )}
-            </div>
-            <p className="mt-6 text-xs font-bold uppercase tracking-wider text-[var(--signal)]">
-              {community.category ??
-                (community.visibility === "PRIVATE" ? "Private" : "Public")}
-            </p>
-            <h2 className="mt-2 flex items-center gap-2 font-[family-name:var(--font-display)] text-2xl">
-              {community.name}
-              {community.visibility === "PRIVATE" ? (
-                <Lock className="size-4 text-[var(--muted)]" />
-              ) : null}
-            </h2>
-            <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--muted)]">
-              {community.description ?? "A space waiting for its first story."}
-            </p>
-            <div className="mt-5 flex items-center justify-between text-xs text-[var(--muted)]">
-              <span className="flex items-center gap-1">
-                <UsersRound className="size-3.5" />
-                {community.membersCount.toLocaleString()} members
-              </span>
-              {community.members[0]?.status === "JOINED" ? (
-                <span className="rounded-full bg-[var(--mist)] px-2 py-1">
-                  Joined
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Skeleton className="h-56 rounded-[var(--radius-2xl)]" />
+          <Skeleton className="h-56 rounded-[var(--radius-2xl)]" />
+          <Skeleton className="h-56 rounded-[var(--radius-2xl)]" />
+        </div>
+      ) : communities.length ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {communities.map((community) => (
+            <Link
+              href={`/communities/${community.slug}`}
+              key={community.slug}
+              className="surface-panel group rounded-[var(--radius-2xl)] p-6 transition-[transform,box-shadow,border-color] duration-[var(--duration)] ease-[var(--ease-out)] hover:-translate-y-1 hover:border-[color:color-mix(in_srgb,var(--ink)_28%,var(--mist-strong))] hover:shadow-[var(--shadow-lg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring-strong)]"
+            >
+              <div className="relative grid size-12 place-items-center overflow-hidden rounded-[var(--radius-md)] bg-[var(--mist)] font-[family-name:var(--font-display)] text-xl">
+                {community.image ? (
+                  <MediaImage
+                    src={community.image}
+                    alt=""
+                    width={96}
+                    height={96}
+                    sizes="48px"
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  community.name.slice(0, 1)
+                )}
+              </div>
+              <p className="kicker mt-6">
+                {community.category ??
+                  (community.visibility === "PRIVATE" ? "Private" : "Public")}
+              </p>
+              <h2 className="mt-2 flex items-center gap-2 font-[family-name:var(--font-display)] text-2xl tracking-tight">
+                {community.name}
+                {community.visibility === "PRIVATE" ? (
+                  <Lock className="size-4 text-[var(--muted)]" aria-hidden />
+                ) : null}
+              </h2>
+              <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--muted)]">
+                {community.description ??
+                  "A space waiting for its first story."}
+              </p>
+              <div className="mt-5 flex items-center justify-between text-xs text-[var(--muted)]">
+                <span className="flex items-center gap-1">
+                  <UsersRound className="size-3.5" aria-hidden />
+                  {community.membersCount.toLocaleString()} members
                 </span>
-              ) : community.members[0]?.status === "PENDING" ? (
-                <span className="rounded-full bg-[var(--mist)] px-2 py-1">
-                  Pending
-                </span>
-              ) : null}
-            </div>
-          </Link>
-        ))}
-      </div>
-      {!communities.length ? (
+                {community.members[0]?.status === "JOINED" ? (
+                  <span className="rounded-full bg-[var(--mist)] px-2 py-1">
+                    Joined
+                  </span>
+                ) : community.members[0]?.status === "PENDING" ? (
+                  <span className="rounded-full bg-[var(--mist)] px-2 py-1">
+                    Pending
+                  </span>
+                ) : null}
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
         <EmptyState
-          className="mt-8"
+          icon={<UsersRound className="size-6" />}
           title="No communities yet"
-          description="Create the first space."
+          description="Create the first space and invite people who share your frequency."
+          action={
+            <Button
+              type="button"
+              onClick={() => {
+                if (!requireAuth()) return;
+                setOpen(true);
+              }}
+            >
+              <Plus className="size-4" aria-hidden /> Create space
+            </Button>
+          }
         />
-      ) : null}
+      )}
     </PageTransition>
   );
 }

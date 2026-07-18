@@ -2,12 +2,23 @@
 
 import { useEffect } from "react";
 
+function isExtensionNoise(value: string | undefined) {
+  return /chrome-extension:|moz-extension:|safari-web-extension:|safari-extension:|webkit-masked-url:/i.test(
+    value || "",
+  );
+}
+
 function report(error: Error & { digest?: string }, path?: string) {
+  const stack = error.stack || "";
+  if (isExtensionNoise(stack) || isExtensionNoise(error.message)) return;
+
   const payload = {
     message: error.message || "Unknown client error",
     name: error.name,
-    stack: error.stack?.slice(0, 8000),
-    path: path || (typeof window !== "undefined" ? window.location.pathname : undefined),
+    stack: stack.slice(0, 8000),
+    path:
+      path ||
+      (typeof window !== "undefined" ? window.location.pathname : undefined),
     digest: error.digest,
   };
   try {
@@ -26,19 +37,29 @@ function report(error: Error & { digest?: string }, path?: string) {
 export function ClientErrorReporter() {
   useEffect(() => {
     function onError(event: ErrorEvent) {
-      report(
+      const err =
         event.error instanceof Error
           ? event.error
-          : new Error(event.message || "window.error"),
-      );
+          : new Error(event.message || "window.error");
+      if (
+        isExtensionNoise(err.stack) ||
+        isExtensionNoise(event.filename) ||
+        isExtensionNoise(err.message)
+      ) {
+        return;
+      }
+      report(err);
     }
     function onRejection(event: PromiseRejectionEvent) {
       const reason = event.reason;
-      report(
+      const err =
         reason instanceof Error
           ? reason
-          : new Error(typeof reason === "string" ? reason : "unhandledrejection"),
-      );
+          : new Error(
+              typeof reason === "string" ? reason : "unhandledrejection",
+            );
+      if (isExtensionNoise(err.stack) || isExtensionNoise(err.message)) return;
+      report(err);
     }
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onRejection);

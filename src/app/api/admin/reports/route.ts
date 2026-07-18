@@ -1,5 +1,7 @@
+import type { ReportTarget } from "@prisma/client";
+import { ReportCategory, ReportStatus } from "@prisma/client";
 import { z } from "zod";
-import { ReportCategory, ReportStatus, ReportTarget } from "@prisma/client";
+
 import { body, fail, guardApiAbuse, ok, requireStaff } from "@/lib/api";
 import {
   listReports,
@@ -45,12 +47,7 @@ export async function PATCH(request: Request) {
     const { reportId, action, ...patch } = data;
     if (action) {
       return ok(
-        await resolveReportWithAction(
-          staff.id,
-          staff.role,
-          reportId,
-          action,
-        ),
+        await resolveReportWithAction(staff.id, staff.role, reportId, action),
       );
     }
     return ok(await updateReport(staff.id, reportId, patch));

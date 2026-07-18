@@ -1,10 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { MessageCircleHeart, Plus, Search, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { MessageCircleHeart, Plus, Search, Users } from "lucide-react";
+import type { FormEvent } from "react";
+
 import {
   ConversationList,
   type ConversationRow,
@@ -52,14 +54,23 @@ export default function MessagesPage() {
   const [error, setError] = useState<string | null>(null);
   const [messageHits, setMessageHits] = useState<MessageHit[]>([]);
   const [searchingMessages, setSearchingMessages] = useState(false);
+  const [inbox, setInbox] = useState<"chats" | "requests" | "archived">(
+    "chats",
+  );
 
   useEffect(() => {
-    void fetch("/api/conversations")
+    const qs =
+      inbox === "archived"
+        ? "?archived=1"
+        : inbox === "requests"
+          ? "?requests=1"
+          : "";
+    void fetch(`/api/conversations${qs}`)
       .then((response) => response.json())
       .then((data: { conversations?: ConversationRow[] }) =>
         setRows(data.conversations ?? []),
       );
-  }, []);
+  }, [inbox]);
 
   useInboxRealtime(setRows, session?.user?.id);
 
@@ -182,7 +193,7 @@ export default function MessagesPage() {
           </div>
         </div>
       </section>
-      <div className="surface-panel-strong flex min-h-[calc(100dvh-12rem)] overflow-hidden rounded-[var(--radius-2xl)] sm:min-h-[calc(100vh-14rem)]">
+      <div className="surface-panel-strong flex min-h-[min(70dvh,32rem)] overflow-hidden rounded-[var(--radius-2xl)] md:min-h-[min(560px,70dvh)]">
         <ConversationList
           conversations={rows}
           query={query}
@@ -190,11 +201,13 @@ export default function MessagesPage() {
           currentUserId={session?.user?.id}
           messageHits={messageHits}
           searchingMessages={searchingMessages}
+          inbox={inbox}
+          onInbox={setInbox}
         />
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="hidden flex-1 place-items-center p-10 md:grid"
+          className="hidden min-w-0 flex-1 place-items-center p-6 md:grid md:p-10"
         >
           <div className="max-w-sm text-center">
             <div className="mx-auto grid size-20 place-items-center rounded-[2rem] bg-[var(--ink)] text-[var(--ember)] shadow-[var(--shadow-md)]">
@@ -258,7 +271,9 @@ export default function MessagesPage() {
               Find someone to message
             </p>
           )}
-          {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+          {error ? (
+            <p className="text-sm text-[var(--danger)]">{error}</p>
+          ) : null}
         </div>
       </Modal>
 
@@ -317,7 +332,9 @@ export default function MessagesPage() {
               ))}
             </div>
           ) : null}
-          {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
+          {error ? (
+            <p className="text-sm text-[var(--danger)]">{error}</p>
+          ) : null}
           <Button type="submit" disabled={creating} className="w-full">
             {creating ? "Creating…" : "Create group"}
           </Button>

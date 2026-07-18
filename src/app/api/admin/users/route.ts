@@ -1,5 +1,6 @@
-import { z } from "zod";
 import { AccountStatus, Role } from "@prisma/client";
+import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireStaff } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import {
@@ -33,9 +34,7 @@ export async function GET(request: Request) {
     const users = await listUsers({
       q: searchParams.get("q") ?? undefined,
       status:
-        statuses && statuses.length > 1
-          ? statuses
-          : statuses?.[0] || undefined,
+        statuses && statuses.length > 1 ? statuses : statuses?.[0] || undefined,
       role: (searchParams.get("role") as Role) || undefined,
       verified:
         searchParams.get("verified") === null
@@ -118,14 +117,21 @@ export async function POST(request: Request) {
     if (data.action === "warn") {
       const staff = await requireStaff("users:ban");
       return ok(
-        await warnUser(staff.id, staff.role, data.userId, data.reason ?? "Warning"),
+        await warnUser(
+          staff.id,
+          staff.role,
+          data.userId,
+          data.reason ?? "Warning",
+        ),
         201,
       );
     }
 
     if (data.action === "suspend") {
       const staff = await requireStaff("users:ban");
-      return ok(await suspendUser(staff.id, staff.role, data.userId, data.reason));
+      return ok(
+        await suspendUser(staff.id, staff.role, data.userId, data.reason),
+      );
     }
 
     if (data.action === "ban") {
@@ -153,7 +159,12 @@ export async function POST(request: Request) {
       const staff = await requireStaff("users:write");
       if (!data.password) throw new AppError("password required", 400);
       return ok(
-        await resetUserPassword(staff.id, staff.role, data.userId, data.password),
+        await resetUserPassword(
+          staff.id,
+          staff.role,
+          data.userId,
+          data.password,
+        ),
       );
     }
 
@@ -165,7 +176,12 @@ export async function POST(request: Request) {
     if (data.action === "verify" || data.action === "unverify") {
       const staff = await requireStaff("users:write");
       return ok(
-        await setVerified(staff.id, staff.role, data.userId, data.action === "verify"),
+        await setVerified(
+          staff.id,
+          staff.role,
+          data.userId,
+          data.action === "verify",
+        ),
       );
     }
 

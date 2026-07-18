@@ -12,7 +12,7 @@ data/backups
 coverage
 *.log
 .DS_Store
-bodiqo-store-backup
+relune-store-backup
 .cursor
 agent-transcripts
 ios

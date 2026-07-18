@@ -17,8 +17,15 @@ export type RankablePost = {
 
 export type RankContext = {
   followingIds?: Set<string>;
+  /** Mutual follows — stronger than one-way follow. */
+  friendIds?: Set<string>;
   interestTerms?: string[];
+  /** Per-author affinity from likes/comments/shares/saves/views. */
+  authorAffinity?: Map<string, number>;
   body?: string | null;
+  /** Cap how many posts per author appear early in the ranked list. */
+  diversify?: boolean;
+  maxPerAuthor?: number;
 };
 
 function hoursSince(date: Date | string | null | undefined) {
@@ -48,35 +55,69 @@ export function scorePost(post: RankablePost, ctx: RankContext = {}) {
   let score = engagement * recency + recency * 4;
 
   const authorId = post.authorId ?? undefined;
-  if (authorId && ctx.followingIds?.has(authorId)) {
-    score += 6;
+  if (authorId && ctx.friendIds?.has(authorId)) {
+    score += 8;
+  } else if (authorId && ctx.followingIds?.has(authorId)) {
+    score += 5;
   }
 
-  if (post.author?.isOfficial || post.isOfficial) score += 4;
-  if (post.author?.isVerified) score += 2;
+  const affinity = authorId ? ctx.authorAffinity?.get(authorId) : undefined;
+  if (affinity) {
+    score += Math.min(12, affinity);
+  }
+
+  // Modest status boosts (fairness: avoid drowning newer creators).
+  if (post.author?.isOfficial || post.isOfficial) score += 2;
+  if (post.author?.isVerified) score += 1;
 
   if (ctx.interestTerms?.length && post.body) {
     const hay = post.body.toLowerCase();
+    let matches = 0;
     for (const term of ctx.interestTerms) {
       if (term && hay.includes(term)) {
-        score += 3;
-        break;
+        matches += 1;
+        if (matches >= 3) break;
       }
     }
+    score += matches * 2.5;
   }
 
   return score;
+}
+
+/** Soft author diversity: keep top N per author first, append overflow. */
+export function diversifyByAuthor<T extends RankablePost>(
+  posts: T[],
+  maxPerAuthor = 2,
+): T[] {
+  const counts = new Map<string, number>();
+  const primary: T[] = [];
+  const overflow: T[] = [];
+  for (const post of posts) {
+    const key = post.authorId ?? post.id;
+    const count = counts.get(key) ?? 0;
+    if (count < maxPerAuthor) {
+      primary.push(post);
+      counts.set(key, count + 1);
+    } else {
+      overflow.push(post);
+    }
+  }
+  return [...primary, ...overflow];
 }
 
 export function rankPosts<T extends RankablePost>(
   posts: T[],
   ctx: RankContext = {},
 ): T[] {
-  return [...posts].sort((a, b) => {
+  const ordered = [...posts].sort((a, b) => {
     const diff = scorePost(b, ctx) - scorePost(a, ctx);
     if (Math.abs(diff) > 0.01) return diff;
     const aTime = new Date(a.publishedAt ?? a.createdAt ?? 0).getTime();
     const bTime = new Date(b.publishedAt ?? b.createdAt ?? 0).getTime();
     return bTime - aTime;
   });
+
+  if (ctx.diversify === false) return ordered;
+  return diversifyByAuthor(ordered, ctx.maxPerAuthor ?? 2);
 }

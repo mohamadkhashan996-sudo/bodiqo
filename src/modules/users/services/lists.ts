@@ -1,5 +1,6 @@
-import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
+import { pageSize, splitCursorPage } from "@/lib/pagination";
+import { prisma } from "@/lib/prisma";
 import {
   blockedIdsFor,
   getProfileVisibility,
@@ -18,6 +19,17 @@ const userSelect = {
 } as const;
 
 type RelationStatus = "none" | "following" | "requested";
+type ListedUser = {
+  id: string;
+  handle: string | null;
+  name: string | null;
+  displayName: string | null;
+  image: string | null;
+  isVerified: boolean;
+  isOfficial: boolean;
+  isPrivate: boolean;
+  bio: string | null;
+};
 
 async function relationMap(viewerId: string | undefined, userIds: string[]) {
   const map = new Map<string, RelationStatus>();
@@ -56,21 +68,40 @@ async function filterBlockedUsers<T extends { id: string }>(
   return users.filter((user) => !blocked.has(user.id));
 }
 
+async function decorateUsers(users: ListedUser[], viewerId?: string) {
+  const visible = await filterBlockedUsers(users, viewerId);
+  const relations = await relationMap(
+    viewerId,
+    visible.map((u) => u.id),
+  );
+  return visible.map((u) => ({
+    ...u,
+    relation:
+      viewerId === u.id ? ("self" as const) : (relations.get(u.id) ?? "none"),
+  }));
+}
+
+async function resolveListOwner(handle: string, viewerId?: string) {
+  const user = await prisma.user.findFirst({
+    where: { handle: handle.toLowerCase(), status: "ACTIVE" },
+    select: { id: true, isPrivate: true },
+  });
+  if (!user) throw new AppError("User not found", 404);
+  const visibility = await getProfileVisibility(user, viewerId);
+  return { user, visibility };
+}
+
 export async function listFollowers(
   handle: string,
   viewerId?: string,
   cursor?: string,
   limit = 30,
 ) {
-  const user = await prisma.user.findUnique({
-    where: { handle: handle.toLowerCase() },
-    select: { id: true, isPrivate: true },
-  });
-  if (!user) throw new AppError("User not found", 404);
-  const visibility = await getProfileVisibility(user, viewerId);
-  if (!visibility.canViewFollowers) throw new AppError("Followers are private", 403);
+  const { user, visibility } = await resolveListOwner(handle, viewerId);
+  if (!visibility.canViewFollowers)
+    throw new AppError("Followers are private", 403);
 
-  const take = Math.min(Math.max(limit, 1), 50);
+  const take = pageSize(limit);
   const blocked = viewerId ? await blockedIdsFor(viewerId) : [];
   const rows = await prisma.follow.findMany({
     where: {
@@ -82,21 +113,12 @@ export async function listFollowers(
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
-  const nextCursor = rows.length > take ? rows.pop()!.id : null;
-  const users = await filterBlockedUsers(
-    rows.map((row) => row.follower),
-    viewerId,
-  );
-  const relations = await relationMap(
-    viewerId,
-    users.map((u) => u.id),
-  );
-
+  const { items, nextCursor } = splitCursorPage(rows, take);
   return {
-    users: users.map((u) => ({
-      ...u,
-      relation: viewerId === u.id ? ("self" as const) : relations.get(u.id) ?? "none",
-    })),
+    users: await decorateUsers(
+      items.map((row) => row.follower),
+      viewerId,
+    ),
     nextCursor,
   };
 }
@@ -107,15 +129,11 @@ export async function listFollowing(
   cursor?: string,
   limit = 30,
 ) {
-  const user = await prisma.user.findUnique({
-    where: { handle: handle.toLowerCase() },
-    select: { id: true, isPrivate: true },
-  });
-  if (!user) throw new AppError("User not found", 404);
-  const visibility = await getProfileVisibility(user, viewerId);
-  if (!visibility.canViewFollowing) throw new AppError("Following is private", 403);
+  const { user, visibility } = await resolveListOwner(handle, viewerId);
+  if (!visibility.canViewFollowing)
+    throw new AppError("Following is private", 403);
 
-  const take = Math.min(Math.max(limit, 1), 50);
+  const take = pageSize(limit);
   const blocked = viewerId ? await blockedIdsFor(viewerId) : [];
   const rows = await prisma.follow.findMany({
     where: {
@@ -127,21 +145,12 @@ export async function listFollowing(
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
-  const nextCursor = rows.length > take ? rows.pop()!.id : null;
-  const users = await filterBlockedUsers(
-    rows.map((row) => row.following),
-    viewerId,
-  );
-  const relations = await relationMap(
-    viewerId,
-    users.map((u) => u.id),
-  );
-
+  const { items, nextCursor } = splitCursorPage(rows, take);
   return {
-    users: users.map((u) => ({
-      ...u,
-      relation: viewerId === u.id ? ("self" as const) : relations.get(u.id) ?? "none",
-    })),
+    users: await decorateUsers(
+      items.map((row) => row.following),
+      viewerId,
+    ),
     nextCursor,
   };
 }
@@ -152,15 +161,10 @@ export async function listFriends(
   cursor?: string,
   limit = 30,
 ) {
-  const user = await prisma.user.findUnique({
-    where: { handle: handle.toLowerCase() },
-    select: { id: true, isPrivate: true },
-  });
-  if (!user) throw new AppError("User not found", 404);
-  const visibility = await getProfileVisibility(user, viewerId);
-  if (!visibility.canViewFollowers) throw new AppError("Friends are private", 403);
+  const { user, visibility } = await resolveListOwner(handle, viewerId);
+  if (!visibility.canViewFriends) throw new AppError("Friends are private", 403);
 
-  const take = Math.min(Math.max(limit, 1), 50);
+  const take = pageSize(limit);
   const blocked = viewerId ? await blockedIdsFor(viewerId) : [];
   const rows = await prisma.follow.findMany({
     where: {
@@ -177,27 +181,36 @@ export async function listFriends(
     take: take + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
-  const nextCursor = rows.length > take ? rows.pop()!.id : null;
-  const users = await filterBlockedUsers(
-    rows.map((row) => row.following),
+  const { items, nextCursor } = splitCursorPage(rows, take);
+  const users = await decorateUsers(
+    items.map((row) => row.following),
     viewerId,
   );
-  const relations = await relationMap(
-    viewerId,
-    users.map((u) => u.id),
-  );
+
+  let best = new Set<string>();
+  if (viewerId && viewerId === user.id) {
+    const close = await prisma.closeFriend.findMany({
+      where: {
+        userId: viewerId,
+        friendId: { in: users.map((u) => u.id) },
+      },
+      select: { friendId: true },
+    });
+    best = new Set(close.map((c) => c.friendId));
+  }
 
   return {
     users: users.map((u) => ({
       ...u,
-      relation: viewerId === u.id ? ("self" as const) : relations.get(u.id) ?? "none",
+      isBestFriend: best.has(u.id),
+      isFriend: true,
     })),
     nextCursor,
   };
 }
 
 export async function listFriendRequests(userId: string, limit = 50) {
-  const take = Math.min(Math.max(limit, 1), 100);
+  const take = pageSize(limit, 100);
   const [incoming, outgoing] = await Promise.all([
     prisma.friendRequest.findMany({
       where: { toUserId: userId, status: "PENDING" },
@@ -220,7 +233,7 @@ export async function listFriendRequests(userId: string, limit = 50) {
 }
 
 export async function listBlocked(userId: string, limit = 100) {
-  const take = Math.min(Math.max(limit, 1), 200);
+  const take = pageSize(limit, 200);
   const rows = await prisma.block.findMany({
     where: { blockerId: userId },
     include: { blocked: { select: userSelect } },
@@ -233,7 +246,7 @@ export async function listBlocked(userId: string, limit = 100) {
 }
 
 export async function listMuted(userId: string, limit = 100) {
-  const take = Math.min(Math.max(limit, 1), 200);
+  const take = pageSize(limit, 200);
   const rows = await prisma.mute.findMany({
     where: { muterId: userId },
     include: { muted: { select: userSelect } },

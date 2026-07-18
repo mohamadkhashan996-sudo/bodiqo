@@ -80,6 +80,14 @@
   --z-modal: 50;
   --z-toast: 60;
   --z-splash: 80;
+  --z-auth-gate: 120;
+
+  --radius-nav: 1.15rem;
+  --radius-header: 1.75rem;
+
+  --app-sidebar-width: 17.5rem;
+  --app-bottom-nav: max(5.75rem, calc(4.25rem + env(safe-area-inset-bottom)));
+  --app-top-chrome: max(3.75rem, calc(2.75rem + env(safe-area-inset-top)));
 }
 
 html[data-theme="dark"] {
@@ -122,6 +130,15 @@ html[data-contrast="high"] {
 
 html[data-text="large"] {
   font-size: 112.5%;
+}
+
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

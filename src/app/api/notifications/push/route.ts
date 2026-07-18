@@ -1,5 +1,6 @@
-import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { z } from "zod";
+
+import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { isWebPushConfigured, vapidPublicKey } from "@/lib/web-push";
 import {
@@ -51,7 +52,8 @@ export async function DELETE(request: Request) {
   try {
     await guardApiAbuse(request, "notifications:push:delete", 60);
     const user = await requireUser();
-    const endpoint = new URL(request.url).searchParams.get("endpoint") ?? undefined;
+    const endpoint =
+      new URL(request.url).searchParams.get("endpoint") ?? undefined;
     await deletePushSubscription(user.id, endpoint);
     return ok({ deleted: true });
   } catch (error) {

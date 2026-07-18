@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+
 import {
   AdminPageHeader,
-  Panel,
   adminPatch,
+  Panel,
   useAdminJson,
 } from "@/components/admin/admin-ui";
 
@@ -116,7 +117,9 @@ function ReportsPageInner() {
           ))}
         </select>
       </div>
-      {msg ? <p className="mb-3 text-sm text-[var(--signal-deep)]">{msg}</p> : null}
+      {msg ? (
+        <p className="mb-3 text-sm text-[var(--signal-deep)]">{msg}</p>
+      ) : null}
       {loading ? <p className="text-sm text-[var(--muted)]">Loading…</p> : null}
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}
       <div className="space-y-3">
@@ -126,7 +129,7 @@ function ReportsPageInner() {
             <Panel key={r.id}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.14em] text-[var(--muted)]">
+                  <p className="text-xs tracking-[0.14em] text-[var(--muted)] uppercase">
                     {r.targetType} · {r.category} · {r.status}
                   </p>
                   <p className="mt-2 font-medium">{r.reason}</p>
@@ -218,7 +221,9 @@ function ReportsPageInner() {
 
 export default function AdminReportsPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+    <Suspense
+      fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
+    >
       <ReportsPageInner />
     </Suspense>
   );

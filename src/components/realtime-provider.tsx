@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
+
 import { useSocket } from "@/hooks/use-socket";
 
 const CallOverlay = dynamic(
-  () =>
-    import("@/components/calls/call-overlay").then((m) => m.CallOverlay),
+  () => import("@/components/calls/call-overlay").then((m) => m.CallOverlay),
   { ssr: false },
 );
 

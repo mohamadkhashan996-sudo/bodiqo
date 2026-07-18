@@ -1,8 +1,8 @@
-import { fail, ok, guardApiAbuse } from "@/lib/api";
+import { fail, guardApiAbuse, ok } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { getPendingOAuthLink } from "@/modules/auth/account-link";
-import { PROVIDER_SHORT, type OAuthProviderId } from "@/modules/auth/providers";
+import { type OAuthProviderId, PROVIDER_SHORT } from "@/modules/auth/providers";
 
 /** Public preview of a pending OAuth account link (no secrets). */
 export async function GET(request: Request) {

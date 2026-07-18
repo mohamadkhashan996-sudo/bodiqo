@@ -1,8 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { POST_BODY_TOKEN } from "@/lib/post-text";
 
-export { extractHashtags, extractMentions } from "@/lib/post-text";
+import { POST_BODY_TOKEN } from "@/lib/post-text";
 
 /** Turn @handles and #hashtags in post body into links. */
 export function linkifyPostBody(body: string): ReactNode[] {

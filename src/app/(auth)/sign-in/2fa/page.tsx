@@ -1,30 +1,49 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { FormEvent } from "react";
+
 import { PageTransition } from "@/components/motion/primitives";
-import { safeCallbackUrl } from "@/lib/guest/paths";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { StateBanner } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { safeCallbackUrl } from "@/lib/guest/paths";
 
 function TwoFactorForm() {
   const params = useSearchParams();
   const router = useRouter();
-  const token = params.get("token") || "";
-  const callbackUrl = safeCallbackUrl(params.get("callbackUrl") ?? params.get("next"));
+  const [token, setToken] = useState("");
+  const callbackUrl = safeCallbackUrl(
+    params.get("callbackUrl") ?? params.get("next"),
+  );
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!token) {
+    let challenge = "";
+    try {
+      challenge = sessionStorage.getItem("relune.2faChallenge") || "";
+    } catch {
+      challenge = "";
+    }
+    // Legacy query param fallback (cleared after read).
+    const fromQuery = params.get("token") || "";
+    challenge = challenge || fromQuery;
+    if (fromQuery) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("token");
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
+    if (!challenge) {
       setError("Missing security challenge.");
       return;
     }
-    fetch(`/api/auth/challenge?token=${encodeURIComponent(token)}`)
+    setToken(challenge);
+    fetch(`/api/auth/challenge?token=${encodeURIComponent(challenge)}`)
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error || "Invalid challenge");
@@ -33,13 +52,15 @@ function TwoFactorForm() {
       .catch((e) =>
         setError(e instanceof Error ? e.message : "Challenge expired."),
       );
-  }, [token]);
+  }, [params]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const totpCode = String(new FormData(e.currentTarget).get("totpCode") || "");
+    const totpCode = String(
+      new FormData(e.currentTarget).get("totpCode") || "",
+    );
     const result = await signIn("challenge", {
       token,
       totpCode,
@@ -50,6 +71,11 @@ function TwoFactorForm() {
     if (result?.error) {
       setError("Invalid authenticator or recovery code.");
       return;
+    }
+    try {
+      sessionStorage.removeItem("relune.2faChallenge");
+    } catch {
+      /* ignore */
     }
     router.push(callbackUrl);
     router.refresh();
@@ -66,7 +92,7 @@ function TwoFactorForm() {
       </p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <label className="block">
-          <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+          <span className="text-[11px] tracking-[0.18em] text-[var(--muted)] uppercase">
             Security code
           </span>
           <Input
@@ -76,7 +102,12 @@ function TwoFactorForm() {
             className="mt-2"
           />
         </label>
-        <Button type="submit" variant="signal" disabled={loading || !token} className="w-full py-3.5 text-[11px]">
+        <Button
+          type="submit"
+          variant="signal"
+          disabled={loading || !token}
+          className="w-full py-3.5 text-[11px]"
+        >
           {loading ? "Verifying…" : "Continue"}
         </Button>
       </form>
@@ -86,7 +117,10 @@ function TwoFactorForm() {
         </div>
       ) : null}
       <p className="mt-8 text-sm text-[var(--muted)]">
-        <Link href="/sign-in" className="text-[var(--signal-deep)] hover:underline">
+        <Link
+          href="/sign-in"
+          className="text-[var(--signal-deep)] hover:underline"
+        >
           Back to sign in
         </Link>
       </p>
@@ -96,7 +130,9 @@ function TwoFactorForm() {
 
 export default function TwoFactorChallengePage() {
   return (
-    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+    <Suspense
+      fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
+    >
       <TwoFactorForm />
     </Suspense>
   );

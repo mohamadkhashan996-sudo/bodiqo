@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import Link from "next/link";
+
 import { PageTransition } from "@/components/motion/primitives";
 import { Card, Skeleton, StateBanner } from "@/components/ui/card";
 
@@ -16,7 +17,8 @@ type Privacy = Record<
   | "whoCanTag"
   | "whoCanSeeStories"
   | "whoCanSeeActivity"
-  | "whoCanSeeOnline",
+  | "whoCanSeeOnline"
+  | "whoCanSeeFriends",
   Audience
 > & {
   showReadReceipts: boolean;
@@ -28,13 +30,16 @@ const labels: Partial<Record<keyof Privacy, string>> = {
   whoCanMessage: "Who can message me",
   whoCanCall: "Who can call me",
   whoCanComment: "Who can comment",
+  whoCanMention: "Who can mention me",
+  whoCanTag: "Who can tag me",
   whoCanSeeStories: "Who can see my stories",
+  whoCanSeeActivity: "Who can see my activity",
   whoCanSeeOnline: "Who can see my online status",
+  whoCanSeeFriends: "Who can see my friends list",
   showReadReceipts: "Send read receipts",
   showTyping: "Show when I’m typing",
 };
 
-/** Settings that are enforced server-side today (mention/tag reserved for later). */
 const enforcedKeys = Object.keys(labels) as (keyof Privacy)[];
 
 const audiences: Audience[] = [
@@ -59,10 +64,20 @@ export default function PrivacySettingsPage() {
     void Promise.all([
       fetch("/api/privacy").then((r) => r.json()),
       fetch("/api/users/me").then((r) => r.json()),
-    ]).then(([privacyData, meData]) => {
-      setPrivacy(privacyData.privacy ?? null);
-      setIsPrivate(Boolean(meData.user?.isPrivate));
-    });
+    ])
+      .then(([privacyData, meData]) => {
+        if (privacyData.error) {
+          setError(privacyData.error);
+          setPrivacy(null);
+          return;
+        }
+        setPrivacy(privacyData.privacy ?? null);
+        setIsPrivate(Boolean(meData.user?.isPrivate));
+      })
+      .catch(() => {
+        setError("Could not load privacy settings");
+        setPrivacy(null);
+      });
   }, []);
 
   async function updatePrivacy(patch: Partial<Privacy>) {
@@ -106,8 +121,22 @@ export default function PrivacySettingsPage() {
   if (!privacy) {
     return (
       <div className="section-shell max-w-3xl space-y-4">
-        <Skeleton className="h-20 rounded-[var(--radius-xl)]" />
-        <Skeleton className="h-96 rounded-[var(--radius-2xl)]" />
+        {error ? (
+          <>
+            <Link
+              href="/settings"
+              className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
+            >
+              ← Back to settings
+            </Link>
+            <StateBanner tone="error">{error}</StateBanner>
+          </>
+        ) : (
+          <>
+            <Skeleton className="h-20 rounded-[var(--radius-xl)]" />
+            <Skeleton className="h-96 rounded-[var(--radius-2xl)]" />
+          </>
+        )}
       </div>
     );
   }
@@ -115,7 +144,10 @@ export default function PrivacySettingsPage() {
   return (
     <PageTransition className="section-shell max-w-3xl">
       <div className="mb-6">
-        <Link href="/settings" className="text-sm text-[var(--muted)] hover:text-[var(--ink)]">
+        <Link
+          href="/settings"
+          className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
+        >
           ← Back to settings
         </Link>
         <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl tracking-tight">
@@ -133,16 +165,18 @@ export default function PrivacySettingsPage() {
       ) : null}
 
       <Card className="rounded-[2rem] p-6">
-        <h2 className="font-[family-name:var(--font-display)] text-2xl">Account visibility</h2>
+        <h2 className="font-[family-name:var(--font-display)] text-2xl">
+          Account visibility
+        </h2>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-          Public accounts share posts with everyone. Private accounts require a follow
-          approval before posts and media are visible.
+          Public accounts share posts with everyone. Private accounts require a
+          follow approval before posts and media are visible.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={() => void updateAccountPrivacy(false)}
-            className={`rounded-[1.25rem] border-2 px-4 py-4 text-left transition shadow-[var(--shadow-sm)] ${
+            className={`rounded-[1.25rem] border-2 px-4 py-4 text-left shadow-[var(--shadow-sm)] transition ${
               !isPrivate
                 ? "border-[var(--signal-deep)] bg-[var(--signal)]/15"
                 : "border-[var(--mist-strong)] bg-[var(--surface)]"
@@ -156,7 +190,7 @@ export default function PrivacySettingsPage() {
           <button
             type="button"
             onClick={() => void updateAccountPrivacy(true)}
-            className={`rounded-[1.25rem] border-2 px-4 py-4 text-left transition shadow-[var(--shadow-sm)] ${
+            className={`rounded-[1.25rem] border-2 px-4 py-4 text-left shadow-[var(--shadow-sm)] transition ${
               isPrivate
                 ? "border-[var(--signal-deep)] bg-[var(--signal)]/15"
                 : "border-[var(--mist-strong)] bg-[var(--surface)]"
@@ -191,7 +225,9 @@ export default function PrivacySettingsPage() {
                 type="button"
                 aria-pressed={Boolean(privacy[key])}
                 onClick={() =>
-                  void updatePrivacy({ [key]: !privacy[key] } as Partial<Privacy>)
+                  void updatePrivacy({
+                    [key]: !privacy[key],
+                  } as Partial<Privacy>)
                 }
                 className={`h-8 w-14 rounded-full border-2 p-1 transition ${
                   privacy[key]

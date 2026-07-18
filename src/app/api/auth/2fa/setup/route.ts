@@ -1,9 +1,10 @@
 import { generateSecret, generateURI } from "otplib";
 import QRCode from "qrcode";
 import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
+import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/modules/auth/password";
 import { storeTotpSecret } from "@/modules/auth/two-factor";
 

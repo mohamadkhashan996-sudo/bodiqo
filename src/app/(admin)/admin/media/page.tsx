@@ -2,9 +2,9 @@
 
 import {
   AdminPageHeader,
+  adminPost,
   Panel,
   StatCard,
-  adminPost,
   useAdminJson,
 } from "@/components/admin/admin-ui";
 
@@ -29,7 +29,8 @@ export default function AdminMediaPage() {
     await adminPost("/api/admin/media", {
       action: "register",
       kind: "IMAGE",
-      originalUrl: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800",
+      originalUrl:
+        "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800",
       mimeType: "image/jpeg",
       sizeBytes: 120000,
       width: 800,
@@ -44,7 +45,11 @@ export default function AdminMediaPage() {
         title="Media system"
         subtitle="Images, videos, voice, documents — compression hooks, thumbnails, storage monitoring."
       />
-      <button type="button" className="mb-4 rounded-full border px-4 py-2 text-xs" onClick={() => void registerSample()}>
+      <button
+        type="button"
+        className="mb-4 rounded-full border px-4 py-2 text-xs"
+        onClick={() => void registerSample()}
+      >
         Register sample image asset
       </button>
       {loading ? <p className="text-sm text-[var(--muted)]">Loading…</p> : null}
@@ -58,15 +63,27 @@ export default function AdminMediaPage() {
           </div>
           <Panel className="mt-6 space-y-3">
             {data.assets.map((a) => (
-              <div key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--surface)] px-4 py-3 text-sm">
+              <div
+                key={a.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--surface)] px-4 py-3 text-sm"
+              >
                 <div>
-                  <p className="font-medium">{a.kind} · {a.status}</p>
-                  <p className="text-xs text-[var(--muted)] truncate max-w-md">{a.originalUrl}</p>
+                  <p className="font-medium">
+                    {a.kind} · {a.status}
+                  </p>
+                  <p className="max-w-md truncate text-xs text-[var(--muted)]">
+                    {a.originalUrl}
+                  </p>
                 </div>
                 <button
                   type="button"
                   className="text-xs text-[var(--ember)] underline"
-                  onClick={() => void adminPost("/api/admin/media", { action: "delete", id: a.id }).then(reload)}
+                  onClick={() =>
+                    void adminPost("/api/admin/media", {
+                      action: "delete",
+                      id: a.id,
+                    }).then(reload)
+                  }
                 >
                   Delete
                 </button>

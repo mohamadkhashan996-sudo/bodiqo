@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+
 import { site } from "@/config/site";
+import { prisma } from "@/lib/prisma";
+
 import PostPageClient from "./post-page-client";
 
 type Props = { params: Promise<{ id: string }> };
@@ -20,11 +22,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     });
     if (!post) {
-      return { title: "Post", robots: { index: false } };
+      return {
+        title: "Post",
+        robots: { index: false, follow: false },
+      };
     }
     const author =
-      post.author.displayName || post.author.name || post.author.handle || "Member";
-    const excerpt = (post.body || `${post.type.toLowerCase()} post`).slice(0, 140);
+      post.author.displayName ||
+      post.author.name ||
+      post.author.handle ||
+      "Member";
+    const excerpt = (post.body || `${post.type.toLowerCase()} post`).slice(
+      0,
+      140,
+    );
     const title = `${author} on Relune`;
     const description = excerpt;
     const image = post.media[0]?.url;
@@ -36,15 +47,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description,
         type: "article",
         url: `${site.url}/post/${id}`,
-        ...(image ? { images: [{ url: image }] } : {}),
+        siteName: site.name,
+        ...(image ? { images: [{ url: image, alt: title }] } : {}),
       },
       twitter: {
-        card: "summary_large_image",
+        card: image ? "summary_large_image" : "summary",
         title,
         description,
         ...(image ? { images: [image] } : {}),
       },
       alternates: { canonical: `/post/${id}` },
+      other: {
+        "al:ios:url": `relune://post/${id}`,
+        "al:android:url": `relune://post/${id}`,
+      },
     };
   } catch {
     return { title: "Post" };

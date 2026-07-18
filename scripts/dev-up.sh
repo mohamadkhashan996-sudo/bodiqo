@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-SERVICES_DIR="${RELUNE_SERVICES_DIR:-$HOME/.relune-services}"
+SERVICES_DIR="${Relune_SERVICES_DIR:-$HOME/.relune-services}"
 PID_FILE="$SERVICES_DIR/dev-services.pid"
 PORT="${PORT:-3000}"
 export PORT
@@ -152,16 +152,23 @@ start_infra
 ensure_db
 
 if lsof -tiTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-  if [[ "${RELUNE_FORCE:-}" == "1" ]]; then
+  if [[ "${Relune_FORCE:-}" == "1" ]]; then
     lsof -tiTCP:"$PORT" -sTCP:LISTEN | xargs kill -9 2>/dev/null || true
     sleep 1
   else
     log "Already listening on :$PORT — health:"
     curl -fsS "http://127.0.0.1:${PORT}/api/health?mode=ready" || true
     echo
-    log "Use RELUNE_FORCE=1 npm run up to restart the app process."
+    log "Use Relune_FORCE=1 npm run up to restart the app process."
     exit 0
   fi
+fi
+
+# Webpack↔Turbopack or interrupted compiles leave a half-written .next that
+# surfaces as "Cannot read properties of undefined (reading 'call')".
+if [[ "${Relune_FORCE:-}" == "1" || "${Relune_CLEAN:-}" == "1" ]]; then
+  log "Clearing .next cache…"
+  rm -rf .next
 fi
 
 log "Starting Relune → http://localhost:${PORT}"

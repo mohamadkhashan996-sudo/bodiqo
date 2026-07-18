@@ -1,14 +1,15 @@
-import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { z } from "zod";
+
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
 import { AppError } from "@/lib/errors";
+import { prisma } from "@/lib/prisma";
+import { writeAudit } from "@/modules/admin/services/audit";
 import {
   confirmPendingOAuthLink,
   getPendingOAuthLink,
 } from "@/modules/auth/account-link";
-import { PROVIDER_SHORT, type OAuthProviderId } from "@/modules/auth/providers";
-import { writeAudit } from "@/modules/admin/services/audit";
+import { type OAuthProviderId, PROVIDER_SHORT } from "@/modules/auth/providers";
 
 export async function GET() {
   try {
@@ -51,7 +52,9 @@ export async function DELETE(request: Request) {
     const provider = searchParams.get("provider");
     if (!provider) throw new AppError("Provider required", 400);
 
-    const accounts = await prisma.account.findMany({ where: { userId: user.id } });
+    const accounts = await prisma.account.findMany({
+      where: { userId: user.id },
+    });
     const me = await prisma.user.findUnique({
       where: { id: user.id },
       select: { passwordHash: true },

@@ -1,10 +1,14 @@
 "use client";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera } from "lucide-react";
+import type { FormEvent } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
+import { ACCEPT_BY_PURPOSE } from "@/lib/media-accept";
+import { compressImageFile } from "@/lib/image-compress";
 import { uploadFile } from "@/lib/upload-client";
 import type { InterestItem } from "@/types/feed";
 
@@ -38,7 +42,12 @@ export default function OnboardingPage() {
     setUploading(true);
     setError(null);
     try {
-      const result = await uploadFile(file);
+      const compressed = await compressImageFile(file, { maxEdge: 1024 });
+      const result = await uploadFile(compressed.file, {
+        purpose: "avatar",
+        width: compressed.width || undefined,
+        height: compressed.height || undefined,
+      });
       setForm((prev) => ({ ...prev, image: result.url }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -81,7 +90,8 @@ export default function OnboardingPage() {
             {steps[step]}, in your own words.
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted)]">
-            A polished setup flow to shape your profile before you enter the main experience.
+            A polished setup flow to shape your profile before you enter the
+            main experience.
           </p>
 
           {error ? (
@@ -114,12 +124,16 @@ export default function OnboardingPage() {
                 disabled={uploading}
                 onClick={() => fileRef.current?.click()}
               >
-                {uploading ? "Uploading…" : form.image ? "Change photo" : "Upload photo"}
+                {uploading
+                  ? "Uploading…"
+                  : form.image
+                    ? "Change photo"
+                    : "Upload photo"}
               </Button>
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                accept={ACCEPT_BY_PURPOSE.avatar}
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -135,7 +149,9 @@ export default function OnboardingPage() {
                 required
                 placeholder="Display name"
                 value={form.displayName}
-                onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, displayName: e.target.value })
+                }
               />
               <Input
                 required
@@ -167,7 +183,9 @@ export default function OnboardingPage() {
                   key={i.id}
                   onClick={() =>
                     setChosen((old) =>
-                      old.includes(i.id) ? old.filter((x) => x !== i.id) : [...old, i.id],
+                      old.includes(i.id)
+                        ? old.filter((x) => x !== i.id)
+                        : [...old, i.id],
                     )
                   }
                   className={`rounded-full px-4 py-2 text-sm transition ${
@@ -203,13 +221,19 @@ export default function OnboardingPage() {
           )}
           <div className="mt-8 flex justify-between">
             {step ? (
-              <Button type="button" variant="quiet" onClick={() => setStep(step - 1)}>
+              <Button
+                type="button"
+                variant="quiet"
+                onClick={() => setStep(step - 1)}
+              >
                 Back
               </Button>
             ) : (
               <span />
             )}
-            <Button>{step === steps.length - 1 ? "Enter Relune" : "Continue"}</Button>
+            <Button>
+              {step === steps.length - 1 ? "Enter Relune" : "Continue"}
+            </Button>
           </div>
         </Card>
       </form>

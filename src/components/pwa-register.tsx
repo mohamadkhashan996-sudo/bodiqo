@@ -10,7 +10,14 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     if (process.env.NEXT_PUBLIC_PWA === "false") return;
-    void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    void navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => {
+        // Push-only SW, but still force an update so a stale worker from an
+        // older Relune build cannot linger across .next rebuilds.
+        void registration.update();
+      })
+      .catch(() => undefined);
   }, []);
   return null;
 }

@@ -70,31 +70,31 @@ export function Modal({
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={reduceMotion ? undefined : { opacity: 0 }}
-          className="fixed inset-0 z-[var(--z-modal)] grid place-items-center bg-[var(--night)]/55 p-4 backdrop-blur-md md:p-6"
+          className="fixed inset-0 z-[var(--z-modal)] grid place-items-center bg-[var(--night)]/58 p-[max(0.75rem,env(safe-area-inset-top))] px-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:p-6"
           onMouseDown={onClose}
         >
           <motion.section
             ref={panelRef}
-            initial={reduceMotion ? false : { y: 16, scale: 0.98 }}
+            initial={reduceMotion ? false : { y: 18, scale: 0.975 }}
             animate={{ y: 0, scale: 1 }}
             exit={reduceMotion ? undefined : { y: 12, scale: 0.98 }}
             transition={
               reduceMotion
                 ? { duration: 0 }
-                : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }
+                : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }
             }
             onMouseDown={(e) => e.stopPropagation()}
-            className="surface-panel-strong relative w-full max-w-lg max-h-[min(90dvh,40rem)] overflow-y-auto rounded-[var(--radius-2xl)] p-5 backdrop-blur-2xl md:p-6"
+            className="surface-panel-strong premium-ring relative max-h-[min(calc(100dvh-2rem),40rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-[var(--radius-2xl)] p-5 shadow-[var(--shadow-xl)] backdrop-blur-2xl md:p-6"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
           >
             <header className="flex items-start justify-between gap-4">
-              <div>
-                <p className="kicker">RELUNE</p>
+              <div className="min-w-0">
+                <p className="kicker">Relune</p>
                 <h2
                   id={titleId}
-                  className="mt-2 font-[family-name:var(--font-display)] text-2xl tracking-tight md:text-[1.75rem]"
+                  className="mt-2 font-[family-name:var(--font-display)] text-2xl tracking-tight text-balance md:text-[1.75rem]"
                 >
                   {title}
                 </h2>
@@ -105,7 +105,7 @@ export function Modal({
                 aria-label="Close dialog"
                 className="icon-button size-10 shrink-0"
               >
-                <X className="size-5" />
+                <X className="size-5" aria-hidden />
               </button>
             </header>
             <div className="mt-5">{children}</div>

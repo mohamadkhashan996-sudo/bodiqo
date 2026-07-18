@@ -1,19 +1,25 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { FormEvent } from "react";
+
 import { AuthProviderButton } from "@/components/auth/provider-button";
+import { PageTransition } from "@/components/motion/primitives";
+import { Button } from "@/components/ui/button";
+import { StateBanner } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
+import { safeCallbackUrl } from "@/lib/guest/paths";
+import { isValidE164 } from "@/lib/phone";
 import {
   OAUTH_PROVIDER_ORDER,
-  PROVIDER_LABELS,
   type OAuthProviderId,
+  PROVIDER_LABELS,
 } from "@/modules/auth/providers";
-import { PageTransition } from "@/components/motion/primitives";
-import { PhoneInput } from "@/components/ui/phone-input";
-import { isValidE164 } from "@/lib/phone";
-import { safeCallbackUrl } from "@/lib/guest/paths";
 
 type ProviderRow = {
   id: OAuthProviderId;
@@ -32,7 +38,8 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   EmailRequired: "That provider didn’t share an email address.",
   AccountUnavailable: "This account isn’t available right now.",
   AccountConflict: "This login doesn’t match your existing connection.",
-  Configuration: "Sign-in isn’t fully configured yet. Please try email or contact support.",
+  Configuration:
+    "Sign-in isn’t fully configured yet. Please try email or contact support.",
   Default: "Something went wrong signing in. Please try again.",
 };
 
@@ -41,10 +48,14 @@ type Mode = "oauth" | "email" | "phone";
 function SignInForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = safeCallbackUrl(params.get("callbackUrl") ?? params.get("next"));
+  const callbackUrl = safeCallbackUrl(
+    params.get("callbackUrl") ?? params.get("next"),
+  );
   const [error, setError] = useState<string | null>(null);
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
-  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">(
+    "idle",
+  );
   const [loading, setLoading] = useState(false);
   const [oauth, setOauth] = useState<ProviderRow[]>([]);
   const [credentialsEnabled, setCredentialsEnabled] = useState(true);
@@ -57,7 +68,9 @@ function SignInForm() {
 
   useEffect(() => {
     const code = params.get("error");
-    if (code) setError(FRIENDLY_ERRORS[code] || FRIENDLY_ERRORS.Default);
+    if (code) {
+      setError(FRIENDLY_ERRORS[code] ?? FRIENDLY_ERRORS.Default ?? null);
+    }
     if (params.get("verified") === "1") {
       setError(null);
     }
@@ -157,8 +170,13 @@ function SignInForm() {
 
     if (data.requires2fa) {
       setLoading(false);
+      try {
+        sessionStorage.setItem("relune.2faChallenge", String(data.token));
+      } catch {
+        /* ignore */
+      }
       router.push(
-        `/sign-in/2fa?token=${encodeURIComponent(data.token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`,
+        `/sign-in/2fa?callbackUrl=${encodeURIComponent(callbackUrl)}`,
       );
       return;
     }
@@ -170,7 +188,7 @@ function SignInForm() {
     });
     setLoading(false);
     if (result?.error) {
-      setError(FRIENDLY_ERRORS.CredentialsSignin);
+      setError(FRIENDLY_ERRORS.CredentialsSignin ?? null);
       return;
     }
     try {
@@ -221,8 +239,13 @@ function SignInForm() {
       return;
     }
     if (data.requires2fa) {
+      try {
+        sessionStorage.setItem("relune.2faChallenge", String(data.token));
+      } catch {
+        /* ignore */
+      }
       router.push(
-        `/sign-in/2fa?token=${encodeURIComponent(data.token)}&callbackUrl=${encodeURIComponent(callbackUrl)}`,
+        `/sign-in/2fa?callbackUrl=${encodeURIComponent(callbackUrl)}`,
       );
       return;
     }
@@ -250,9 +273,11 @@ function SignInForm() {
       </p>
 
       {params.get("verified") === "1" ? (
-        <p className="mt-5 rounded-2xl border border-[var(--signal)]/30 bg-[var(--signal)]/10 px-4 py-3 text-sm text-[var(--signal-deep)]">
-          Email verified. You can sign in now.
-        </p>
+        <div className="mt-5">
+          <StateBanner tone="success">
+            Email verified. You can sign in now.
+          </StateBanner>
+        </div>
       ) : null}
 
       {mode === "oauth" ? (
@@ -291,58 +316,45 @@ function SignInForm() {
       ) : null}
 
       {mode === "email" && credentialsEnabled ? (
-        <form
-          onSubmit={onEmailSubmit}
-          className="mt-8 space-y-4 rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur"
-        >
+        <form onSubmit={onEmailSubmit} className="form-panel mt-8 space-y-4">
           <button
             type="button"
-            className="text-xs text-[var(--muted)] hover:underline"
+            className="text-xs font-medium text-[var(--muted-strong)] underline-offset-4 hover:underline"
             onClick={() => setMode("oauth")}
           >
             ← All sign-in methods
           </button>
-          <label className="block">
-            <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-              Email
-            </span>
-            <input
+          <Field label="Email" htmlFor="sign-in-email">
+            <Input
+              id="sign-in-email"
               name="email"
               type="email"
               required
               defaultValue={savedEmail}
               autoComplete="email"
-              className="mt-2 w-full min-h-11 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 text-[var(--ink)] shadow-[var(--shadow-sm)] outline-none placeholder:text-[var(--placeholder)] focus-visible:border-[var(--signal-deep)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-strong)]"
             />
-          </label>
-          <label className="block">
-            <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-              Password
-            </span>
-            <input
+          </Field>
+          <Field label="Password" htmlFor="sign-in-password">
+            <Input
+              id="sign-in-password"
               name="password"
               type="password"
               required
               minLength={8}
               autoComplete="current-password"
-              className="mt-2 w-full min-h-11 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 text-[var(--ink)] shadow-[var(--shadow-sm)] outline-none placeholder:text-[var(--placeholder)] focus-visible:border-[var(--signal-deep)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-strong)]"
             />
-          </label>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-full bg-[var(--signal-deep)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-[var(--shadow-sm)] disabled:opacity-60"
-          >
+          </Field>
+          <Button type="submit" variant="signal" fullWidth disabled={loading}>
             {loading ? "Signing in…" : "Sign in with email"}
-          </button>
+          </Button>
         </form>
       ) : null}
 
       {mode === "phone" ? (
-        <div className="mt-8 space-y-4 rounded-[1.75rem] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-5 backdrop-blur">
+        <div className="form-panel mt-8 space-y-4">
           <button
             type="button"
-            className="text-xs text-[var(--muted)] hover:underline"
+            className="text-xs font-medium text-[var(--muted-strong)] underline-offset-4 hover:underline"
             onClick={() => {
               setMode("oauth");
               setPhoneStep("request");
@@ -352,67 +364,59 @@ function SignInForm() {
           </button>
           {phoneStep === "request" ? (
             <form onSubmit={sendPhoneCode} className="space-y-4">
-              <label className="block">
-                <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-                  Phone number
-                </span>
-                <PhoneInput
-                  value={phone}
-                  onChange={setPhone}
-                  required
-                  className="mt-2"
-                />
-              </label>
-              <button
+              <Field label="Phone number">
+                <PhoneInput value={phone} onChange={setPhone} required />
+              </Field>
+              <Button
                 type="submit"
+                variant="signal"
+                fullWidth
                 disabled={loading || !isValidE164(phone)}
-                className="w-full rounded-full bg-[var(--signal-deep)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-[var(--shadow-sm)] disabled:opacity-60"
               >
                 {loading ? "Sending…" : "Send code"}
-              </button>
+              </Button>
             </form>
           ) : (
             <form onSubmit={verifyPhone} className="space-y-4">
-              <p className="text-sm text-[var(--muted)]">Code sent to {phone}</p>
+              <p className="text-sm text-[var(--muted)]">
+                Code sent to {phone}
+              </p>
               {debugCode ? (
-                <p className="text-xs text-[var(--signal-deep)]">Dev code: {debugCode}</p>
+                <p className="text-xs text-[var(--signal-deep)]">
+                  Dev code: {debugCode}
+                </p>
               ) : null}
-              <label className="block">
-                <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-                  SMS code
-                </span>
-                <input
+              <Field label="SMS code" htmlFor="sign-in-code">
+                <Input
+                  id="sign-in-code"
                   name="code"
                   required
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  className="mt-2 w-full min-h-11 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 text-[var(--ink)] shadow-[var(--shadow-sm)] outline-none placeholder:text-[var(--placeholder)] focus-visible:border-[var(--signal-deep)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-strong)]"
                 />
-              </label>
-              <button
+              </Field>
+              <Button
                 type="submit"
+                variant="signal"
+                fullWidth
                 disabled={loading}
-                className="w-full rounded-full bg-[var(--signal-deep)] px-6 py-3.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-white shadow-[var(--shadow-sm)] disabled:opacity-60"
               >
                 {loading ? "Verifying…" : "Verify and sign in"}
-              </button>
+              </Button>
             </form>
           )}
         </div>
       ) : null}
 
       {error ? (
-        <div
-          className="mt-5 rounded-2xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-4 py-3 text-sm text-[var(--danger)]"
-          role="alert"
-        >
-          <p>{error}</p>
+        <div className="mt-5" role="alert">
+          <StateBanner tone="error">{error}</StateBanner>
           {unverifiedEmail ? (
             <button
               type="button"
               disabled={resendState !== "idle"}
               onClick={() => void resendVerification()}
-              className="mt-2 text-[var(--signal-deep)] underline disabled:opacity-60"
+              className="mt-3 text-sm font-medium text-[var(--signal-deep)] underline-offset-4 hover:underline disabled:opacity-60"
             >
               {resendState === "sent"
                 ? "Verification email sent"
@@ -426,10 +430,16 @@ function SignInForm() {
 
       <div className="mt-8 space-y-4 border-t-2 border-[var(--mist-strong)] pt-6">
         <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <Link href="/forgot-password" className="text-[var(--signal-deep)] hover:underline">
+          <Link
+            href="/forgot-password"
+            className="text-[var(--signal-deep)] hover:underline"
+          >
             Forgot Password
           </Link>
-          <Link href="/sign-up" className="font-medium text-[var(--ink)] hover:underline">
+          <Link
+            href="/sign-up"
+            className="font-medium text-[var(--ink)] hover:underline"
+          >
             Create New Account
           </Link>
         </div>
@@ -449,7 +459,15 @@ function SignInForm() {
 
 export default function SignInPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+    <Suspense
+      fallback={
+        <div className="space-y-3" aria-busy="true" aria-label="Loading">
+          <div className="skeleton h-10 w-48" />
+          <div className="skeleton h-12 w-full rounded-full" />
+          <div className="skeleton h-12 w-full rounded-full" />
+        </div>
+      }
+    >
       <SignInForm />
     </Suspense>
   );

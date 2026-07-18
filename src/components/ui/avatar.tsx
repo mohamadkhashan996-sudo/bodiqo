@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+
 import { cn } from "@/lib/utils";
 
 const OPTIMIZABLE_HOSTS = new Set([
@@ -39,7 +40,7 @@ export function Avatar({
         role="img"
         aria-label={label}
         className={cn(
-          "inline-flex size-10 shrink-0 items-center justify-center rounded-[1.35rem] border-2 border-[var(--mist-strong)] bg-gradient-to-br from-[var(--ember)]/35 to-[var(--signal)]/20 font-[family-name:var(--font-display)] text-sm shadow-[var(--shadow-sm)]",
+          "inline-flex size-10 shrink-0 items-center justify-center rounded-[var(--radius-lg)] border-2 border-[var(--mist-strong)] bg-gradient-to-br from-[var(--ember)]/35 to-[var(--signal)]/20 font-[family-name:var(--font-display)] text-sm shadow-[var(--shadow-sm)]",
           className,
         )}
       >
@@ -49,7 +50,7 @@ export function Avatar({
   }
 
   const shared = cn(
-    "size-10 rounded-[1.35rem] border-2 border-[var(--mist-strong)] object-cover shadow-[var(--shadow-sm)]",
+    "size-10 rounded-[var(--radius-lg)] border-2 border-[var(--mist-strong)] object-cover shadow-[var(--shadow-sm)]",
     className,
   );
 

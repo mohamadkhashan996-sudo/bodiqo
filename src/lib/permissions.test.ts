@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { can, isStaff, ROLE_RANK } from "@/lib/permissions";
 
 describe("permissions", () => {

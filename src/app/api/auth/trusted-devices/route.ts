@@ -1,5 +1,13 @@
 import { z } from "zod";
-import { body, clientIp, fail, ok, requireUser, guardApiAbuse} from "@/lib/api";
+
+import {
+  body,
+  clientIp,
+  fail,
+  guardApiAbuse,
+  ok,
+  requireUser,
+} from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import {
   deviceFingerprint,

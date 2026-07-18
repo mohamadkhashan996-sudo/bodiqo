@@ -103,7 +103,10 @@ export function isStaff(role: string | undefined | null): boolean {
   return Boolean(role && STAFF_ROLES.includes(role as Role));
 }
 
-export function can(role: string | undefined | null, permission: Permission): boolean {
+export function can(
+  role: string | undefined | null,
+  permission: Permission,
+): boolean {
   if (!role) return false;
   const list = ROLE_PERMISSIONS[role as Role];
   return Boolean(list?.includes(permission));

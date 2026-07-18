@@ -118,10 +118,7 @@ async function forwardToSentry(
   }
 }
 
-export async function captureException(
-  error: unknown,
-  context?: ErrorContext,
-) {
+export async function captureException(error: unknown, context?: ErrorContext) {
   const serialized = serializeError(error);
   pushRecent({
     at: new Date().toISOString(),
@@ -143,16 +140,26 @@ export async function captureException(
 }
 
 export function installProcessErrorHandlers() {
-  if ((globalThis as { __reluneErrorsInstalled?: boolean }).__reluneErrorsInstalled) {
+  if (
+    (globalThis as { __reluneErrorsInstalled?: boolean })
+      .__reluneErrorsInstalled
+  ) {
     return;
   }
-  (globalThis as { __reluneErrorsInstalled?: boolean }).__reluneErrorsInstalled =
-    true;
+  (
+    globalThis as { __reluneErrorsInstalled?: boolean }
+  ).__reluneErrorsInstalled = true;
 
   process.on("unhandledRejection", (reason) => {
-    void captureException(reason, { source: "worker", extra: { kind: "unhandledRejection" } });
+    void captureException(reason, {
+      source: "worker",
+      extra: { kind: "unhandledRejection" },
+    });
   });
   process.on("uncaughtException", (error) => {
-    void captureException(error, { source: "worker", extra: { kind: "uncaughtException" } });
+    void captureException(error, {
+      source: "worker",
+      extra: { kind: "uncaughtException" },
+    });
   });
 }

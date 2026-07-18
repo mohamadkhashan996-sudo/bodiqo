@@ -1,5 +1,6 @@
-import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
+
 import { assertDemoSeedsAllowed } from "./seed-guard";
 
 const prisma = new PrismaClient();
@@ -64,30 +65,36 @@ async function main() {
     update: {},
   });
 
-  const leo = await prisma.user.findUnique({ where: { email: "leo@cirqua.local" } });
+  const leo = await prisma.user.findUnique({
+    where: { email: "leo@cirqua.local" },
+  });
   if (leo) {
-    await prisma.report.create({
-      data: {
-        reporterId: leo.id,
-        targetType: "USER",
-        targetId: admin.id,
-        reason: "Demo spam report",
-        category: "SPAM",
-        details: "Seeded for moderation center",
-        status: "OPEN",
-      },
-    }).catch(() => undefined);
+    await prisma.report
+      .create({
+        data: {
+          reporterId: leo.id,
+          targetType: "USER",
+          targetId: admin.id,
+          reason: "Demo spam report",
+          category: "SPAM",
+          details: "Seeded for moderation center",
+          status: "OPEN",
+        },
+      })
+      .catch(() => undefined);
 
-    await prisma.verificationRequest.create({
-      data: {
-        userId: leo.id,
-        fullName: "Leo Martin",
-        category: "Creator",
-        notes: "Demo verification request",
-        evidenceUrls: [],
-        status: "PENDING",
-      },
-    }).catch(() => undefined);
+    await prisma.verificationRequest
+      .create({
+        data: {
+          userId: leo.id,
+          fullName: "Leo Martin",
+          category: "Creator",
+          notes: "Demo verification request",
+          evidenceUrls: [],
+          status: "PENDING",
+        },
+      })
+      .catch(() => undefined);
   }
 
   await prisma.securityEvent.create({

@@ -1,22 +1,28 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Syne } from "next/font/google";
-import { auth } from "@/modules/auth";
-import { Providers } from "@/components/providers";
-import { SplashScreen } from "@/components/motion/splash";
+
 import { ClientErrorReporter } from "@/components/observability/client-error-reporter";
+import { Providers } from "@/components/providers";
+import { RuntimeGuardScript } from "@/components/runtime-guard-script";
+import { ThemeBootScript } from "@/components/theme-boot-script";
 import { site } from "@/config/site";
+
 import "./globals.css";
 
 const syne = Syne({
   subsets: ["latin"],
   variable: "--font-syne",
   display: "swap",
+  preload: true,
+  adjustFontFallback: true,
 });
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-dm-sans",
   display: "swap",
+  preload: true,
+  adjustFontFallback: true,
 });
 
 const description = `${site.tagline} A premium social platform for cinematic presence, conversation, and communities.`;
@@ -44,6 +50,9 @@ export const metadata: Metadata = {
     apple: [{ url: "/apple-touch-icon.png" }],
   },
   manifest: "/manifest.webmanifest",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: site.name,
     description: site.tagline,
@@ -51,18 +60,24 @@ export const metadata: Metadata = {
     url: site.url,
     siteName: site.name,
     locale: "en_US",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: site.name,
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: site.name,
     description: site.tagline,
+    images: ["/opengraph-image"],
   },
   robots: {
     index: true,
     follow: true,
-  },
-  alternates: {
-    canonical: "/",
   },
 };
 
@@ -77,28 +92,11 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
-  let locale = "en";
-  let theme: "LIGHT" | "DARK" | "SYSTEM" = "SYSTEM";
-  if (session?.user?.id) {
-    try {
-      const { prisma } = await import("@/lib/prisma");
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { locale: true, theme: true },
-      });
-      if (user?.locale) locale = user.locale;
-      if (user?.theme) theme = user.theme;
-    } catch {
-      /* ignore */
-    }
-  }
-
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
@@ -112,19 +110,28 @@ export default async function RootLayout({
 
   return (
     <html
-      lang={locale}
-      data-theme={theme === "DARK" ? "dark" : "light"}
+      lang="en"
+      data-theme="light"
       className={`${syne.variable} ${dmSans.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <ThemeBootScript />
+        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+        <link
+          rel="preconnect"
+          href="https://res.cloudinary.com"
+          crossOrigin=""
+        />
+      </head>
       <body>
+        <RuntimeGuardScript />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <Providers locale={locale} theme={theme}>
+        <Providers>
           <ClientErrorReporter />
-          <SplashScreen />
           <a
             href="#content"
             className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-[90] focus:rounded-full focus:bg-[var(--ink)] focus:px-4 focus:py-2 focus:text-[var(--cloud)]"

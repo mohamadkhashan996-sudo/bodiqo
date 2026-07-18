@@ -1,3 +1,4 @@
+import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 
 export type ProfileVisibility = {
@@ -5,6 +6,7 @@ export type ProfileVisibility = {
   canViewContent: boolean;
   canViewFollowers: boolean;
   canViewFollowing: boolean;
+  canViewFriends: boolean;
   followStatus: "none" | "following" | "requested";
   isMuted: boolean;
   isBlockedByMe: boolean;
@@ -13,10 +15,15 @@ export type ProfileVisibility = {
 
 type AuthorLike = { id: string; isPrivate?: boolean };
 
-export async function isFollowing(viewerId: string | undefined, authorId: string) {
+export async function isFollowing(
+  viewerId: string | undefined,
+  authorId: string,
+) {
   if (!viewerId || viewerId === authorId) return viewerId === authorId;
   const row = await prisma.follow.findUnique({
-    where: { followerId_followingId: { followerId: viewerId, followingId: authorId } },
+    where: {
+      followerId_followingId: { followerId: viewerId, followingId: authorId },
+    },
     select: { id: true },
   });
   return Boolean(row);
@@ -38,7 +45,10 @@ export async function hasPendingFollowRequest(
   return Boolean(row);
 }
 
-export async function getBlockState(viewerId: string | undefined, authorId: string) {
+export async function getBlockState(
+  viewerId: string | undefined,
+  authorId: string,
+) {
   if (!viewerId || viewerId === authorId) {
     return { isBlockedByMe: false, isBlockedByThem: false };
   }
@@ -57,7 +67,10 @@ export async function getBlockState(viewerId: string | undefined, authorId: stri
   };
 }
 
-export async function isMutedBy(viewerId: string | undefined, authorId: string) {
+export async function isMutedBy(
+  viewerId: string | undefined,
+  authorId: string,
+) {
   if (!viewerId || viewerId === authorId) return false;
   const row = await prisma.mute.findUnique({
     where: { muterId_mutedId: { muterId: viewerId, mutedId: authorId } },
@@ -88,18 +101,42 @@ export async function getProfileVisibility(
   viewerId?: string,
 ): Promise<ProfileVisibility> {
   const self = viewerId === author.id;
-  const [following, requested, mute, block] = await Promise.all([
+  const [following, requested, mute, block, privacy] = await Promise.all([
     isFollowing(viewerId, author.id),
     hasPendingFollowRequest(viewerId, author.id),
     isMutedBy(viewerId, author.id),
     getBlockState(viewerId, author.id),
+    prisma.privacySettings.findUnique({
+      where: { userId: author.id },
+      select: { whoCanSeeFriends: true },
+    }),
   ]);
   const blocked = block.isBlockedByMe || block.isBlockedByThem;
+  const baseLists = self || (!blocked && (following || !author.isPrivate));
+
+  let canViewFriends = baseLists;
+  if (!self && !blocked && viewerId) {
+    const audience = privacy?.whoCanSeeFriends ?? "FOLLOWERS";
+    if (audience === "NOBODY") canViewFriends = false;
+    else if (audience === "EVERYONE") {
+      canViewFriends = !author.isPrivate || following;
+    } else if (audience === "FOLLOWERS") canViewFriends = following;
+    else if (audience === "FOLLOWING") {
+      canViewFriends = await isFollowing(author.id, viewerId);
+    } else if (audience === "MUTUAL") {
+      canViewFriends =
+        following && (await isFollowing(author.id, viewerId));
+    }
+  } else if (!self) {
+    canViewFriends = false;
+  }
+
   return {
     isPrivate: Boolean(author.isPrivate),
     canViewContent: self || (!blocked && (following || !author.isPrivate)),
-    canViewFollowers: self || (!blocked && (following || !author.isPrivate)),
-    canViewFollowing: self || (!blocked && (following || !author.isPrivate)),
+    canViewFollowers: baseLists,
+    canViewFollowing: baseLists,
+    canViewFriends,
     followStatus: following ? "following" : requested ? "requested" : "none",
     isMuted: mute,
     isBlockedByMe: block.isBlockedByMe,
@@ -112,7 +149,9 @@ export async function canViewPostContent(
   author: AuthorLike,
   visibility: "PUBLIC" | "FOLLOWERS" | "PRIVATE",
 ) {
-  if (visibility === "PRIVATE") return viewerId === author.id;
+  // Authors always see their own posts (including FOLLOWERS/PRIVATE).
+  if (viewerId && viewerId === author.id) return true;
+  if (visibility === "PRIVATE") return false;
   if (visibility === "FOLLOWERS") {
     if (!viewerId) return false;
     return isFollowing(viewerId, author.id);
@@ -149,7 +188,8 @@ export async function filterVisiblePostIds(
   }
 
   return posts.filter((post) => {
-    if (post.visibility === "PRIVATE") return viewerId === post.authorId;
+    if (viewerId && viewerId === post.authorId) return true;
+    if (post.visibility === "PRIVATE") return false;
     if (post.visibility === "FOLLOWERS") {
       return Boolean(viewerId && following.has(post.authorId));
     }
@@ -158,4 +198,58 @@ export async function filterVisiblePostIds(
     }
     return post.visibility === "PUBLIC";
   });
+}
+
+/**
+ * Load a published post and enforce the same visibility policy used for reads.
+ * Use before likes, bookmarks, shares, views, poll votes, and comments.
+ */
+export async function assertCanInteractWithPost(
+  viewerId: string | undefined,
+  postId: string,
+  opts?: {
+    /** Require a signed-in viewer (default true). */
+    requireAuth?: boolean;
+    /** Return 404 instead of 403 to avoid leaking private posts. */
+    obscure?: boolean;
+  },
+) {
+  const requireAuth = opts?.requireAuth !== false;
+  if (requireAuth && !viewerId) {
+    throw new AppError("Sign in required", 401);
+  }
+
+  const post = await prisma.post.findFirst({
+    where: { id: postId, deletedAt: null },
+    select: {
+      id: true,
+      authorId: true,
+      status: true,
+      visibility: true,
+      commentsEnabled: true,
+      type: true,
+      author: {
+        select: { id: true, isPrivate: true, status: true },
+      },
+    },
+  });
+
+  const hide = () => {
+    throw new AppError(
+      opts?.obscure === false ? "Forbidden" : "Post not found",
+      opts?.obscure === false ? 403 : 404,
+    );
+  };
+
+  if (!post || post.author.status !== "ACTIVE") hide();
+  if (post!.status !== "PUBLISHED") hide();
+
+  const allowed = await canViewPostContent(
+    viewerId,
+    post!.author,
+    post!.visibility,
+  );
+  if (!allowed) hide();
+
+  return post!;
 }

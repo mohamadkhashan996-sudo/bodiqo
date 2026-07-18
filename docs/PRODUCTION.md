@@ -1,6 +1,7 @@
 # Relune production checklist
 
 ## Required env
+
 - `DATABASE_URL` (Postgres)
 - `AUTH_SECRET` (≥32 chars)
 - `AUTH_URL` / `NEXTAUTH_URL` (public HTTPS origin)
@@ -9,6 +10,7 @@
 - `NODE_ENV=production`
 
 ## Strongly recommended
+
 - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` — web push
 - `TURN_URLS` / `TURN_CREDENTIAL` — WebRTC TURN
 - `SESSION_DAYS` — JWT lifetime
@@ -20,9 +22,11 @@
 - `APP_VERSION` — release tag for Sentry
 
 ## Mobile shells
+
 - `CAPACITOR_SERVER_URL` — same HTTPS origin as `AUTH_URL` (used at sync time only)
 
 ## Verify before launch
+
 1. `npm run release:check`
 2. `npm test && npm run typecheck && npm run build`
 3. `GET /api/health?mode=ready` → `ok: true`
@@ -33,17 +37,19 @@
 8. Capacitor sync + device smoke on iOS/Android
 
 ## Ops references
-| Topic | Doc |
-| --- | --- |
-| Deploy paths | [DEPLOY](DEPLOY.md), [runbooks/deploy](runbooks/deploy.md) |
-| Observability | [OBSERVABILITY](OBSERVABILITY.md) |
-| Backups | [runbooks/restore](runbooks/restore.md) |
-| Incidents | [runbooks/incident](runbooks/incident.md) |
-| Secrets | [runbooks/secrets](runbooks/secrets.md) |
-| Testing | [TESTING](TESTING.md) |
-| Release cut | [RELEASE](RELEASE.md) |
+
+| Topic         | Doc                                                        |
+| ------------- | ---------------------------------------------------------- |
+| Deploy paths  | [DEPLOY](DEPLOY.md), [runbooks/deploy](runbooks/deploy.md) |
+| Observability | [OBSERVABILITY](OBSERVABILITY.md)                          |
+| Backups       | [runbooks/restore](runbooks/restore.md)                    |
+| Incidents     | [runbooks/incident](runbooks/incident.md)                  |
+| Secrets       | [runbooks/secrets](runbooks/secrets.md)                    |
+| Testing       | [TESTING](TESTING.md)                                      |
+| Release cut   | [RELEASE](RELEASE.md)                                      |
 
 ## Notes
+
 - Maintenance: `MAINTENANCE_MODE=true` or admin setting
 - CSP drops `unsafe-eval` in production
 - Sitemap includes public profiles, posts, and communities (capped)

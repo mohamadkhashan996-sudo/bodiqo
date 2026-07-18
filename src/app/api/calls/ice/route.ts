@@ -24,8 +24,8 @@ export async function GET(request: Request) {
           username: issued.username,
           credential: issued.credential,
         });
-      } else {
-        // Static username without shared secret is allowed only for open TURN relays.
+      } else if (process.env.NODE_ENV !== "production") {
+        // Dev-only: open TURN without shared secret. Never in production.
         iceServers.push({ urls });
       }
     }

@@ -1,8 +1,10 @@
 "use client";
 
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import type { FormEvent } from "react";
+
 import { PageTransition } from "@/components/motion/primitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +14,9 @@ function VerifyInner() {
   const [message, setMessage] = useState("Verifying your email…");
   const [ok, setOk] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">("idle");
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">(
+    "idle",
+  );
   const [resendMsg, setResendMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,7 +58,9 @@ function VerifyInner() {
         body: JSON.stringify({ email }),
       });
       setResendState("sent");
-      setResendMsg("If that email needs verification, a new link is on its way.");
+      setResendMsg(
+        "If that email needs verification, a new link is on its way.",
+      );
     } catch {
       setResendState("idle");
       setResendMsg("Could not resend. Try again.");
@@ -82,8 +88,18 @@ function VerifyInner() {
           <p className="text-sm text-[var(--muted)]">
             Need a new link? Enter your email below.
           </p>
-          <Input name="email" type="email" required placeholder="you@example.com" autoComplete="email" />
-          <Button type="submit" disabled={resendState === "sending"} className="w-full">
+          <Input
+            name="email"
+            type="email"
+            required
+            placeholder="you@example.com"
+            autoComplete="email"
+          />
+          <Button
+            type="submit"
+            disabled={resendState === "sending"}
+            className="w-full"
+          >
             {resendState === "sent"
               ? "Email sent"
               : resendState === "sending"
@@ -93,7 +109,10 @@ function VerifyInner() {
           {resendMsg ? (
             <p className="text-sm text-[var(--muted)]">{resendMsg}</p>
           ) : null}
-          <Link href="/sign-in" className="block text-center text-sm text-[var(--signal-deep)] hover:underline">
+          <Link
+            href="/sign-in"
+            className="block text-center text-sm text-[var(--signal-deep)] hover:underline"
+          >
             Back to sign in
           </Link>
         </form>
@@ -104,7 +123,9 @@ function VerifyInner() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+    <Suspense
+      fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
+    >
       <VerifyInner />
     </Suspense>
   );

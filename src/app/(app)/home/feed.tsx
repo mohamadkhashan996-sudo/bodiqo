@@ -1,22 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useSession } from "next-auth/react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+
 import { PostCard } from "@/components/feed/post-card";
 import { StoriesRail } from "@/components/feed/stories-rail";
 import { PageTransition } from "@/components/motion/primitives";
+import { FollowButton } from "@/components/social/follow-button";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState, Skeleton } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
-import { FollowButton } from "@/components/social/follow-button";
-
+import { appendUniqueById } from "@/lib/utils";
 import type { FeedPost, SuggestedUser } from "@/types/feed";
 
 const PostComposer = dynamic(
-  () =>
-    import("@/components/feed/post-composer").then((m) => m.PostComposer),
+  () => import("@/components/feed/post-composer").then((m) => m.PostComposer),
   {
     ssr: false,
     loading: () => <Skeleton className="mb-4 h-36 w-full rounded-3xl" />,
@@ -56,7 +56,9 @@ export function HomeFeed() {
         const data = await res.json();
         if (res.ok) {
           setPosts((old) =>
-            after ? [...old, ...(data.posts ?? [])] : (data.posts ?? []),
+            after
+              ? appendUniqueById(old, data.posts ?? [])
+              : (data.posts ?? []),
           );
           setCursor(data.nextCursor ?? null);
         }
@@ -84,7 +86,7 @@ export function HomeFeed() {
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && cursor && !loadingRef.current) {
+      if (entry?.isIntersecting && cursor && !loadingRef.current) {
         void load(cursor);
       }
     });
@@ -105,7 +107,9 @@ export function HomeFeed() {
               "Like posts and pick interests so Relune can personalize this feed.",
           }
         : {
-            title: session?.user ? "Your feed is quiet right now" : "No public posts yet",
+            title: session?.user
+              ? "Your feed is quiet right now"
+              : "No public posts yet",
             description: session?.user
               ? "Follow more creators or share the first moment that sets the tone."
               : "Check back soon for public posts, photos, and videos.",
@@ -113,7 +117,7 @@ export function HomeFeed() {
 
   return (
     <PageTransition className="page-shell">
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,720px)_320px]">
+      <div className="grid min-w-0 gap-8 xl:grid-cols-[minmax(0,720px)_minmax(0,320px)] xl:justify-center 2xl:gap-10">
         <section>
           <div className="glass-strong premium-ring hero-panel mb-7">
             <p className="text-[11px] font-semibold tracking-[.22em] text-[var(--signal)] uppercase">
@@ -123,8 +127,8 @@ export function HomeFeed() {
               {session?.user ? "Good to see you." : "Explore Relune."}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted)]">
-              Home, following, latest, and AI-ranked picks — with infinite scroll
-              and smart ranking on discovery feeds.
+              Home, following, latest, and AI-ranked picks — with infinite
+              scroll and smart ranking on discovery feeds.
             </p>
           </div>
           <StoriesRail />
@@ -132,8 +136,14 @@ export function HomeFeed() {
             <div className="mt-7">
               <PostComposer
                 onCreated={(post) => {
-                  if (tab === "Home" || tab === "Latest" || tab === "Following") {
-                    setPosts((old) => [post, ...old]);
+                  if (
+                    tab === "Home" ||
+                    tab === "Latest" ||
+                    tab === "Following"
+                  ) {
+                    setPosts((old) =>
+                      old.some((p) => p.id === post.id) ? old : [post, ...old],
+                    );
                   }
                 }}
               />
@@ -154,7 +164,11 @@ export function HomeFeed() {
               </div>
             ) : null}
             {posts.map((post) => (
-              <PostCard post={post} key={post.id} />
+              <PostCard
+                post={post}
+                key={post.id}
+                priority={posts[0]?.id === post.id}
+              />
             ))}
             {ready && !posts.length ? (
               <EmptyState
@@ -193,12 +207,15 @@ export function HomeFeed() {
                         <b className="block truncate text-sm">
                           {user.displayName ?? user.name}
                         </b>
-                        <small className="text-[var(--muted)]">@{user.handle}</small>
+                        <small className="text-[var(--muted)]">
+                          @{user.handle}
+                        </small>
                       </span>
                     </Link>
                     {user.handle ? (
                       <FollowButton
                         handle={user.handle}
+                        userId={user.id}
                         className="min-h-8 px-2.5 text-[10px]"
                       />
                     ) : null}

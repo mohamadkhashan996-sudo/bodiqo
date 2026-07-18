@@ -1,9 +1,10 @@
 import { z } from "zod";
-import { body, fail, ok, requireUser, guardApiAbuse } from "@/lib/api";
+
+import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { reactMessage } from "@/modules/messaging/services/messages";
 import { broadcastMessageReaction } from "@/modules/messaging/services/broadcast";
+import { reactMessage } from "@/modules/messaging/services/messages";
 
 export async function POST(
   request: Request,

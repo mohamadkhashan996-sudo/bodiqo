@@ -1,12 +1,14 @@
 "use client";
 
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { FormEvent, Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import type { FormEvent } from "react";
+
+import { PageTransition } from "@/components/motion/primitives";
 import { Button } from "@/components/ui/button";
 import { StateBanner } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { PageTransition } from "@/components/motion/primitives";
 
 function ResetPasswordForm() {
   const params = useSearchParams();
@@ -57,7 +59,9 @@ function ResetPasswordForm() {
       </p>
       {done ? (
         <div className="mt-8 space-y-4">
-          <StateBanner tone="success">Password updated. You can now sign in.</StateBanner>
+          <StateBanner tone="success">
+            Password updated. You can now sign in.
+          </StateBanner>
           <Link
             href="/sign-in"
             className="inline-block text-sm text-[var(--signal-deep)] hover:underline"
@@ -103,7 +107,9 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}>
+    <Suspense
+      fallback={<p className="text-sm text-[var(--muted)]">Loading…</p>}
+    >
       <ResetPasswordForm />
     </Suspense>
   );

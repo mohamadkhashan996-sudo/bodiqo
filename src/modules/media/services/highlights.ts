@@ -1,5 +1,7 @@
-import { MediaKind } from "@prisma/client";
+import type { MediaKind } from "@prisma/client";
+
 import { AppError } from "@/lib/errors";
+import { assertOptionalOwnedMedia } from "@/lib/media-asset";
 import { prisma } from "@/lib/prisma";
 import { getProfileVisibility } from "@/modules/users/services/visibility";
 
@@ -49,6 +51,11 @@ export async function createHighlight(
   const title = data.title.trim();
   if (title.length < 1 || title.length > 40) {
     throw new AppError("Highlight title must be 1–40 characters", 400);
+  }
+  if (data.coverUrl) {
+    await assertOptionalOwnedMedia(userId, data.coverUrl, {
+      kinds: ["IMAGE", "GIF", "VIDEO"],
+    });
   }
   return prisma.highlight.create({
     data: {

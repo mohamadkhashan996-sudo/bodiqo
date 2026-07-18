@@ -1,8 +1,7 @@
 import {
+  type CountryCode,
   isSupportedCountry,
   isValidPhoneNumber,
-  parsePhoneNumberFromString,
-  type CountryCode,
 } from "libphonenumber-js";
 
 export type { CountryCode };
@@ -161,18 +160,4 @@ export function isValidE164(value: string, country?: CountryCode): boolean {
   if (!trimmed) return false;
   if (country) return isValidPhoneNumber(trimmed, country);
   return isValidPhoneNumber(trimmed);
-}
-
-export function parseE164ToParts(value: string): {
-  country: CountryCode | null;
-  national: string;
-  e164: string;
-} | null {
-  const parsed = parsePhoneNumberFromString(value.trim());
-  if (!parsed) return null;
-  return {
-    country: parsed.country ?? null,
-    national: parsed.formatNational(),
-    e164: parsed.format("E.164"),
-  };
 }

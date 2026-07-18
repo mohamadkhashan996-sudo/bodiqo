@@ -50,6 +50,7 @@ enum PostStatus {
   PUBLISHED
   DRAFT
   SCHEDULED
+  ARCHIVED
   DELETED
 }
 
@@ -59,6 +60,15 @@ enum MediaKind {
   GIF
   VOICE
   DOCUMENT
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  LAUGH
+  WOW
+  SAD
+  ANGRY
 }
 
 enum NotificationType {
@@ -76,6 +86,9 @@ enum NotificationType {
   CALL
   MISSED_CALL
   GROUP_INVITE
+  LIVE_STARTED
+  LIVE_GIFT
+  ANNOUNCEMENT
 }
 
 enum ReportTarget {
@@ -92,6 +105,13 @@ enum FriendRequestStatus {
   ACCEPTED
   DECLINED
   CANCELLED
+}
+
+enum FriendRequestKind {
+  /** Private-account follow approval → one-way on accept. */
+  FOLLOW
+  /** Friendship request → mutual follows on accept. */
+  FRIEND
 }
 
 enum PresenceStatus {
@@ -126,6 +146,26 @@ enum MessageDelivery {
   SENT
   DELIVERED
   SEEN
+}
+
+enum ShareChannel {
+  COPY
+  NATIVE
+  WHATSAPP
+  TELEGRAM
+  FACEBOOK
+  X
+  EMAIL
+  LINKEDIN
+  QR
+  EMBED
+  INTERNAL
+  OTHER
+}
+
+enum CollectionVisibility {
+  PRIVATE
+  PUBLIC
 }
 
 enum CallType {
@@ -189,6 +229,8 @@ model User {
   country          String?
   city             String?
   birthday         DateTime?
+  languages        String[]        @default([])
+  socialLinks      Json?
   locale           String          @default("en")
   theme            ThemePreference @default(SYSTEM)
   isPrivate        Boolean         @default(false)
@@ -226,6 +268,9 @@ model User {
   likes            PostLike[]
   commentLikes     CommentLike[]
   bookmarks        Bookmark[]
+  bookmarkCollections BookmarkCollection[]
+  postShares       PostShare[]
+  postViews        PostView[]
   followers        Follow[]        @relation("Following")
   following        Follow[]        @relation("Follower")
   blocksIssued     Block[]         @relation("Blocker")
@@ -237,9 +282,12 @@ model User {
   reportsIssued    Report[]        @relation("Reporter")
   friendRequestsSent     FriendRequest[] @relation("FriendFrom")
   friendRequestsReceived FriendRequest[] @relation("FriendTo")
+  closeFriendsOwned      CloseFriend[]   @relation("CloseFriendOwner")
+  closeFriendsOf         CloseFriend[]   @relation("CloseFriendTarget")
   notifications    Notification[]  @relation("NotifyUser")
   actorNotifications Notification[] @relation("NotifyActor")
   pushSubscriptions PushSubscription[]
+  notificationPreferences NotificationPreferences?
   stories          Story[]
   storyViews       StoryView[]
   storyReactions   StoryReaction[]
@@ -264,6 +312,12 @@ model User {
   verificationRequests VerificationRequest[]
   mediaAssets      MediaAsset[]
   encryptionKey    UserEncryptionKey?
+  liveSessions     LiveSession[]     @relation("LiveHost")
+  liveModerators   LiveModerator[]
+  liveChatMessages LiveChatMessage[]
+  liveGiftsSent    LiveGiftEvent[]   @relation("LiveGiftSender")
+  liveGiftsReceived LiveGiftEvent[]  @relation("LiveGiftHost")
+  liveWallet       LiveWallet?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -455,6 +509,7 @@ model FriendRequest {
   id         String              @id @default(cuid())
   fromUserId String
   toUserId   String
+  kind       FriendRequestKind   @default(FOLLOW)
   status     FriendRequestStatus @default(PENDING)
   fromUser   User                @relation("FriendFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
   toUser     User                @relation("FriendTo", fields: [toUserId], references: [id], onDelete: Cascade)
@@ -463,6 +518,23 @@ model FriendRequest {
 
   @@unique([fromUserId, toUserId])
   @@index([toUserId, status])
+  @@index([fromUserId, status])
+  @@index([fromUserId, toUserId, status, updatedAt])
+  @@index([kind, status, createdAt])
+}
+
+/** Curated “best friends” subset of mutual friends (viewer-owned). */
+model CloseFriend {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  user      User     @relation("CloseFriendOwner", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("CloseFriendTarget", fields: [friendId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, friendId])
+  @@index([userId, createdAt])
+  @@index([friendId])
 }
 
 model Block {
@@ -541,9 +613,13 @@ model Post {
   visibility      PostVisibility @default(PUBLIC)
   body            String         @default("")
   linkUrl         String?
+  locationName    String?
+  locationLat     Float?
+  locationLng     Float?
   commentsEnabled Boolean        @default(true)
   isPinned        Boolean        @default(false)
   likeCount       Int            @default(0)
+  reactionCounts  Json?
   commentCount    Int            @default(0)
   shareCount      Int            @default(0)
   bookmarkCount   Int            @default(0)
@@ -556,7 +632,10 @@ model Post {
   media           PostMedia[]
   likes           PostLike[]
   bookmarks       Bookmark[]
+  collectionItems BookmarkCollectionItem[]
   comments        Comment[]
+  shares          PostShare[]
+  views           PostView[]
   poll            Poll?
   hashtags        PostHashtag[]
   notifications   Notification[]
@@ -573,6 +652,8 @@ model Post {
   @@index([status, deletedAt, visibility, publishedAt])
   @@index([status, deletedAt, type, publishedAt])
   @@index([status, deletedAt, likeCount])
+  @@index([status, deletedAt, visibility, publishedAt, likeCount])
+  @@index([authorId, status, publishedAt])
 }
 
 model PostMedia {
@@ -581,6 +662,7 @@ model PostMedia {
   post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
   kind      MediaKind
   url       String
+  thumbUrl  String?
   width     Int?
   height    Int?
   duration  Float?
@@ -590,27 +672,103 @@ model PostMedia {
 }
 
 model PostLike {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   postId    String
   userId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  type      ReactionType @default(LIKE)
+  post      Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@unique([postId, userId])
   @@index([userId, createdAt])
+  @@index([postId, type])
+}
+
+/** Per-viewer watch/impression history for recommendations (authenticated only). */
+model PostView {
+  id        String   @id @default(cuid())
+  postId    String
+  viewerId  String
+  /** Approximate dwell / completion signal in ms when available. */
+  dwellMs   Int      @default(0)
+  completed Boolean  @default(false)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  viewer    User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([postId, viewerId])
+  @@index([viewerId, createdAt])
+  @@index([postId, createdAt])
 }
 
 model Bookmark {
   id        String   @id @default(cuid())
   postId    String
   userId    String
+  note      String?
   post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([postId, userId])
   @@index([userId, createdAt])
+  @@index([userId, updatedAt])
+}
+
+model BookmarkCollection {
+  id          String                   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  visibility  CollectionVisibility     @default(PRIVATE)
+  coverUrl    String?
+  sortOrder   Int                      @default(0)
+  itemCount   Int                      @default(0)
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       BookmarkCollectionItem[]
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  @@index([userId, sortOrder])
+  @@index([userId, createdAt])
+  @@index([visibility, createdAt])
+}
+
+model BookmarkCollectionItem {
+  id           String             @id @default(cuid())
+  collectionId String
+  postId       String
+  sortOrder    Int                @default(0)
+  collection   BookmarkCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  post         Post               @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt    DateTime           @default(now())
+
+  @@unique([collectionId, postId])
+  @@index([postId])
+  @@index([collectionId, sortOrder])
+}
+
+/** Durable share event for analytics, channel attribution, and count dedupe. */
+model PostShare {
+  id        String       @id @default(cuid())
+  postId    String
+  userId    String?
+  channel   ShareChannel @default(OTHER)
+  /** Optional recipient for INTERNAL shares. */
+  targetUserId String?
+  counted   Boolean      @default(true)
+  post      Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime     @default(now())
+
+  @@index([postId, createdAt])
+  @@index([userId, postId, createdAt])
+  @@index([channel, createdAt])
+  @@index([postId, userId, channel])
 }
 
 model Comment {
@@ -619,6 +777,8 @@ model Comment {
   authorId   String
   parentId   String?
   body       String
+  mediaUrl   String?
+  mediaKind  MediaKind?
   likeCount  Int           @default(0)
   isPinned   Boolean       @default(false)
   post       Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -631,19 +791,25 @@ model Comment {
   deletedAt  DateTime?
 
   @@index([postId, createdAt])
-  @@index([parentId])
+  @@index([postId, parentId, deletedAt, createdAt])
+  @@index([postId, isPinned, likeCount])
+  @@index([parentId, deletedAt, createdAt])
   @@index([authorId])
 }
 
 model CommentLike {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   commentId String
   userId    String
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  type      ReactionType @default(LIKE)
+  comment   Comment      @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   @@unique([commentId, userId])
+  @@index([userId, createdAt])
+  @@index([commentId, type])
 }
 
 model Poll {
@@ -652,6 +818,7 @@ model Poll {
   post     Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
   endsAt   DateTime?
   options  PollOption[]
+  votes    PollVote[]
 }
 
 model PollOption {
@@ -668,14 +835,18 @@ model PollOption {
 
 model PollVote {
   id       String     @id @default(cuid())
+  pollId   String
   optionId String
   userId   String
+  poll     Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
   option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
   user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime  @default(now())
 
+  @@unique([pollId, userId])
   @@unique([optionId, userId])
   @@index([userId])
+  @@index([pollId])
 }
 
 model Hashtag {
@@ -712,6 +883,24 @@ model Notification {
   createdAt DateTime         @default(now())
 
   @@index([userId, readAt, createdAt])
+  @@index([userId, type, postId, actorId, readAt])
+}
+
+/** Server-enforced category toggles for in-app + push delivery. */
+model NotificationPreferences {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  social             Boolean  @default(true)
+  messages           Boolean  @default(true)
+  calls              Boolean  @default(true)
+  live               Boolean  @default(true)
+  community          Boolean  @default(true)
+  product            Boolean  @default(true)
+  /** Master switch for Web Push (in-app still delivered when categories allow). */
+  pushEnabled        Boolean  @default(true)
+  hideMessagePreview Boolean  @default(false)
+  updatedAt          DateTime @updatedAt
 }
 
 model PushSubscription {
@@ -804,6 +993,7 @@ model SearchHistory {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+  @@index([userId, query])
 }
 
 model AuditLog {
@@ -843,6 +1033,7 @@ model PrivacySettings {
   whoCanSeeStories PrivacyAudience @default(FOLLOWERS)
   whoCanSeeActivity PrivacyAudience @default(FOLLOWERS)
   whoCanSeeOnline  PrivacyAudience @default(FOLLOWERS)
+  whoCanSeeFriends PrivacyAudience @default(FOLLOWERS)
   showReadReceipts Boolean         @default(true)
   showTyping       Boolean         @default(true)
   updatedAt        DateTime        @updatedAt
@@ -877,6 +1068,8 @@ model ConversationMember {
   isMuted        Boolean      @default(false)
   isArchived     Boolean      @default(false)
   isFavorite     Boolean      @default(false)
+  /** Pending message request (recipient side of a DIRECT intro). */
+  isRequest      Boolean      @default(false)
   unreadCount    Int          @default(0)
   draftText      String?
   lastReadAt     DateTime?
@@ -888,6 +1081,7 @@ model ConversationMember {
   @@unique([conversationId, userId])
   @@index([userId, isArchived, lastReadAt])
   @@index([userId, isPinned])
+  @@index([userId, isRequest, lastReadAt])
 }
 
 model Message {
@@ -1200,4 +1394,101 @@ model AnalyticsDaily {
   communities     Int      @default(0)
   reports         Int      @default(0)
   createdAt       DateTime @default(now())
+}
+
+enum LiveStatus {
+  SCHEDULED
+  LIVE
+  ENDED
+}
+
+model LiveSession {
+  id           String            @id @default(cuid())
+  hostId       String
+  host         User              @relation("LiveHost", fields: [hostId], references: [id], onDelete: Cascade)
+  title        String
+  coverUrl     String?
+  status       LiveStatus        @default(LIVE)
+  viewerCount  Int               @default(0)
+  peakViewers  Int               @default(0)
+  giftCoins    Int               @default(0)
+  startedAt    DateTime          @default(now())
+  endedAt      DateTime?
+  messages     LiveChatMessage[]
+  moderators   LiveModerator[]
+  gifts        LiveGiftEvent[]
+  mutedUserIds String[]          @default([])
+  /** Kicked / blocked from this session (cannot rejoin until stream ends). */
+  blockedUserIds String[]        @default([])
+  pinnedMessageId String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([status, startedAt])
+  @@index([hostId, status])
+}
+
+model LiveModerator {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@unique([sessionId, userId])
+  @@index([userId])
+}
+
+model LiveChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body      String
+  isPinned  Boolean     @default(false)
+  deletedAt DateTime?
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([sessionId, isPinned])
+}
+
+model LiveGiftCatalog {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  name        String
+  emoji       String
+  coinCost    Int
+  sortOrder   Int             @default(0)
+  isActive    Boolean         @default(true)
+  events      LiveGiftEvent[]
+  createdAt   DateTime        @default(now())
+}
+
+model LiveGiftEvent {
+  id        String          @id @default(cuid())
+  sessionId String
+  session   LiveSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  giftId    String
+  gift      LiveGiftCatalog @relation(fields: [giftId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User            @relation("LiveGiftSender", fields: [senderId], references: [id], onDelete: Cascade)
+  hostId    String
+  host      User            @relation("LiveGiftHost", fields: [hostId], references: [id], onDelete: Cascade)
+  coinCost  Int
+  createdAt DateTime        @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([hostId, createdAt])
+}
+
+model LiveWallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coins     Int      @default(0)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 }

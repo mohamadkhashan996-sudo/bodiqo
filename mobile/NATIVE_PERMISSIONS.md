@@ -1,6 +1,7 @@
 # Native shell patches (applied after `npx cap add ios|android`)
 
 ## iOS — Info.plist usage strings
+
 Add under `ios/App/App/Info.plist`:
 
 ```xml
@@ -17,6 +18,7 @@ Add under `ios/App/App/Info.plist`:
 Also enable Background Modes → Voice over IP / Audio if you ship CallKit later.
 
 ## Android — AndroidManifest.xml permissions
+
 Ensure `android/app/src/main/AndroidManifest.xml` includes:
 
 ```xml

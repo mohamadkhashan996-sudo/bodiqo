@@ -1,12 +1,14 @@
+import type { BackupScope, BackupType } from "@prisma/client";
+import { execFile } from "child_process";
 import fs from "fs/promises";
 import path from "path";
-import { execFile } from "child_process";
 import { promisify } from "util";
-import { BackupScope, BackupType } from "@prisma/client";
+
 import { AppError } from "@/lib/errors";
-import { prisma } from "@/lib/prisma";
-import { writeAudit } from "./audit";
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
+
+import { writeAudit } from "./audit";
 
 const execFileAsync = promisify(execFile);
 const BACKUP_ROOT = path.join(process.cwd(), "data", "backups");
@@ -31,9 +33,7 @@ function postgresDumpArgs(databaseUrl: string) {
     args,
     env: {
       ...process.env,
-      ...(url.password
-        ? { PGPASSWORD: decodeURIComponent(url.password) }
-        : {}),
+      ...(url.password ? { PGPASSWORD: decodeURIComponent(url.password) } : {}),
     },
   };
 }
@@ -190,7 +190,9 @@ export async function createBackup(
 }
 
 export async function getBackupDownload(backupId: string) {
-  const backup = await prisma.backupRecord.findUnique({ where: { id: backupId } });
+  const backup = await prisma.backupRecord.findUnique({
+    where: { id: backupId },
+  });
   if (!backup || backup.status !== "COMPLETED" || !backup.path) {
     throw new AppError("Backup not available", 404);
   }
@@ -240,7 +242,11 @@ export async function runScheduledBackups() {
   });
   const dayMs = 24 * 60 * 60_000;
   if (!latestDaily || Date.now() - latestDaily.startedAt.getTime() > dayMs) {
-    await createBackup(null, { type: "DAILY", scope: "DATABASE", note: "auto daily" });
+    await createBackup(null, {
+      type: "DAILY",
+      scope: "DATABASE",
+      note: "auto daily",
+    });
   }
 
   const latestWeekly = await prisma.backupRecord.findFirst({
@@ -249,6 +255,10 @@ export async function runScheduledBackups() {
   });
   const weekMs = 7 * dayMs;
   if (!latestWeekly || Date.now() - latestWeekly.startedAt.getTime() > weekMs) {
-    await createBackup(null, { type: "WEEKLY", scope: "FULL", note: "auto weekly" });
+    await createBackup(null, {
+      type: "WEEKLY",
+      scope: "FULL",
+      note: "auto weekly",
+    });
   }
 }
