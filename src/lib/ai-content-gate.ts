@@ -7,6 +7,12 @@ import {
   scoreContentModeration,
 } from "@/modules/ai/services/intelligence";
 
+function moderationEnabled() {
+  const raw = process.env.AI_MODERATION_ENABLED;
+  if (raw == null || raw === "") return true;
+  return !["0", "false", "off", "no"].includes(raw.toLowerCase());
+}
+
 /** Server-side spam gate for user-generated text. */
 export function assertContentNotSpam(
   text: string | null | undefined,
@@ -15,7 +21,7 @@ export function assertContentNotSpam(
   const value = text?.trim() ?? "";
   if (!value) return { spamLikely: false, score: 0, reasons: [] as string[] };
   const result = detectSpamSignals(value);
-  if (result.spamLikely) {
+  if (moderationEnabled() && result.spamLikely) {
     throw new AppError(
       `${label} looks like spam and was blocked. Remove scam phrases or excess links and try again.`,
       422,
@@ -35,7 +41,7 @@ export function assertContentNotToxic(
     return { toxicLikely: false, score: 0, reasons: [] as string[] };
   }
   const result = detectToxicity(value);
-  if (result.toxicLikely) {
+  if (moderationEnabled() && result.toxicLikely) {
     throw new AppError(
       `${label} was blocked for harmful or abusive language. Please revise and try again.`,
       422,

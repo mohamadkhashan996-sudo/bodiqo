@@ -70,6 +70,7 @@ export async function POST(request: Request) {
           "toxicity",
           "duplicate",
           "moderate",
+          "prepublish",
           "fake",
           "translate",
         ]),
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
     if (data.action === "moderate") {
       return ok(scoreContentModeration(data.text ?? ""));
     }
-    if (data.action === "duplicate") {
+    if (data.action === "duplicate" || data.action === "prepublish") {
       const recent = await prisma.post.findMany({
         where: {
           authorId: user.id,
@@ -109,12 +110,16 @@ export async function POST(request: Request) {
         take: 40,
         orderBy: { createdAt: "desc" },
       });
-      return ok(
-        detectDuplicateSignals(
-          data.text ?? "",
-          recent.map((p) => p.body),
-        ),
+      const duplicate = detectDuplicateSignals(
+        data.text ?? "",
+        recent.map((p) => p.body),
       );
+      if (data.action === "duplicate") return ok(duplicate);
+      // One round-trip for composer pre-checks (cuts publish latency vs 2 POSTs).
+      return ok({
+        ...scoreContentModeration(data.text ?? ""),
+        duplicate,
+      });
     }
     if (data.action === "translate") {
       return ok(translateAssist(data.text ?? "", data.targetLocale ?? "en"));

@@ -1,3 +1,4 @@
+import { cacheGet, cacheSet } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
 import { tokens } from "@/modules/ai/services/intelligence";
 import type { RankContext } from "@/modules/feed/services/rank";
@@ -9,6 +10,17 @@ export type ViewerAffinity = RankContext & {
   coldStart: boolean;
 };
 
+type AffinityWire = {
+  followingIds: string[];
+  friendIds: string[];
+  interestTerms: string[];
+  authorAffinity: Array<[string, number]>;
+  seenPostIds: string[];
+  coldStart: boolean;
+  diversify: boolean;
+  maxPerAuthor: number;
+};
+
 const postSnippet = {
   authorId: true,
   body: true,
@@ -18,11 +30,51 @@ const postSnippet = {
   },
 } as const;
 
+/** Affinity is expensive (7+ queries); short TTL shares work across For You + reco. */
+const AFFINITY_TTL_SEC = 60;
+
+function toWire(affinity: ViewerAffinity): AffinityWire {
+  return {
+    followingIds: [...(affinity.followingIds ?? [])],
+    friendIds: [...(affinity.friendIds ?? [])],
+    interestTerms: affinity.interestTerms ?? [],
+    authorAffinity: [...(affinity.authorAffinity ?? [])],
+    seenPostIds: affinity.seenPostIds,
+    coldStart: affinity.coldStart,
+    diversify: affinity.diversify ?? true,
+    maxPerAuthor: affinity.maxPerAuthor ?? 2,
+  };
+}
+
+function fromWire(wire: AffinityWire): ViewerAffinity {
+  return {
+    followingIds: new Set(wire.followingIds),
+    friendIds: new Set(wire.friendIds),
+    interestTerms: wire.interestTerms,
+    authorAffinity: new Map(wire.authorAffinity),
+    seenPostIds: wire.seenPostIds,
+    coldStart: wire.coldStart,
+    diversify: wire.diversify,
+    maxPerAuthor: wire.maxPerAuthor,
+  };
+}
+
 /**
  * Build ranking affinity from declared interests + behavioral history
  * (likes, comments, shares, saves, watch/impressions).
  */
 export async function buildViewerAffinity(
+  userId: string,
+): Promise<ViewerAffinity> {
+  const key = `affinity:${userId}`;
+  const hit = await cacheGet<AffinityWire>(key);
+  if (hit) return fromWire(hit);
+  const built = await buildViewerAffinityUncached(userId);
+  await cacheSet(key, toWire(built), AFFINITY_TTL_SEC);
+  return built;
+}
+
+async function buildViewerAffinityUncached(
   userId: string,
 ): Promise<ViewerAffinity> {
   const [

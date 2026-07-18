@@ -11,7 +11,7 @@ export async function getSmartRecommendations(
   const key = `reco:${userId}`;
   if (opts?.fresh) await cacheDel(key);
 
-  return cached(key, 45, async () => {
+  return cached(key, 90, async () => {
     const blocked = await blockedIdsFor(userId);
     const { buildViewerAffinity } = await import(
       "@/modules/feed/services/affinity"
