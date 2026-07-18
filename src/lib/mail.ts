@@ -76,11 +76,15 @@ export async function sendMail(
   }
 
   const previewToken = crypto.randomUUID();
+  const linkMatch = message.text.match(/https?:\/\/\S+/);
   logger.info("mail_preview", {
     to: message.to,
     subject: message.subject,
     previewToken,
     provider,
+    ...(process.env.NODE_ENV !== "production" && linkMatch
+      ? { devLink: linkMatch[0] }
+      : {}),
   });
   return { ok: true, previewToken };
 }

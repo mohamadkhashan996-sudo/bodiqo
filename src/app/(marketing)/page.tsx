@@ -1,4 +1,3 @@
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -9,21 +8,7 @@ import {
   UsersRound,
 } from "lucide-react";
 
-const PhoneReelPreview = dynamic(
-  () =>
-    import("@/components/marketing/phone-reel-preview").then(
-      (m) => m.PhoneReelPreview,
-    ),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        aria-hidden
-        className="mx-auto aspect-[9/19] w-full max-w-[min(21.5rem,100%)] rounded-[2.5rem] bg-[color-mix(in_srgb,var(--ink)_8%,transparent)]"
-      />
-    ),
-  },
-);
+import { LandingPhonePreview } from "@/components/marketing/landing-phone-preview";
 
 const FEATURES = [
   {
@@ -92,7 +77,7 @@ export default function LandingPage() {
           </div>
 
           <div className="relative flex justify-center lg:justify-end lg:pt-2">
-            <PhoneReelPreview />
+            <LandingPhonePreview />
           </div>
         </div>
       </section>

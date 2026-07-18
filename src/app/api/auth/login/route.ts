@@ -113,7 +113,11 @@ export async function POST(request: Request) {
         ip: meta.ip,
         ua: meta.ua,
       });
-      throw new AppError("EMAIL_NOT_VERIFIED", 403);
+      throw new AppError(
+        "Verify your email before signing in.",
+        403,
+        "EMAIL_NOT_VERIFIED",
+      );
     }
 
     await prisma.user.update({

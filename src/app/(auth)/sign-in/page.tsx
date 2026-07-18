@@ -159,9 +159,16 @@ function SignInForm() {
     const data = await pre.json().catch(() => ({}));
     if (!pre.ok) {
       setLoading(false);
-      if (data.error === "EMAIL_NOT_VERIFIED") {
+      if (
+        data.code === "EMAIL_NOT_VERIFIED" ||
+        data.error === "EMAIL_NOT_VERIFIED"
+      ) {
         setUnverifiedEmail(email);
-        setError("Verify your email before signing in.");
+        setError(
+          data.error && data.error !== "EMAIL_NOT_VERIFIED"
+            ? data.error
+            : "Verify your email before signing in.",
+        );
         return;
       }
       setError(data.error || FRIENDLY_ERRORS.CredentialsSignin);
