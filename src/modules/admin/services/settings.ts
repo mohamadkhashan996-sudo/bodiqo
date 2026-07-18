@@ -45,6 +45,19 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
     open: true,
     inviteOnly: false,
   },
+  featureFlags: {
+    shorts: true,
+    live: true,
+    stories: true,
+    communities: true,
+    messaging: true,
+    calls: true,
+    gifts: true,
+    registration: true,
+    pushNotifications: true,
+    creatorStudio: true,
+    exploreRecommendations: true,
+  },
 };
 
 export async function getSettings() {

@@ -42,6 +42,9 @@ export async function getDashboardOverview() {
       dailyMessages,
       weeklyMessages,
       monthlyMessages,
+      viewsLast5m,
+      postsLast5m,
+      openTickets,
     ] = await Promise.all([
       prisma.user.count({ where: { status: { not: "DELETED" } } }),
       prisma.user.count({
@@ -77,6 +80,18 @@ export async function getDashboardOverview() {
       prisma.message.count({ where: { createdAt: { gte: day } } }),
       prisma.message.count({ where: { createdAt: { gte: week } } }),
       prisma.message.count({ where: { createdAt: { gte: month } } }),
+      prisma.postView.count({
+        where: { createdAt: { gte: new Date(now.getTime() - 5 * 60_000) } },
+      }),
+      prisma.post.count({
+        where: {
+          createdAt: { gte: new Date(now.getTime() - 5 * 60_000) },
+          deletedAt: null,
+        },
+      }),
+      prisma.supportTicket.count({
+        where: { status: { in: ["OPEN", "IN_PROGRESS", "WAITING"] } },
+      }),
     ]);
 
     return {
@@ -94,6 +109,13 @@ export async function getDashboardOverview() {
         bannedUsers,
         suspendedUsers,
         verificationPending,
+        openTickets: openTickets,
+      },
+      realtime: {
+        onlineNow: onlineUsers,
+        viewsLast5m: viewsLast5m,
+        postsLast5m: postsLast5m,
+        refreshedAt: now.toISOString(),
       },
       activity: {
         daily: { posts: dailyPosts, messages: dailyMessages },

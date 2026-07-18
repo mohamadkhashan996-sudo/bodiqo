@@ -1,10 +1,4 @@
-import type {
-  Prisma,
-  ReportCategory,
-  ReportStatus,
-  ReportTarget,
-  Role,
-} from "@prisma/client";
+import { Prisma, type ReportCategory, type ReportStatus, type ReportTarget, type Role } from "@prisma/client";
 
 import { cacheDelPrefix } from "@/lib/cache";
 import { AppError } from "@/lib/errors";
@@ -82,12 +76,41 @@ export async function updateReport(
 }
 
 export async function listContent(opts: {
-  kind: "posts" | "stories" | "videos" | "comments" | "communities" | "deleted";
+  kind:
+    | "posts"
+    | "stories"
+    | "videos"
+    | "comments"
+    | "communities"
+    | "deleted"
+    | "messages";
   q?: string;
   take?: number;
   cursor?: string;
 }) {
   const take = Math.min(opts.take ?? 40, 100);
+
+  if (opts.kind === "messages") {
+    const where: Prisma.MessageWhereInput = {};
+    if (opts.q) {
+      where.OR = [
+        { body: { contains: opts.q } },
+        { id: opts.q },
+      ];
+    }
+    return prisma.message.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take,
+      ...(opts.cursor ? { skip: 1, cursor: { id: opts.cursor } } : {}),
+      include: {
+        sender: {
+          select: { id: true, handle: true, displayName: true },
+        },
+        conversation: { select: { id: true, type: true } },
+      },
+    });
+  }
 
   if (
     opts.kind === "posts" ||
@@ -208,6 +231,52 @@ export async function moderateComment(
   return updated;
 }
 
+export async function moderateMessage(
+  actorId: string,
+  messageId: string,
+  action: "delete" | "restore",
+) {
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+    select: { id: true, deletedForAll: true, body: true },
+  });
+  if (!message) throw new AppError("Message not found", 404);
+
+  if (action === "delete") {
+    const updated = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        deletedForAll: true,
+        body: "",
+        mediaUrl: null,
+        mediaMeta: Prisma.JsonNull,
+        linkPreview: Prisma.JsonNull,
+        ciphertext: null,
+        nonce: null,
+        senderEphemeralKey: null,
+        isEncrypted: false,
+      },
+    });
+    await writeAudit({
+      actorId,
+      action: "admin.content.message.delete",
+      target: messageId,
+    });
+    return updated;
+  }
+
+  const updated = await prisma.message.update({
+    where: { id: messageId },
+    data: { deletedForAll: false },
+  });
+  await writeAudit({
+    actorId,
+    action: "admin.content.message.restore",
+    target: messageId,
+  });
+  return updated;
+}
+
 export async function deleteStory(actorId: string, storyId: string) {
   await prisma.story.delete({ where: { id: storyId } }).catch(() => {
     throw new AppError("Story not found", 404);
@@ -289,6 +358,13 @@ async function resolveReportTargetUserId(report: {
     });
     return community?.ownerId ?? null;
   }
+  if (report.targetType === "MESSAGE") {
+    const message = await prisma.message.findUnique({
+      where: { id: report.targetId },
+      select: { senderId: true },
+    });
+    return message?.senderId ?? null;
+  }
   return null;
 }
 
@@ -296,7 +372,12 @@ export async function resolveReportWithAction(
   actorId: string,
   actorRole: Role,
   reportId: string,
-  action: "delete_post" | "delete_comment" | "ban_user" | "none",
+  action:
+    | "delete_post"
+    | "delete_comment"
+    | "delete_message"
+    | "ban_user"
+    | "none",
 ) {
   const report = await prisma.report.findUnique({ where: { id: reportId } });
   if (!report) throw new AppError("Report not found", 404);
@@ -306,6 +387,8 @@ export async function resolveReportWithAction(
     outcome = await moderatePost(actorId, report.targetId, "delete");
   } else if (action === "delete_comment" && report.targetType === "COMMENT") {
     outcome = await moderateComment(actorId, report.targetId, "delete");
+  } else if (action === "delete_message" && report.targetType === "MESSAGE") {
+    outcome = await moderateMessage(actorId, report.targetId, "delete");
   } else if (action === "ban_user") {
     const targetUserId = await resolveReportTargetUserId(report);
     if (!targetUserId) {

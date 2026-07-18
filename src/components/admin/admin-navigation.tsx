@@ -9,6 +9,7 @@ import {
   Ban,
   ChartColumn,
   ClipboardList,
+  Coins,
   FileStack,
   Fingerprint,
   Flag,
@@ -16,9 +17,13 @@ import {
   HardDrive,
   KeyRound,
   LayoutDashboard,
+  LifeBuoy,
+  Megaphone,
   Search,
   Settings,
   Shield,
+  ShieldAlert,
+  ToggleLeft,
   Users,
 } from "lucide-react";
 
@@ -77,6 +82,30 @@ const nav: NavItem[] = [
     permission: "content:read",
   },
   {
+    href: "/admin/payments",
+    label: "Payments",
+    icon: Coins,
+    permission: "payments:read",
+  },
+  {
+    href: "/admin/support",
+    label: "Support",
+    icon: LifeBuoy,
+    permission: "support:read",
+  },
+  {
+    href: "/admin/announcements",
+    label: "Announcements",
+    icon: Megaphone,
+    permission: "announcements:read",
+  },
+  {
+    href: "/admin/flags",
+    label: "Feature flags",
+    icon: ToggleLeft,
+    permission: "settings:read",
+  },
+  {
     href: "/admin/settings",
     label: "System settings",
     icon: Settings,
@@ -98,6 +127,12 @@ const nav: NavItem[] = [
     href: "/admin/monitoring",
     label: "Monitoring",
     icon: Activity,
+    permission: "monitoring:read",
+  },
+  {
+    href: "/admin/security",
+    label: "Security logs",
+    icon: ShieldAlert,
     permission: "monitoring:read",
   },
   {

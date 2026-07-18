@@ -8,6 +8,7 @@ import {
   listHashtags,
   moderateComment,
   moderateCommunity,
+  moderateMessage,
   moderatePost,
 } from "@/modules/admin/services";
 
@@ -17,7 +18,13 @@ export async function GET(request: Request) {
     await requireStaff("content:read");
     const { searchParams } = new URL(request.url);
     const kind = (searchParams.get("kind") ?? "posts") as
-      "posts" | "stories" | "videos" | "comments" | "communities" | "deleted";
+      | "posts"
+      | "stories"
+      | "videos"
+      | "comments"
+      | "communities"
+      | "deleted"
+      | "messages";
     const items = await listContent({
       kind,
       q: searchParams.get("q") ?? undefined,
@@ -38,9 +45,16 @@ export async function POST(request: Request) {
     const data = await body(
       request,
       z.object({
-        target: z.enum(["post", "comment", "story", "community"]),
+        target: z.enum(["post", "comment", "story", "community", "message"]),
         id: z.string().min(1),
-        action: z.enum(["delete", "restore", "pin", "unpin", "hide", "unhide"]),
+        action: z.enum([
+          "delete",
+          "restore",
+          "pin",
+          "unpin",
+          "hide",
+          "unhide",
+        ]),
       }),
     );
     if (data.target === "post") {
@@ -60,6 +74,12 @@ export async function POST(request: Request) {
         throw new AppError("Invalid action", 400);
       }
       return ok(await moderateComment(staff.id, data.id, data.action));
+    }
+    if (data.target === "message") {
+      if (data.action !== "delete" && data.action !== "restore") {
+        throw new AppError("Invalid action", 400);
+      }
+      return ok(await moderateMessage(staff.id, data.id, data.action));
     }
     if (data.target === "community") {
       if (!["hide", "unhide", "delete"].includes(data.action)) {

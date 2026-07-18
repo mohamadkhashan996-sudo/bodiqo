@@ -11,6 +11,12 @@ import {
 
 type Overview = {
   totals: Record<string, number>;
+  realtime?: {
+    onlineNow: number;
+    viewsLast5m: number;
+    postsLast5m: number;
+    refreshedAt: string;
+  };
   activity: {
     daily: { posts: number; messages: number };
     weekly: { posts: number; messages: number };
@@ -37,8 +43,12 @@ const shortcuts = [
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/moderation", label: "Moderation" },
-  { href: "/admin/banned", label: "Banned users" },
   { href: "/admin/content", label: "Content review" },
+  { href: "/admin/payments", label: "Payments" },
+  { href: "/admin/support", label: "Support" },
+  { href: "/admin/announcements", label: "Announcements" },
+  { href: "/admin/flags", label: "Feature flags" },
+  { href: "/admin/security", label: "Security logs" },
   { href: "/admin/settings", label: "System settings" },
 ];
 
@@ -70,6 +80,35 @@ export default function AdminOverviewPage() {
       {error ? <p className="text-sm text-[var(--ember)]">{error}</p> : null}
       {data ? (
         <>
+          {data.realtime ? (
+            <Panel className="mb-6">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 className="font-[family-name:var(--font-syne)] text-lg font-semibold">
+                    Realtime
+                  </h2>
+                  <p className="text-xs text-[var(--muted)]">
+                    Cached ~30s ·{" "}
+                    {new Date(data.realtime.refreshedAt).toLocaleTimeString()}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                <StatCard
+                  label="Online now"
+                  value={data.realtime.onlineNow}
+                />
+                <StatCard
+                  label="Views (5m)"
+                  value={data.realtime.viewsLast5m}
+                />
+                <StatCard
+                  label="Posts (5m)"
+                  value={data.realtime.postsLast5m}
+                />
+              </div>
+            </Panel>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Total users" value={data.totals.users ?? 0} />
             <StatCard
@@ -90,6 +129,10 @@ export default function AdminOverviewPage() {
             <StatCard
               label="Open reports"
               value={data.totals.openReports ?? 0}
+            />
+            <StatCard
+              label="Open tickets"
+              value={data.totals.openTickets ?? 0}
             />
             <StatCard
               label="Banned users"

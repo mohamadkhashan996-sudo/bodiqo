@@ -204,7 +204,10 @@ void app.prepare().then(async () => {
     set.add(socket.id);
     presenceSockets.set(userId, set);
     await prisma.user
-      .update({ where: { id: userId }, data: { presence: "ONLINE" } })
+      .update({
+        where: { id: userId },
+        data: { presence: "ONLINE", lastSeenAt: new Date() },
+      })
       .catch(() => undefined);
     if (wasOffline) {
       const viewers = await presenceViewers(userId).catch(() => [] as string[]);
@@ -231,7 +234,7 @@ void app.prepare().then(async () => {
             where: { id: userId },
             data: {
               presence: status,
-              ...(status === "OFFLINE" ? { lastSeenAt: new Date() } : {}),
+              lastSeenAt: new Date(),
             },
           });
           const viewers = await presenceViewers(userId);

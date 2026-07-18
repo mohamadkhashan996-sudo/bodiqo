@@ -40,7 +40,13 @@ export type Permission =
   | "monitoring:read"
   | "media:read"
   | "media:write"
-  | "search:admin";
+  | "search:admin"
+  | "support:read"
+  | "support:write"
+  | "payments:read"
+  | "payments:write"
+  | "announcements:read"
+  | "announcements:write";
 
 const ALL: Permission[] = [
   "admin:access",
@@ -65,6 +71,12 @@ const ALL: Permission[] = [
   "media:read",
   "media:write",
   "search:admin",
+  "support:read",
+  "support:write",
+  "payments:read",
+  "payments:write",
+  "announcements:read",
+  "announcements:write",
 ];
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
@@ -77,6 +89,9 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "content:read",
     "analytics:read",
     "search:admin",
+    "support:read",
+    "support:write",
+    "announcements:read",
   ],
   MODERATOR: [
     "admin:access",
@@ -93,6 +108,10 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "monitoring:read",
     "media:read",
     "search:admin",
+    "support:read",
+    "support:write",
+    "payments:read",
+    "announcements:read",
   ],
   ADMIN: ALL.filter((p) => p !== "roles:write" && p !== "backups:write"),
   OWNER: ALL,

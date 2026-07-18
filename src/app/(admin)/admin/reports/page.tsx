@@ -35,7 +35,7 @@ function targetHref(type: string, id: string) {
     case "COMMUNITY":
       return `/admin/content?kind=communities`;
     case "MESSAGE":
-      return `/messages`;
+      return `/admin/content?kind=messages&q=${id}`;
     default:
       return null;
   }
@@ -74,7 +74,12 @@ function ReportsPageInner() {
 
   async function act(
     reportId: string,
-    action: "delete_post" | "delete_comment" | "ban_user" | "none",
+    action:
+      | "delete_post"
+      | "delete_comment"
+      | "delete_message"
+      | "ban_user"
+      | "none",
   ) {
     try {
       await adminPatch("/api/admin/reports", { reportId, action });
@@ -195,6 +200,15 @@ function ReportsPageInner() {
                       onClick={() => void act(r.id, "delete_comment")}
                     >
                       Delete comment
+                    </button>
+                  ) : null}
+                  {r.targetType === "MESSAGE" ? (
+                    <button
+                      type="button"
+                      className="rounded-full border border-[var(--ember)]/40 px-3 py-1.5 text-xs text-[var(--ember)]"
+                      onClick={() => void act(r.id, "delete_message")}
+                    >
+                      Delete message
                     </button>
                   ) : null}
                   <button

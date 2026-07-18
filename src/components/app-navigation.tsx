@@ -19,6 +19,7 @@ import {
   Settings,
   Shield,
   Sparkles,
+  SquarePen,
   UserRound,
   UsersRound,
   X,
@@ -58,6 +59,7 @@ const memberDesktop = [
   { href: "/saved", key: "saved", icon: Bookmark },
   { href: "/trending", key: "trending", icon: Flame },
   { href: "/notifications", key: "notifications", icon: Bell },
+  { href: "/studio", key: "studio", icon: SquarePen },
   { href: "/search", key: "search", icon: Search },
   { href: "/settings", key: "settings", icon: Settings },
 ] as const;
@@ -77,6 +79,7 @@ const memberMoreLinks = [
   { href: "/communities", key: "communities", icon: UsersRound },
   { href: "/calls", key: "calls", icon: Phone },
   { href: "/trending", key: "trending", icon: Flame },
+  { href: "/studio", key: "studio", icon: SquarePen },
   { href: "/settings", key: "settings", icon: Settings },
 ] as const;
 

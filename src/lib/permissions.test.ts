@@ -18,4 +18,11 @@ describe("permissions", () => {
     expect(can("OWNER", "backups:write")).toBe(true);
     expect(can("MODERATOR", "monitoring:read")).toBe(true);
   });
+
+  it("grants support tickets to SUPPORT and payments read to MODERATOR", () => {
+    expect(can("SUPPORT", "support:write")).toBe(true);
+    expect(can("SUPPORT", "payments:write")).toBe(false);
+    expect(can("MODERATOR", "payments:read")).toBe(true);
+    expect(can("ADMIN", "announcements:write")).toBe(true);
+  });
 });

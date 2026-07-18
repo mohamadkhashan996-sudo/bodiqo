@@ -40,7 +40,13 @@ export async function PATCH(request: Request) {
         resolution: z.string().max(1000).optional(),
         assigneeId: z.string().nullable().optional(),
         action: z
-          .enum(["delete_post", "delete_comment", "ban_user", "none"])
+          .enum([
+            "delete_post",
+            "delete_comment",
+            "delete_message",
+            "ban_user",
+            "none",
+          ])
           .optional(),
       }),
     );

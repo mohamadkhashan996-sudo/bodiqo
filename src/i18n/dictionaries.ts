@@ -32,6 +32,7 @@ export const en: Dictionary = {
     admin: "Admin",
     saved: "Saved",
     live: "Live",
+    studio: "Studio",
     more: "More",
   },
   common: {
@@ -161,6 +162,7 @@ const overlays: Partial<Record<string, Partial<Dictionary>>> = {
       admin: "الإدارة",
       saved: "المحفوظ",
       live: "مباشر",
+      studio: "الاستوديو",
       more: "المزيد",
     },
     common: {

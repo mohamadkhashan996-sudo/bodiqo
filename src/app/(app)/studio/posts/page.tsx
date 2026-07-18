@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 
 import { PostCard } from "@/components/feed/post-card";
-import { PageTransition } from "@/components/motion/primitives";
+import { StudioShell } from "@/components/studio/studio-shell";
 import { Button } from "@/components/ui/button";
 import { Card, Skeleton, StateBanner } from "@/components/ui/card";
 import type { FeedPost } from "@/types/feed";
@@ -42,22 +41,10 @@ export default function StudioPostsPage() {
   }, [tab, load]);
 
   return (
-    <PageTransition className="section-shell max-w-3xl">
-      <div className="mb-6">
-        <Link
-          href="/home"
-          className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
-        >
-          ← Back to home
-        </Link>
-        <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl tracking-tight">
-          Post studio
-        </h1>
-        <p className="mt-2 text-sm leading-7 text-[var(--muted)]">
-          Manage drafts, scheduled posts, and archives.
-        </p>
-      </div>
-
+    <StudioShell
+      title="Drafts & archives"
+      subtitle="Manage drafts, scheduled posts, and archives."
+    >
       <div className="mb-5 flex flex-wrap gap-2">
         {(
           [
@@ -125,6 +112,6 @@ export default function StudioPostsPage() {
           ))}
         </div>
       )}
-    </PageTransition>
+    </StudioShell>
   );
 }
