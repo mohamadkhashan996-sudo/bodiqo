@@ -23,7 +23,7 @@ export default async function AdminLayout({
           tabIndex={-1}
           className="min-w-0 flex-1 overflow-x-hidden px-3 py-6 sm:px-5 sm:py-8 md:px-8 lg:px-10 lg:py-10"
         >
-          <div className="mb-4 flex items-center justify-between gap-3 text-xs text-[var(--muted)]">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--muted)]">
             <span>
               Signed in as{" "}
               <strong className="text-[var(--ink)]">

@@ -14,6 +14,7 @@ const schema = z.object({
   whoCanSeeStories: z.nativeEnum(PrivacyAudience).optional(),
   whoCanSeeActivity: z.nativeEnum(PrivacyAudience).optional(),
   whoCanSeeOnline: z.nativeEnum(PrivacyAudience).optional(),
+  whoCanSeeFriends: z.nativeEnum(PrivacyAudience).optional(),
   showReadReceipts: z.boolean().optional(),
   showTyping: z.boolean().optional(),
 });

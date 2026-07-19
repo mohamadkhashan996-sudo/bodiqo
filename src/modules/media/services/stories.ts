@@ -208,6 +208,26 @@ export async function reactStory(
   return reaction;
 }
 
+/** Owner soft-removes their own story (hard delete; decrements storiesCount). */
+export async function deleteOwnStory(authorId: string, storyId: string) {
+  const story = await prisma.story.findUnique({
+    where: { id: storyId },
+    select: { id: true, authorId: true },
+  });
+  if (!story) throw new AppError("Story not found", 404);
+  if (story.authorId !== authorId) {
+    throw new AppError("You can only delete your own stories", 403);
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.story.delete({ where: { id: storyId } });
+    await tx.user.update({
+      where: { id: authorId },
+      data: { storiesCount: { decrement: 1 } },
+    });
+  });
+  return { ok: true as const };
+}
+
 export async function expireStories(now = new Date()) {
   const expired = await prisma.story.findMany({
     where: { expiresAt: { lt: now } },

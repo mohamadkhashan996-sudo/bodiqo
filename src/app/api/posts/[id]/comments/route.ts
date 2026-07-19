@@ -1,6 +1,8 @@
 import { MediaKind } from "@prisma/client";
 import { z } from "zod";
 
+import { AppError } from "@/lib/errors";
+import { getSetting } from "@/modules/admin/services/settings";
 import {
   body,
   fail,
@@ -52,6 +54,11 @@ export async function POST(
 ) {
   try {
     await guardApiAbuse(r, "posts:id:comments:post");
+    const comments =
+      (await getSetting<{ enabled?: boolean }>("comments")) ?? {};
+    if (comments.enabled === false) {
+      throw new AppError("Comments are temporarily disabled", 403);
+    }
     const u = await requireUser();
     const postId = (await params).id;
     const d = await body(

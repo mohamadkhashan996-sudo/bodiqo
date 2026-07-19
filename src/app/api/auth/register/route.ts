@@ -11,6 +11,7 @@ import { absoluteUrl } from "@/lib/url";
 import { getSetting } from "@/modules/admin/services/settings";
 import { createEmailToken } from "@/modules/auth/email-tokens";
 import { hashPassword } from "@/modules/auth/password";
+import { requireFeature } from "@/modules/platform/feature-flags";
 import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
 
 const schema = z.object({
@@ -41,6 +42,7 @@ function registerAck() {
 export async function POST(request: Request) {
   try {
     await guardApiAbuse(request, "auth:register", 12, 60_000);
+    await requireFeature("registration");
     const ip = request.headers.get("x-forwarded-for") ?? "anon";
     if (!(await rateLimit(`register:${ip}`, 8, 60000)).ok)
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });

@@ -9,6 +9,9 @@ declare module "next-auth" {
       onboardingDone: boolean;
     } & DefaultSession["user"];
     deviceSessionId?: string;
+    /** Present when Super Admin is managing the official Relune account. */
+    impersonatorId?: string;
+    managingOfficial?: boolean;
   }
 
   interface User {
@@ -17,6 +20,8 @@ declare module "next-auth" {
     onboardingDone?: boolean;
     sessionVersion?: number;
     remember?: boolean;
+    impersonatorId?: string;
+    managingOfficial?: boolean;
   }
 }
 
@@ -30,5 +35,7 @@ declare module "next-auth/jwt" {
     sessionKey?: string;
     deviceSessionId?: string;
     remember?: boolean;
+    impersonatorId?: string;
+    managingOfficial?: boolean;
   }
 }

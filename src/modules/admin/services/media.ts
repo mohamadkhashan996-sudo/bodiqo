@@ -35,7 +35,7 @@ export async function registerMediaAsset(
     durationMs?: number;
   },
 ) {
-  // Optimization stubs: thumbnails / compression hooks for CDN workers
+  // Record media metadata for admin inventory (same URL until CDN workers exist)
   const optimizedUrl = data.originalUrl;
   const thumbUrl =
     data.kind === "IMAGE" || data.kind === "VIDEO" ? data.originalUrl : null;

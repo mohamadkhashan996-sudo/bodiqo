@@ -6,6 +6,7 @@ import {
   CheckCheck,
   Copy,
   FileText,
+  Flag,
   Forward,
   Lock,
   MoreHorizontal,
@@ -58,6 +59,7 @@ export function MessageBubble({
   onDelete,
   onCopy,
   onForward,
+  onReport,
 }: {
   message: ChatMessage;
   mine: boolean;
@@ -68,6 +70,7 @@ export function MessageBubble({
   onDelete: () => void;
   onCopy?: () => void;
   onForward?: () => void;
+  onReport?: () => void;
 }) {
   const [body, setBody] = useState(message.body);
   const [reactOpen, setReactOpen] = useState(false);
@@ -298,6 +301,16 @@ export function MessageBubble({
           >
             <Trash2 className="size-3" />
           </button>
+          {!mine && onReport ? (
+            <button
+              type="button"
+              onClick={onReport}
+              aria-label="Report"
+              className="icon-button size-7"
+            >
+              <Flag className="size-3" />
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

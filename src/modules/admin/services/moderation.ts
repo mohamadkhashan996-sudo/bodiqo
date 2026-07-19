@@ -376,6 +376,7 @@ export async function resolveReportWithAction(
     | "delete_post"
     | "delete_comment"
     | "delete_message"
+    | "delete_story"
     | "ban_user"
     | "none",
 ) {
@@ -389,6 +390,8 @@ export async function resolveReportWithAction(
     outcome = await moderateComment(actorId, report.targetId, "delete");
   } else if (action === "delete_message" && report.targetType === "MESSAGE") {
     outcome = await moderateMessage(actorId, report.targetId, "delete");
+  } else if (action === "delete_story" && report.targetType === "STORY") {
+    outcome = await deleteStory(actorId, report.targetId);
   } else if (action === "ban_user") {
     const targetUserId = await resolveReportTargetUserId(report);
     if (!targetUserId) {

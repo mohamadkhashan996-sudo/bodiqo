@@ -44,6 +44,7 @@ export async function PATCH(request: Request) {
             "delete_post",
             "delete_comment",
             "delete_message",
+            "delete_story",
             "ban_user",
             "none",
           ])

@@ -13,10 +13,12 @@ import {
   listLiveSessions,
   startLiveSession,
 } from "@/modules/live/services/sessions";
+import { requireFeature } from "@/modules/platform/feature-flags";
 
 export async function GET(request: Request) {
   try {
     await guardApiAbuse(request, "live:list", 60);
+    await requireFeature("live");
     await optionalUser();
     const q = new URL(request.url).searchParams;
     return ok({
@@ -30,6 +32,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await guardApiAbuse(request, "live:start", 10);
+    await requireFeature("live");
     const user = await requireUser();
     const input = await body(
       request,

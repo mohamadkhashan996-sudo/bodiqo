@@ -19,6 +19,18 @@ function escapeHtml(value: string) {
 export async function sendMail(
   message: Mail,
 ): Promise<{ ok: true; previewToken?: string; id?: string }> {
+  try {
+    const { getSetting } = await import("@/modules/admin/services/settings");
+    const emailCfg =
+      (await getSetting<{ enabled?: boolean; from?: string }>("email")) ?? {};
+    if (emailCfg.enabled === false) {
+      logger.info("mail_disabled_by_settings", { to: message.to });
+      return { ok: true, previewToken: "disabled" };
+    }
+  } catch {
+    /* settings unavailable — continue with env provider */
+  }
+
   const provider = (process.env.MAIL_PROVIDER || "log").toLowerCase();
 
   if (process.env.NODE_ENV === "production" && provider !== "resend") {

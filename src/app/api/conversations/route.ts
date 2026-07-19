@@ -6,9 +6,11 @@ import {
   getOrCreateDirect,
   listConversations,
 } from "@/modules/messaging/services/conversations";
+import { requireFeature } from "@/modules/platform/feature-flags";
 
 export async function GET(request: Request) {
   try {
+    await requireFeature("messaging");
     const user = await requireUser();
     const query = new URL(request.url).searchParams;
     return ok(
@@ -29,6 +31,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await guardApiAbuse(request, "conversations:post");
+    await requireFeature("messaging");
     const user = await requireUser();
     const input = await body(
       request,

@@ -147,12 +147,41 @@ export function AppNavigation({
   const [unread, setUnread] = useState(0);
   const [messageUnread, setMessageUnread] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [features, setFeatures] = useState<Record<string, boolean> | null>(
+    null,
+  );
   const staff =
     role === "SUPPORT" ||
     role === "MODERATOR" ||
     role === "ADMIN" ||
     role === "OWNER" ||
     role === "SUPER_ADMIN";
+
+  useEffect(() => {
+    void fetch("/api/settings/public")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.features && typeof d.features === "object") {
+          setFeatures(d.features as Record<string, boolean>);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  function featureAllows(key: string) {
+    if (!features) return true;
+    const map: Record<string, string> = {
+      shorts: "shorts",
+      live: "live",
+      messages: "messaging",
+      calls: "calls",
+      communities: "communities",
+      studio: "creatorStudio",
+    };
+    const flag = map[key];
+    if (!flag) return true;
+    return features[flag] !== false;
+  }
 
   useEffect(() => {
     if (isGuest) return;
@@ -203,8 +232,17 @@ export function AppNavigation({
     }
   }, [pathname, isGuest]);
 
-  const desktopItems = isGuest ? guestDesktop : memberDesktop;
-  const moreActive = memberMoreLinks.some(
+  const desktopItems = (isGuest ? guestDesktop : memberDesktop).filter((item) =>
+    featureAllows(item.key),
+  );
+  const mobilePrimary = memberMobilePrimary.filter((item) =>
+    featureAllows(item.key),
+  );
+  const moreLinks = memberMoreLinks.filter((item) => featureAllows(item.key));
+  const guestMobileItems = guestMobile.filter((item) =>
+    featureAllows(item.key),
+  );
+  const moreActive = moreLinks.some(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
   const hideMobileTopChrome =
@@ -237,7 +275,7 @@ export function AppNavigation({
               className="grid grid-cols-4 gap-1 sm:gap-1.5 lg:hidden"
               aria-label="Primary"
             >
-              {guestMobile.map(({ href, key, icon }) => {
+              {guestMobileItems.map(({ href, key, icon }) => {
                 const active =
                   pathname === href || pathname.startsWith(`${href}/`);
                 return (
@@ -257,7 +295,7 @@ export function AppNavigation({
               className="grid grid-cols-5 gap-0.5 sm:gap-1 lg:hidden max-[380px]:[&_span.max-w-full]:sr-only"
               aria-label="Primary"
             >
-              {memberMobilePrimary.map(({ href, key, icon }) => {
+              {mobilePrimary.map(({ href, key, icon }) => {
                 const active =
                   pathname === href || pathname.startsWith(`${href}/`);
                 return (
@@ -435,7 +473,7 @@ export function AppNavigation({
               </button>
             </div>
             <div className="grid grid-cols-3 gap-2 pb-2 max-[380px]:grid-cols-3 [@media(max-height:480px)]:grid-cols-4 [@media(max-height:480px)]:gap-1.5">
-              {memberMoreLinks.map(({ href, key, icon: Icon }) => {
+              {moreLinks.map(({ href, key, icon: Icon }) => {
                 const active =
                   pathname === href || pathname.startsWith(`${href}/`);
                 return (

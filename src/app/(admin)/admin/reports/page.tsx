@@ -78,6 +78,7 @@ function ReportsPageInner() {
       | "delete_post"
       | "delete_comment"
       | "delete_message"
+      | "delete_story"
       | "ban_user"
       | "none",
   ) {
@@ -209,6 +210,15 @@ function ReportsPageInner() {
                       onClick={() => void act(r.id, "delete_message")}
                     >
                       Delete message
+                    </button>
+                  ) : null}
+                  {r.targetType === "STORY" ? (
+                    <button
+                      type="button"
+                      className="rounded-full border border-[var(--ember)]/40 px-3 py-1.5 text-xs text-[var(--ember)]"
+                      onClick={() => void act(r.id, "delete_story")}
+                    >
+                      Delete story
                     </button>
                   ) : null}
                   <button

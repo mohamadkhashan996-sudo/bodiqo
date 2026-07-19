@@ -204,6 +204,7 @@ export async function suspendUser(
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
   assertCanManage(actorRole, target, actorId);
+  assertOfficialAccountProtected(target);
   const updated = await prisma.user.update({
     where: { id: userId },
     data: { status: "SUSPENDED", banReason: reason ?? "Suspended by staff" },
@@ -312,6 +313,7 @@ export async function resetUserPassword(
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
   assertCanManage(actorRole, target, actorId);
+  assertOfficialAccountProtected(target);
   if (newPassword.length < 8) throw new AppError("Password too short", 400);
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
@@ -332,6 +334,7 @@ export async function resetUser2FA(
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
   assertCanManage(actorRole, target, actorId);
+  assertOfficialAccountProtected(target);
   await prisma.user.update({
     where: { id: userId },
     data: { twoFactorEnabled: false, twoFactorSecret: null },
@@ -410,6 +413,7 @@ export async function logoutAllDevices(
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (!target) throw new AppError("User not found", 404);
   assertCanManage(actorRole, target, actorId);
+  assertOfficialAccountProtected(target);
   await prisma.deviceSession.deleteMany({ where: { userId } });
   await prisma.session.deleteMany({ where: { userId } });
   await writeAudit({

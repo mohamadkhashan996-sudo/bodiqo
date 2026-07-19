@@ -172,20 +172,7 @@ export default function AdminSettingsPage() {
               />
               Registration open
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={Boolean(form.registration?.inviteOnly)}
-                onChange={(e) =>
-                  setNested("registration", {
-                    ...form.registration,
-                    inviteOnly: e.target.checked,
-                  })
-                }
-              />
-              Invite only
-            </label>
-            <p className="text-xs text-[var(--muted-strong)]">
+            <p className="text-xs text-[var(--muted-strong)] md:col-span-2">
               Bot protection uses honeypot fields and rate limits (no captcha
               provider wired).
             </p>

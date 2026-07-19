@@ -4,6 +4,7 @@ export * from "./backups";
 export * from "./cleanup";
 export * from "./media";
 export * from "./moderation";
+export * from "./official-session";
 export { getDashboardOverview } from "./overview";
 export * from "./payments";
 export * from "./roles";

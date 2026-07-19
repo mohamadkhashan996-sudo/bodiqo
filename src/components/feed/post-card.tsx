@@ -523,6 +523,7 @@ export function PostCard({
         onClose={() => setShareOpen(false)}
         postId={post.id}
         text={post.body}
+        mediaUrl={media[0]?.url ?? null}
         onShared={(count) => {
           if (typeof count === "number") setShareCount(count);
           else setShareCount((n) => n + 1);

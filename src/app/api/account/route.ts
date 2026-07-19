@@ -97,9 +97,16 @@ export async function POST(request: Request) {
         handle: true,
         twoFactorEnabled: true,
         twoFactorSecret: true,
+        isOfficial: true,
       },
     });
 
+    if (user.isOfficial) {
+      throw new AppError(
+        "The official Relune account cannot be deactivated or deleted.",
+        403,
+      );
+    }
     if (input.action === "delete" && input.confirm !== "DELETE") {
       throw new AppError('Type confirm: "DELETE" to permanently delete', 400);
     }

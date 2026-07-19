@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { BookmarkPlus, Eye, Plus } from "lucide-react";
+import { BookmarkPlus, Eye, Flag, Plus, Trash2 } from "lucide-react";
 
 import { useGuest } from "@/components/auth/guest-provider";
+import { ReportDialog } from "@/components/social/report-dialog";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,8 @@ export function StoriesRail() {
   const [viewersOpen, setViewersOpen] = useState(false);
   const [highlightBusy, setHighlightBusy] = useState(false);
   const [highlightDone, setHighlightDone] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isOwner =
@@ -139,6 +142,25 @@ export function StoriesRail() {
       if (res.ok) setHighlightDone(true);
     } finally {
       setHighlightBusy(false);
+    }
+  }
+
+  async function deleteStory() {
+    if (!active || !isOwner || !requireAuth()) return;
+    if (!window.confirm("Delete this story? This cannot be undone.")) return;
+    setDeleteBusy(true);
+    try {
+      const res = await fetch(`/api/stories/${active.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Could not delete story");
+        return;
+      }
+      const removedId = active.id;
+      setActive(null);
+      setStories((prev) => prev.filter((s) => s.id !== removedId));
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -300,6 +322,29 @@ export function StoriesRail() {
                   ? "Saving…"
                   : "Add to highlight"}
             </button>
+            <button
+              type="button"
+              disabled={deleteBusy}
+              onClick={() => void deleteStory()}
+              className="inline-flex items-center gap-2 text-sm font-medium text-[var(--ember)] disabled:opacity-60"
+            >
+              <Trash2 className="size-4" />
+              {deleteBusy ? "Deleting…" : "Delete"}
+            </button>
+          </div>
+        ) : active ? (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (!requireAuth()) return;
+                setReportOpen(true);
+              }}
+              className="inline-flex items-center gap-2 text-sm font-medium text-[var(--muted-strong)] hover:text-[var(--ember)]"
+            >
+              <Flag className="size-4" />
+              Report story
+            </button>
           </div>
         ) : null}
 
@@ -331,6 +376,14 @@ export function StoriesRail() {
           </div>
         ) : null}
       </Modal>
+
+      <ReportDialog
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        targetType="STORY"
+        targetId={active?.id ?? ""}
+        title="Report story"
+      />
 
       <Modal
         open={composeOpen}

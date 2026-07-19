@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { DM_Sans, Syne } from "next/font/google";
 
 import { ClientErrorReporter } from "@/components/observability/client-error-reporter";
+import { AccountReluneGate } from "@/components/platform/account-relune-gate";
+import { OfficialManageBannerGate } from "@/components/platform/official-manage-banner-gate";
 import { Providers } from "@/components/providers";
 import { RuntimeGuardScript } from "@/components/runtime-guard-script";
 import { ThemeBootScript } from "@/components/theme-boot-script";
@@ -92,7 +94,7 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -139,6 +141,8 @@ export default function RootLayout({
             Skip to content
           </a>
           <div id="app-root">{children}</div>
+          <OfficialManageBannerGate />
+          <AccountReluneGate />
         </Providers>
       </body>
     </html>

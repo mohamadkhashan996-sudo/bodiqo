@@ -15,6 +15,11 @@ import {
   consumeAuthChallenge,
   createAuthChallenge,
 } from "@/modules/auth/challenges";
+import {
+  OFFICIAL_IMPERSONATE_PURPOSE,
+  OFFICIAL_RETURN_PURPOSE,
+} from "@/modules/admin/services/official-session";
+import { isOfficialUser } from "@/modules/platform/official-account";
 import { verifyPassword } from "@/modules/auth/password";
 import { isProviderEnabled } from "@/modules/auth/provider-settings";
 import {
@@ -172,6 +177,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email: parsed.data.email.toLowerCase() },
         });
         if (!user?.passwordHash) return null;
+        if (isOfficialUser(user)) return null;
 
         if (
           user.status === "DELETED" ||
@@ -310,6 +316,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               "OAUTH_2FA",
               "PHONE_2FA",
               "CREDENTIALS_2FA",
+              OFFICIAL_IMPERSONATE_PURPOSE,
+              OFFICIAL_RETURN_PURPOSE,
             ].includes(pending.purpose)
           ) {
             return null;
@@ -320,6 +328,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             user.status === "DELETED" ||
             user.status === "BANNED" ||
             user.status === "SUSPENDED"
+          ) {
+            return null;
+          }
+
+          // Official account may only be entered via Super Admin impersonation.
+          if (
+            isOfficialUser(user) &&
+            pending.purpose !== OFFICIAL_IMPERSONATE_PURPOSE
           ) {
             return null;
           }
@@ -338,19 +354,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
 
           await consumeAuthChallenge(parsed.data.token, pending.purpose);
-          const metaProvider = (pending.meta as { provider?: string } | null)
-            ?.provider;
+          const challengeMeta = pending.meta as {
+            provider?: string;
+            impersonatorId?: string;
+          } | null;
+          const metaProvider = challengeMeta?.provider;
+          const impersonatorId =
+            pending.purpose === OFFICIAL_IMPERSONATE_PURPOSE
+              ? challengeMeta?.impersonatorId
+              : undefined;
+
+          if (
+            pending.purpose === OFFICIAL_IMPERSONATE_PURPOSE &&
+            !impersonatorId
+          ) {
+            return null;
+          }
+
           await trackLogin({
             userId: user.id,
             success: true,
             provider:
               metaProvider ??
-              (pending.purpose === "PHONE_2FA"
-                ? "phone"
-                : pending.purpose === "CREDENTIALS_2FA" ||
-                    pending.purpose === "SESSION_READY"
-                  ? "credentials"
-                  : "oauth"),
+              (pending.purpose === OFFICIAL_IMPERSONATE_PURPOSE ||
+              pending.purpose === OFFICIAL_RETURN_PURPOSE
+                ? "official"
+                : pending.purpose === "PHONE_2FA"
+                  ? "phone"
+                  : pending.purpose === "CREDENTIALS_2FA" ||
+                      pending.purpose === "SESSION_READY"
+                    ? "credentials"
+                    : "oauth"),
             ip: meta.ip,
             ua: meta.ua,
           });
@@ -365,6 +399,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             onboardingDone: user.onboardingDone,
             sessionVersion: user.sessionVersion,
             remember: parsed.data.remember !== "false",
+            impersonatorId,
+            managingOfficial: Boolean(impersonatorId),
           };
         } catch {
           return null;
@@ -396,6 +432,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         include: { accounts: true },
       });
 
+      if (existing && isOfficialUser(existing)) {
+        return "/sign-in?error=OfficialAccount";
+      }
       if (!existing) return true;
 
       if (existing.status === "BANNED" || existing.status === "DELETED") {
@@ -463,6 +502,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           (user as { sessionVersion?: number }).sessionVersion ?? 0;
         const remember = (user as { remember?: boolean }).remember;
         token.remember = remember !== false;
+        const impersonatorId = (user as { impersonatorId?: string })
+          .impersonatorId;
+        if (impersonatorId) {
+          token.impersonatorId = impersonatorId;
+          token.managingOfficial = true;
+        } else {
+          delete token.impersonatorId;
+          delete token.managingOfficial;
+        }
         const policy = await getAuthSecurityPolicy();
         const sessionSeconds =
           (remember === false ? 1 : policy.sessionDays) * 24 * 60 * 60;
@@ -564,6 +612,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           typeof token.deviceSessionId === "string"
             ? token.deviceSessionId
             : undefined;
+        if (typeof token.impersonatorId === "string") {
+          session.impersonatorId = token.impersonatorId;
+          session.managingOfficial = true;
+        }
       }
       return session;
     },

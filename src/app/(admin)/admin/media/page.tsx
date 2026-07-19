@@ -43,7 +43,7 @@ export default function AdminMediaPage() {
     <div>
       <AdminPageHeader
         title="Media system"
-        subtitle="Images, videos, voice, documents — compression hooks, thumbnails, storage monitoring."
+        subtitle="Uploaded images, videos, voice, and documents — storage monitoring and asset registry."
       />
       <button
         type="button"

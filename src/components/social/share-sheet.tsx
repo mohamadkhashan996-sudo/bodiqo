@@ -6,6 +6,7 @@ import {
   Check,
   Code2,
   Copy,
+  Download,
   Link2,
   Mail,
   QrCode,
@@ -103,6 +104,7 @@ export function ShareSheet({
   postId,
   text,
   title = "Share",
+  mediaUrl,
   onShared,
 }: {
   open: boolean;
@@ -110,6 +112,7 @@ export function ShareSheet({
   postId: string;
   text?: string | null;
   title?: string;
+  mediaUrl?: string | null;
   onShared?: (shareCount: number | null) => void;
 }) {
   const { data: session } = useSession();
@@ -207,6 +210,39 @@ export function ShareSheet({
       setStatus(err instanceof Error ? err.message : "Could not send");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function downloadMedia() {
+    const raw =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("relune.downloads.allow")
+        : null;
+    if (raw === "0" || raw === "false") {
+      setStatus("Downloads are turned off in Settings → Downloads");
+      return;
+    }
+    if (!mediaUrl) {
+      setStatus("This post has no downloadable media");
+      return;
+    }
+    try {
+      const res = await fetch(mediaUrl);
+      if (!res.ok) throw new Error("fetch failed");
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = `relune-${postId}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+      setStatus("Download started");
+    } catch {
+      // Cross-origin fallback: open in a new tab
+      window.open(mediaUrl, "_blank", "noopener,noreferrer");
+      setStatus("Opened media in a new tab");
     }
   }
 
@@ -371,6 +407,20 @@ export function ShareSheet({
                   </span>
                 </button>
               ))}
+            {mediaUrl ? (
+              <button
+                type="button"
+                onClick={() => void downloadMedia()}
+                className="group flex flex-col items-center gap-2 rounded-[var(--radius-lg)] p-2 text-center transition hover:-translate-y-0.5"
+              >
+                <span className="grid size-12 place-items-center rounded-full border-2 border-[var(--mist-strong)] bg-[var(--cloud-elevated)] text-[var(--ink)] shadow-[var(--shadow-sm)] transition group-hover:shadow-[var(--shadow-md)]">
+                  <Download className="size-5" />
+                </span>
+                <span className="text-[11px] font-semibold text-[var(--ink)]">
+                  Download
+                </span>
+              </button>
+            ) : null}
           </div>
 
           <div className="mt-5 flex min-w-0 items-center gap-2 rounded-[var(--radius-lg)] border-2 border-[var(--mist-strong)] bg-[var(--cloud-elevated)] px-3 py-2.5">

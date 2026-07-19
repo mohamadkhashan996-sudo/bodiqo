@@ -40,7 +40,7 @@ export default function StudioMusicPage() {
   return (
     <StudioShell
       title="Music library"
-      subtitle="Starter royalty-free catalog for Relune creators."
+      subtitle="Browse Relune’s starter royalty-free catalog. Use these titles as creative reference while attaching audio to posts ships next."
     >
       {loading ? <Skeleton className="h-32 rounded-[var(--radius-2xl)]" /> : null}
       {error ? <StateBanner tone="error">{error}</StateBanner> : null}

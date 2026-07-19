@@ -14,9 +14,11 @@ import {
   createStory,
   listPublicStories,
 } from "@/modules/media/services/stories";
+import { requireFeature } from "@/modules/platform/feature-flags";
 
 export async function GET() {
   try {
+    await requireFeature("stories");
     const u = await optionalUser();
     return ok({ stories: await listPublicStories(u?.id) });
   } catch (e) {
@@ -27,6 +29,7 @@ export async function GET() {
 export async function POST(r: Request) {
   try {
     await guardApiAbuse(r, "stories:post");
+    await requireFeature("stories");
     const u = await requireUser();
     const d = await body(
       r,

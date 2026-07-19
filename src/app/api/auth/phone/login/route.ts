@@ -26,6 +26,9 @@ export async function POST(request: Request) {
       where: { phone, phoneVerified: { not: null } },
     });
     if (!user) throw new AppError("No account with this verified phone", 404);
+    if (user.isOfficial) {
+      throw new AppError("This account cannot sign in with phone", 403);
+    }
     if (
       user.status === "BANNED" ||
       user.status === "DELETED" ||

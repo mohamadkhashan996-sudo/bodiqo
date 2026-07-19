@@ -20,6 +20,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ReportDialog } from "@/components/social/report-dialog";
 import { useSocket } from "@/hooks/use-socket";
 import { dispatchCallStart } from "@/lib/call-events";
 import {
@@ -98,6 +99,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
   const [pinned, setPinned] = useState(false);
   const [archived, setArchived] = useState(false);
   const [isRequest, setIsRequest] = useState(false);
+  const [reportTarget, setReportTarget] = useState<ChatMessage | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const topSentinel = useRef<HTMLDivElement>(null);
   const typingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -993,6 +995,11 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
               onDelete={() => void removeMessage(message)}
               onCopy={() => void copyMessage(message)}
               onForward={() => void forwardMessage(message)}
+              onReport={
+                message.senderId === currentUserId
+                  ? undefined
+                  : () => setReportTarget(message)
+              }
             />
           </div>
         ))}
@@ -1012,6 +1019,13 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
         onTyping={typing}
         reply={reply?.body}
         onCancelReply={() => setReply(null)}
+      />
+      <ReportDialog
+        open={Boolean(reportTarget)}
+        onClose={() => setReportTarget(null)}
+        targetType="MESSAGE"
+        targetId={reportTarget?.id ?? ""}
+        title="Report message"
       />
     </section>
   );
