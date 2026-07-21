@@ -25,6 +25,8 @@
     "db:setup:official": "bash scripts/setup-official-account.sh",
     "test:smoke": "tsx scripts/smoke.ts",
     "test:verify": "tsx scripts/verify-platform.ts",
+    "test:auth:email": "tsx scripts/test-auth-flow.ts",
+    "test:auth:phone": "tsx scripts/test-phone-auth-flow.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "backup": "bash scripts/backup.sh",

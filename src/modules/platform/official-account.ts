@@ -6,7 +6,7 @@ import { OFFICIAL_HANDLE } from "@/modules/platform/reserved-handles";
 import { followUser } from "@/modules/users/services/social";
 
 export const OFFICIAL_USER_ID = "official-relune-platform";
-/** Sentinel email — never used for login; credentials/OAuth/phone are blocked. */
+/** Sentinel email — never used for login; email and phone auth are blocked. */
 export const OFFICIAL_EMAIL = "official@relune.app";
 export const OFFICIAL_BIO =
   "Welcome to Relune — Official account for news, updates, new features, creators, and announcements.";
@@ -36,9 +36,9 @@ export function isOfficialUser(user: {
 }) {
   return Boolean(
     user.isOfficial ||
-      user.id === OFFICIAL_USER_ID ||
-      user.handle?.toLowerCase() === OFFICIAL_HANDLE ||
-      user.email?.toLowerCase() === OFFICIAL_EMAIL,
+    user.id === OFFICIAL_USER_ID ||
+    user.handle?.toLowerCase() === OFFICIAL_HANDLE ||
+    user.email?.toLowerCase() === OFFICIAL_EMAIL,
   );
 }
 

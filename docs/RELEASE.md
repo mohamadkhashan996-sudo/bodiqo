@@ -40,7 +40,7 @@ Tag push builds and publishes the container image when GHCR is enabled.
 
 | Area                               | Owner check |
 | ---------------------------------- | ----------- |
-| Auth (email, OAuth, 2FA)           | ☐           |
+| Auth (email, phone, 2FA)           | ☐           |
 | Feed / messaging / calls           | ☐           |
 | Admin moderation                   | ☐           |
 | Backups scheduled                  | ☐           |

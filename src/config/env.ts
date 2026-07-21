@@ -14,6 +14,11 @@ const baseSchema = z.object({
   REDIS_URL: z.string().url().optional(),
   MAIL_PROVIDER: z.enum(["log", "resend"]).optional(),
   RESEND_API_KEY: z.string().optional(),
+  MAIL_FROM: z.string().min(3).optional(),
+  SMS_PROVIDER: z.enum(["log", "twilio"]).optional(),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_FROM: z.string().optional(),
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
@@ -27,16 +32,16 @@ const productionSchema = baseSchema
     AUTH_URL: z.string().url(),
     MAIL_PROVIDER: z.literal("resend"),
     RESEND_API_KEY: z.string().min(1),
+    MAIL_FROM: z.string().min(3),
+    SMS_PROVIDER: z.literal("twilio"),
+    TWILIO_ACCOUNT_SID: z.string().min(1),
+    TWILIO_AUTH_TOKEN: z.string().min(1),
+    TWILIO_FROM: z.string().min(1),
     REDIS_URL: z.string().url(),
-    MAIL_FROM: z.string().min(3).optional(),
     METRICS_TOKEN: z.string().min(16).optional(),
     SENTRY_DSN: z.string().url().optional().or(z.literal("")),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
     ALLOW_DEMO_SEEDS: z.enum(["true", "false"]).optional(),
-    SMS_PROVIDER: z.enum(["log", "twilio"]).optional(),
-    TWILIO_ACCOUNT_SID: z.string().optional(),
-    TWILIO_AUTH_TOKEN: z.string().optional(),
-    TWILIO_FROM: z.string().optional(),
     VAPID_PUBLIC_KEY: z.string().optional(),
     VAPID_PRIVATE_KEY: z.string().optional(),
     TURN_URLS: z.string().optional(),
@@ -49,21 +54,6 @@ const productionSchema = baseSchema
         path: ["ALLOW_DEMO_SEEDS"],
         message: "ALLOW_DEMO_SEEDS must not be true in production",
       });
-    }
-    if (env.SMS_PROVIDER === "twilio") {
-      for (const key of [
-        "TWILIO_ACCOUNT_SID",
-        "TWILIO_AUTH_TOKEN",
-        "TWILIO_FROM",
-      ] as const) {
-        if (!env[key]) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: [key],
-            message: `${key} required when SMS_PROVIDER=twilio`,
-          });
-        }
-      }
     }
     const hasVapidPub = Boolean(env.VAPID_PUBLIC_KEY);
     const hasVapidPriv = Boolean(env.VAPID_PRIVATE_KEY);

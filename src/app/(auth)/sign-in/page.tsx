@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,35 +15,16 @@ import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { safeCallbackUrl } from "@/lib/guest/paths";
 import { isValidE164 } from "@/lib/phone";
-import {
-  OAUTH_PROVIDER_ORDER,
-  type OAuthProviderId,
-  PROVIDER_LABELS,
-} from "@/modules/auth/providers";
-
-type ProviderRow = {
-  id: OAuthProviderId;
-  enabled: boolean;
-  configured: boolean;
-  available: boolean;
-};
-
 const FRIENDLY_ERRORS: Record<string, string> = {
   CredentialsSignin: "Incorrect email, password, or security code.",
-  OAuthAccountNotLinked:
-    "This email is already used with another sign-in method. Link your accounts to continue.",
-  OAuthCallback: "That sign-in didn’t complete. Please try again.",
   AccessDenied: "Access was denied for this sign-in method.",
-  ProviderDisabled: "This sign-in method is currently unavailable.",
-  EmailRequired: "That provider didn’t share an email address.",
   AccountUnavailable: "This account isn’t available right now.",
-  AccountConflict: "This login doesn’t match your existing connection.",
   Configuration:
     "Sign-in isn’t fully configured yet. Please try email or contact support.",
   Default: "Something went wrong signing in. Please try again.",
 };
 
-type Mode = "oauth" | "email" | "phone";
+type Mode = "methods" | "email" | "phone";
 
 function SignInForm() {
   const router = useRouter();
@@ -57,9 +38,7 @@ function SignInForm() {
     "idle",
   );
   const [loading, setLoading] = useState(false);
-  const [oauth, setOauth] = useState<ProviderRow[]>([]);
-  const [credentialsEnabled, setCredentialsEnabled] = useState(true);
-  const [mode, setMode] = useState<Mode>("oauth");
+  const [mode, setMode] = useState<Mode>("methods");
   const [remember, setRemember] = useState(true);
   const [savedEmail, setSavedEmail] = useState("");
   const [phoneStep, setPhoneStep] = useState<"request" | "code">("request");
@@ -87,39 +66,7 @@ function SignInForm() {
     } catch {
       /* ignore */
     }
-    fetch("/api/auth/providers-config")
-      .then((r) => r.json())
-      .then((data) => {
-        setOauth(data.oauth ?? []);
-        setCredentialsEnabled(data.credentials !== false);
-      })
-      .catch(() => setOauth([]));
   }, []);
-
-  const ordered = useMemo(() => {
-    const map = new Map(oauth.map((p) => [p.id, p]));
-    return OAUTH_PROVIDER_ORDER.map(
-      (id) =>
-        map.get(id) ?? {
-          id,
-          enabled: true,
-          configured: false,
-          available: false,
-        },
-    );
-  }, [oauth]);
-
-  async function onOAuth(id: OAuthProviderId, available: boolean) {
-    setError(null);
-    setUnverifiedEmail(null);
-    if (!available) {
-      setError(
-        `${PROVIDER_LABELS[id].replace("Continue with ", "")} sign-in isn’t configured on this server yet.`,
-      );
-      return;
-    }
-    await signIn(id, { callbackUrl });
-  }
 
   async function resendVerification() {
     if (!unverifiedEmail) return;
@@ -139,10 +86,6 @@ function SignInForm() {
 
   async function onEmailSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!credentialsEnabled) {
-      setError("Email sign-in is currently unavailable.");
-      return;
-    }
     setLoading(true);
     setError(null);
     setUnverifiedEmail(null);
@@ -204,8 +147,7 @@ function SignInForm() {
     } catch {
       /* ignore */
     }
-    router.push(callbackUrl);
-    router.refresh();
+    window.location.assign(callbackUrl);
   }
 
   async function sendPhoneCode(e: FormEvent) {
@@ -266,8 +208,7 @@ function SignInForm() {
       setError("Could not complete phone sign-in.");
       return;
     }
-    router.push(callbackUrl);
-    router.refresh();
+    window.location.assign(callbackUrl);
   }
 
   return (
@@ -287,47 +228,27 @@ function SignInForm() {
         </div>
       ) : null}
 
-      {mode === "oauth" ? (
+      {mode === "methods" ? (
         <div className="mt-10 space-y-3">
-          {ordered.map((p) => (
-            <AuthProviderButton
-              key={p.id}
-              id={p.id}
-              label={PROVIDER_LABELS[p.id]}
-              disabled={!p.enabled}
-              hint={
-                !p.enabled
-                  ? "Temporarily unavailable"
-                  : !p.configured
-                    ? "Provider credentials not set"
-                    : undefined
-              }
-              onClick={() => void onOAuth(p.id, p.available)}
-            />
-          ))}
-          {credentialsEnabled ? (
-            <>
-              <AuthProviderButton
-                id="credentials"
-                label={PROVIDER_LABELS.credentials}
-                onClick={() => setMode("email")}
-              />
-              <AuthProviderButton
-                id="credentials"
-                label="Continue with Phone"
-                onClick={() => setMode("phone")}
-              />
-            </>
-          ) : null}
+          <AuthProviderButton
+            id="email"
+            label="Continue with Email"
+            onClick={() => setMode("email")}
+          />
+          <AuthProviderButton
+            id="phone"
+            label="Continue with Phone"
+            onClick={() => setMode("phone")}
+          />
         </div>
       ) : null}
 
-      {mode === "email" && credentialsEnabled ? (
+      {mode === "email" ? (
         <form onSubmit={onEmailSubmit} className="form-panel mt-8 space-y-4">
           <button
             type="button"
             className="text-xs font-medium text-[var(--muted-strong)] underline-offset-4 hover:underline"
-            onClick={() => setMode("oauth")}
+            onClick={() => setMode("methods")}
           >
             ← All sign-in methods
           </button>
@@ -363,7 +284,7 @@ function SignInForm() {
             type="button"
             className="text-xs font-medium text-[var(--muted-strong)] underline-offset-4 hover:underline"
             onClick={() => {
-              setMode("oauth");
+              setMode("methods");
               setPhoneStep("request");
             }}
           >

@@ -1,35 +1,23 @@
 import NextAuth from "next-auth";
-import Apple from "next-auth/providers/apple";
 import Credentials from "next-auth/providers/credentials";
-import Facebook from "next-auth/providers/facebook";
-import Google from "next-auth/providers/google";
-import Twitter from "next-auth/providers/twitter";
 import { headers } from "next/headers";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
-import { createPendingOAuthLink } from "@/modules/auth/account-link";
-import {
-  consumeAuthChallenge,
-  createAuthChallenge,
-} from "@/modules/auth/challenges";
+import { randomToken } from "@/lib/tokens";
 import {
   OFFICIAL_IMPERSONATE_PURPOSE,
   OFFICIAL_RETURN_PURPOSE,
 } from "@/modules/admin/services/official-session";
-import { isOfficialUser } from "@/modules/platform/official-account";
+import { consumeAuthChallenge } from "@/modules/auth/challenges";
 import { verifyPassword } from "@/modules/auth/password";
-import { isProviderEnabled } from "@/modules/auth/provider-settings";
-import {
-  type OAuthProviderId,
-  providerEnvReady,
-} from "@/modules/auth/providers";
 import { alertNewLogin } from "@/modules/auth/security";
 import { getAuthSecurityPolicy } from "@/modules/auth/security-policy";
 import { trackLogin, upsertDeviceSession } from "@/modules/auth/session-track";
 import { verifyTotpOrBackup } from "@/modules/auth/two-factor";
+import { isOfficialUser } from "@/modules/platform/official-account";
 import { officialFollowNewUser } from "@/modules/platform/official-account";
 
 const credentialsSchema = z.object({
@@ -58,44 +46,6 @@ async function requestMeta() {
   } catch {
     return { ip: null, ua: null };
   }
-}
-
-function buildOAuthProviders() {
-  const list = [];
-  if (providerEnvReady("google")) {
-    list.push(
-      Google({
-        clientId: process.env.AUTH_GOOGLE_ID!,
-        clientSecret: process.env.AUTH_GOOGLE_SECRET!,
-      }),
-    );
-  }
-  if (providerEnvReady("apple")) {
-    list.push(
-      Apple({
-        clientId: process.env.AUTH_APPLE_ID!,
-        clientSecret: process.env.AUTH_APPLE_SECRET!,
-      }),
-    );
-  }
-  if (providerEnvReady("facebook")) {
-    list.push(
-      Facebook({
-        clientId: process.env.AUTH_FACEBOOK_ID!,
-        clientSecret: process.env.AUTH_FACEBOOK_SECRET!,
-      }),
-    );
-  }
-  if (providerEnvReady("twitter")) {
-    list.push(
-      Twitter({
-        clientId: process.env.AUTH_TWITTER_ID || process.env.AUTH_X_ID!,
-        clientSecret:
-          process.env.AUTH_TWITTER_SECRET || process.env.AUTH_X_SECRET!,
-      }),
-    );
-  }
-  return list;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -153,7 +103,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/sign-in",
   },
   providers: [
-    ...buildOAuthProviders(),
     Credentials({
       id: "credentials",
       name: "credentials",
@@ -164,7 +113,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         remember: { label: "Remember", type: "text" },
       },
       async authorize(raw) {
-        if (!(await isProviderEnabled("credentials"))) return null;
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
 
@@ -313,7 +261,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             pending.expiresAt < new Date() ||
             ![
               "SESSION_READY",
-              "OAUTH_2FA",
               "PHONE_2FA",
               "CREDENTIALS_2FA",
               OFFICIAL_IMPERSONATE_PURPOSE,
@@ -324,6 +271,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
 
           const user = pending.user;
+          const challengeMeta = pending.meta as {
+            provider?: string;
+            impersonatorId?: string;
+            impersonatorSessionVersion?: number;
+            impersonatorRole?: string;
+            restoredSessionVersion?: number;
+          } | null;
           if (
             user.status === "DELETED" ||
             user.status === "BANNED" ||
@@ -340,8 +294,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null;
           }
 
+          if (pending.purpose === OFFICIAL_IMPERSONATE_PURPOSE) {
+            if (
+              !challengeMeta?.impersonatorId ||
+              challengeMeta.impersonatorRole !== "SUPER_ADMIN" ||
+              typeof challengeMeta.impersonatorSessionVersion !== "number"
+            ) {
+              return null;
+            }
+            const admin = await prisma.user.findUnique({
+              where: { id: challengeMeta.impersonatorId },
+              select: { role: true, status: true, sessionVersion: true },
+            });
+            if (
+              !admin ||
+              admin.role !== "SUPER_ADMIN" ||
+              admin.status !== "ACTIVE" ||
+              admin.sessionVersion !== challengeMeta.impersonatorSessionVersion
+            ) {
+              return null;
+            }
+          }
+
           if (
-            pending.purpose === "OAUTH_2FA" ||
+            pending.purpose === OFFICIAL_RETURN_PURPOSE &&
+            (user.role !== "SUPER_ADMIN" ||
+              typeof challengeMeta?.restoredSessionVersion !== "number" ||
+              user.sessionVersion !== challengeMeta.restoredSessionVersion)
+          ) {
+            return null;
+          }
+
+          if (
             pending.purpose === "PHONE_2FA" ||
             pending.purpose === "CREDENTIALS_2FA"
           ) {
@@ -354,10 +338,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           }
 
           await consumeAuthChallenge(parsed.data.token, pending.purpose);
-          const challengeMeta = pending.meta as {
-            provider?: string;
-            impersonatorId?: string;
-          } | null;
           const metaProvider = challengeMeta?.provider;
           const impersonatorId =
             pending.purpose === OFFICIAL_IMPERSONATE_PURPOSE
@@ -381,10 +361,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 ? "official"
                 : pending.purpose === "PHONE_2FA"
                   ? "phone"
-                  : pending.purpose === "CREDENTIALS_2FA" ||
-                      pending.purpose === "SESSION_READY"
-                    ? "credentials"
-                    : "oauth"),
+                  : "credentials"),
             ip: meta.ip,
             ua: meta.ua,
           });
@@ -400,6 +377,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             sessionVersion: user.sessionVersion,
             remember: parsed.data.remember !== "false",
             impersonatorId,
+            impersonatorSessionVersion:
+              pending.purpose === OFFICIAL_IMPERSONATE_PURPOSE
+                ? challengeMeta?.impersonatorSessionVersion
+                : undefined,
             managingOfficial: Boolean(impersonatorId),
           };
         } catch {
@@ -409,85 +390,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      if (!account) return true;
-
-      if (
-        account.provider === "credentials" ||
-        account.provider === "challenge"
-      ) {
-        return true;
-      }
-
-      const provider = account.provider as OAuthProviderId;
-      if (!(await isProviderEnabled(provider))) {
-        return "/sign-in?error=ProviderDisabled";
-      }
-
-      const email = user.email?.toLowerCase();
-      if (!email) return "/sign-in?error=EmailRequired";
-
-      const existing = await prisma.user.findUnique({
-        where: { email },
-        include: { accounts: true },
-      });
-
-      if (existing && isOfficialUser(existing)) {
-        return "/sign-in?error=OfficialAccount";
-      }
-      if (!existing) return true;
-
-      if (existing.status === "BANNED" || existing.status === "DELETED") {
-        return "/sign-in?error=AccountUnavailable";
-      }
-
-      const already = existing.accounts.some(
-        (a) =>
-          a.provider === account.provider &&
-          a.providerAccountId === account.providerAccountId,
-      );
-
-      if (already) {
-        if (existing.twoFactorEnabled) {
-          const token = await createAuthChallenge(existing.id, "OAUTH_2FA", {
-            provider: account.provider,
-            providerAccountId: account.providerAccountId,
-          });
-          return `/sign-in/2fa?token=${token}`;
-        }
-        return true;
-      }
-
-      const sameProviderOtherId = existing.accounts.some(
-        (a) => a.provider === account.provider,
-      );
-      if (sameProviderOtherId) {
-        return "/sign-in?error=AccountConflict";
-      }
-
-      if (existing.passwordHash) {
-        const token = await createPendingOAuthLink({
-          email,
-          provider,
-          providerAccountId: account.providerAccountId,
-          type: account.type,
-          userName: user.name,
-          userImage: user.image,
-        });
-        return `/link-account?token=${token}`;
-      }
-
-      // OAuth-only account: never auto-link — require explicit confirmation.
-      const token = await createPendingOAuthLink({
-        email,
-        provider,
-        providerAccountId: account.providerAccountId,
-        type: account.type,
-        userName: user.name,
-        userImage: user.image,
-      });
-      return `/link-account?token=${token}`;
-    },
     async jwt({ token, user, account, trigger }) {
       if (user) {
         const userId = user.id;
@@ -505,10 +407,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const impersonatorId = (user as { impersonatorId?: string })
           .impersonatorId;
         if (impersonatorId) {
+          const impersonatorSessionVersion = (
+            user as { impersonatorSessionVersion?: number }
+          ).impersonatorSessionVersion;
+          if (typeof impersonatorSessionVersion !== "number") return null;
           token.impersonatorId = impersonatorId;
+          token.impersonatorSessionVersion = impersonatorSessionVersion;
           token.managingOfficial = true;
         } else {
           delete token.impersonatorId;
+          delete token.impersonatorSessionVersion;
           delete token.managingOfficial;
         }
         const policy = await getAuthSecurityPolicy();
@@ -518,7 +426,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const meta = await requestMeta();
         const provider = account?.provider ?? "credentials";
-        const sessionKey = `${provider}:${account?.providerAccountId ?? userId}:${meta.ip ?? "local"}`;
+        const sessionKey = `${provider}:${randomToken(32)}`;
         const device = await upsertDeviceSession({
           userId,
           sessionKey,
@@ -558,26 +466,50 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           !dbUser ||
           dbUser.status === "BANNED" ||
           dbUser.status === "DELETED" ||
-          (typeof token.sessionVersion === "number" &&
-            dbUser.sessionVersion !== token.sessionVersion)
+          dbUser.status === "SUSPENDED" ||
+          typeof token.sessionVersion !== "number" ||
+          dbUser.sessionVersion !== token.sessionVersion ||
+          typeof token.sessionKey !== "string" ||
+          !token.sessionKey
         ) {
           return null;
         }
 
-        if (typeof token.sessionKey === "string") {
-          const device = await prisma.deviceSession.findUnique({
-            where: { sessionKey: token.sessionKey },
-            select: { revokedAt: true, id: true, lastActiveAt: true },
+        const device = await prisma.deviceSession.findUnique({
+          where: { sessionKey: token.sessionKey },
+          select: {
+            revokedAt: true,
+            id: true,
+            lastActiveAt: true,
+            userId: true,
+          },
+        });
+        if (!device || device.revokedAt || device.userId !== token.sub) {
+          return null;
+        }
+        token.deviceSessionId = device.id;
+        if (Date.now() - device.lastActiveAt.getTime() > 5 * 60_000) {
+          await prisma.deviceSession
+            .update({
+              where: { id: device.id },
+              data: { lastActiveAt: new Date() },
+            })
+            .catch(() => undefined);
+        }
+
+        if (typeof token.impersonatorId === "string") {
+          if (typeof token.impersonatorSessionVersion !== "number") return null;
+          const impersonator = await prisma.user.findUnique({
+            where: { id: token.impersonatorId },
+            select: { role: true, status: true, sessionVersion: true },
           });
-          if (!device || device.revokedAt) return null;
-          token.deviceSessionId = device.id;
-          if (Date.now() - device.lastActiveAt.getTime() > 5 * 60_000) {
-            await prisma.deviceSession
-              .update({
-                where: { id: device.id },
-                data: { lastActiveAt: new Date() },
-              })
-              .catch(() => undefined);
+          if (
+            !impersonator ||
+            impersonator.role !== "SUPER_ADMIN" ||
+            impersonator.status !== "ACTIVE" ||
+            impersonator.sessionVersion !== token.impersonatorSessionVersion
+          ) {
+            return null;
           }
         }
 
@@ -624,17 +556,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       if (!user.id) return;
       const meta = await requestMeta();
-      if (
-        user.email &&
-        account?.provider &&
-        account.provider !== "credentials" &&
-        account.provider !== "challenge"
-      ) {
-        await prisma.user.updateMany({
-          where: { id: user.id, emailVerified: null },
-          data: { emailVerified: new Date(), status: "ACTIVE" },
-        });
-      }
       const sessionKey = `${account?.provider ?? "credentials"}:${account?.providerAccountId ?? user.id}:${meta.ip ?? "local"}`;
       await Promise.all([
         upsertDeviceSession({

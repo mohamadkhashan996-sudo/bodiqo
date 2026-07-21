@@ -12,27 +12,24 @@ Base URL: `AUTH_URL` (local `http://localhost:3000`)
 
 ## Auth
 
-| Method          | Path                         | Notes                                             |
-| --------------- | ---------------------------- | ------------------------------------------------- |
-| POST            | `/api/auth/register`         | Creates user + welcome/verify email               |
-| *               | `/api/auth/[...nextauth]`    | Auth.js (Google, Apple, Facebook, X, credentials) |
-| GET             | `/api/auth/providers-config` | Public provider availability                      |
-| GET/DELETE/POST | `/api/auth/accounts`         | Connected accounts / unlink / confirm link        |
-| GET             | `/api/auth/link-account`     | Pending OAuth link preview                        |
-| POST            | `/api/auth/forgot-password`  | Reset link email                                  |
-| POST            | `/api/auth/verify-email`     | Consume token                                     |
-| POST            | `/api/auth/reset-password`   | Consume token                                     |
-| *               | `/api/auth/2fa/*`            | TOTP setup                                        |
-| GET/DELETE      | `/api/auth/sessions`         | Device sessions (`{ all: true }` revokes all)     |
-| GET             | `/api/auth/login-history`    | Login history                                     |
-| GET/DELETE      | `/api/auth/trusted-devices`  | Trusted devices                                   |
-| POST            | `/api/upload`                | Authenticated media upload (multipart `file`)     |
-| POST            | `/api/auth/phone/send`       | Send phone OTP                                    |
-| POST            | `/api/auth/phone/login`      | Verify phone OTP → session/2FA challenge          |
-| *               | `/api/auth/phone`            | Bind / verify / remove phone                      |
-| *               | `/api/auth/2fa/*`            | Setup, enable, disable, recovery codes            |
-| POST            | `/api/auth/password`         | Change / set password                             |
-| GET             | `/api/auth/challenge`        | Peek 2FA challenge                                |
+| Method     | Path                        | Notes                                         |
+| ---------- | --------------------------- | --------------------------------------------- |
+| POST       | `/api/auth/register`        | Creates user + welcome/verify email           |
+| *          | `/api/auth/[...nextauth]`   | Auth.js email/phone session completion        |
+| POST       | `/api/auth/forgot-password` | Reset link email                              |
+| POST       | `/api/auth/verify-email`    | Consume token                                 |
+| POST       | `/api/auth/reset-password`  | Consume token                                 |
+| *          | `/api/auth/2fa/*`           | TOTP setup                                    |
+| GET/DELETE | `/api/auth/sessions`        | Device sessions (`{ all: true }` revokes all) |
+| GET        | `/api/auth/login-history`   | Login history                                 |
+| GET/DELETE | `/api/auth/trusted-devices` | Trusted devices                               |
+| POST       | `/api/upload`               | Authenticated media upload (multipart `file`) |
+| POST       | `/api/auth/phone/send`      | Send phone OTP                                |
+| POST       | `/api/auth/phone/login`     | Verify phone OTP → session/2FA challenge      |
+| *          | `/api/auth/phone`           | Bind / verify / remove phone                  |
+| *          | `/api/auth/2fa/*`           | Setup, enable, disable, recovery codes        |
+| POST       | `/api/auth/password`        | Change / set password                         |
+| GET        | `/api/auth/challenge`       | Peek 2FA challenge                            |
 
 ## Social / feed
 

@@ -20,16 +20,16 @@
 
 ## Module map (`src/modules`)
 
-| Module          | Responsibility                       |
-| --------------- | ------------------------------------ |
-| `auth`          | Sessions, credentials, OAuth, tokens |
-| `users`         | Profiles, follows, privacy           |
-| `feed`          | Posts, comments                      |
-| `messaging`     | DMs, conversation ACLs               |
-| `media`         | Calls, stories                       |
-| `notifications` | In-app fanout                        |
-| `communities`   | Spaces membership                    |
-| `admin`         | Moderation, audit, ops               |
-| `ai`            | Recommendations & assists            |
+| Module          | Responsibility                      |
+| --------------- | ----------------------------------- |
+| `auth`          | Sessions, email, phone, 2FA, tokens |
+| `users`         | Profiles, follows, privacy          |
+| `feed`          | Posts, comments                     |
+| `messaging`     | DMs, conversation ACLs              |
+| `media`         | Calls, stories                      |
+| `notifications` | In-app fanout                       |
+| `communities`   | Spaces membership                   |
+| `admin`         | Moderation, audit, ops              |
+| `ai`            | Recommendations & assists           |
 
 See also: `docs/API.md`, `docs/DEPLOY.md`, `docs/FUTURE.md`.

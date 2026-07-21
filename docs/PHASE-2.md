@@ -11,7 +11,7 @@
 - Session / device session tracking, revoke sessions
 - Login history + trusted devices APIs
 - Secure session cookies via Auth.js
-- OAuth: Google, Apple, Facebook, X/Twitter, credentials (env-gated; admin toggles in Phase 7)
+- Email/password and phone OTP authentication
 
 ### Onboarding
 
@@ -52,6 +52,6 @@ Accounts (password `cirqua1234`):
 
 ## Notes
 
-- OAuth buttons appear only when provider env vars are configured.
+- Email and phone are the only account authentication methods.
 - Email delivery logs to console in development (production SMTP/provider later).
 - Store branch `relune-store-backup` remains untouched.

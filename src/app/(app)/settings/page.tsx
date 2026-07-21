@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signIn, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import Link from "next/link";
 import {
   Accessibility,
@@ -12,7 +12,6 @@ import {
   Database,
   Download,
   Globe2,
-  Link2,
   Lock,
   MonitorSmartphone,
   Palette,
@@ -28,19 +27,13 @@ import { useExperience } from "@/components/experience-provider";
 import { PageTransition } from "@/components/motion/primitives";
 import { PushOptIn } from "@/components/notifications/push-opt-in";
 import {
-  AccountLifecycleModal,
   type AccountLifecycleAction,
+  AccountLifecycleModal,
 } from "@/components/settings/account-lifecycle-modal";
 import { BlockedMutedList } from "@/components/social/blocked-muted-list";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { type Locale, LOCALE_LABELS, LOCALES } from "@/i18n/config";
-import {
-  OAUTH_PROVIDER_ORDER,
-  type OAuthProviderId,
-  PROVIDER_SHORT,
-} from "@/modules/auth/providers";
-
 const A11Y_KEYS = {
   contrast: "relune.a11y.contrast",
   largeText: "relune.a11y.largeText",
@@ -79,7 +72,11 @@ const links = [
   { href: "/saved", icon: Bookmark, key: "bookmarks" },
   { href: "/settings#appearance", icon: Palette, key: "appearance" },
   { href: "/settings#language", icon: Globe2, key: "language" },
-  { href: "/settings#accessibility", icon: Accessibility, key: "accessibility" },
+  {
+    href: "/settings#accessibility",
+    icon: Accessibility,
+    key: "accessibility",
+  },
   { href: "/settings#notifications", icon: Bell, key: "notifications" },
   { href: "/settings#downloads", icon: Download, key: "downloads" },
   { href: "/settings#data", icon: Database, key: "data" },
@@ -87,7 +84,6 @@ const links = [
   { href: "/settings#blocked", icon: Ban, key: "blocked" },
   { href: "/settings#muted", icon: VolumeX, key: "muted" },
   { href: "/settings#account", icon: Trash2, key: "account" },
-  { href: "/settings#accounts", icon: Link2, key: "accounts" },
 ];
 
 function readBool(key: string, fallback = false) {
@@ -121,15 +117,8 @@ function applyA11y(opts: {
 
 export default function SettingsPage() {
   const { t, theme, setTheme, locale, setLocale } = useExperience();
-  const [accounts, setAccounts] = useState<
-    Array<{ id: string; provider: string; label: string }>
-  >([]);
   const [hasPassword, setHasPassword] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [providerAvailability, setProviderAvailability] = useState<
-    Record<OAuthProviderId, boolean>
-  >({ google: false, apple: false, facebook: false, twitter: false });
-  const [accountsMsg, setAccountsMsg] = useState<string | null>(null);
   const [highContrast, setHighContrast] = useState(false);
   const [largeText, setLargeText] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -141,12 +130,6 @@ export default function SettingsPage() {
     useState<AccountLifecycleAction | null>(null);
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [allowDownloads, setAllowDownloads] = useState(true);
-
-  async function loadAccounts() {
-    const d = await fetch("/api/auth/accounts").then((r) => r.json());
-    setAccounts(d.accounts ?? []);
-    setHasPassword(Boolean(d.hasPassword));
-  }
 
   useEffect(() => {
     const contrast = readBool(A11Y_KEYS.contrast);
@@ -187,27 +170,11 @@ export default function SettingsPage() {
       })
       .catch(() => {});
 
-    void loadAccounts().catch(() => {});
-    fetch("/api/auth/providers-config")
-      .then((r) => r.json())
-      .then((d) => {
-        const map = {
-          google: false,
-          apple: false,
-          facebook: false,
-          twitter: false,
-        };
-        for (const p of d.oauth ?? []) {
-          map[p.id as OAuthProviderId] = Boolean(p.available);
-        }
-        setProviderAvailability(map);
-      })
-      .catch(() => {});
-
     fetch("/api/users/me")
       .then((r) => r.json())
       .then((d) => {
         setTwoFactorEnabled(Boolean(d.user?.twoFactorEnabled));
+        setHasPassword(Boolean(d.user?.hasPassword));
       })
       .catch(() => {});
   }, []);
@@ -347,7 +314,10 @@ export default function SettingsPage() {
         {links.map(({ href, icon: Icon, key }) => (
           <Link key={key} href={href}>
             <Card interactive className="flex items-center gap-3 p-5">
-              <Icon className="size-4 shrink-0 text-[var(--signal)]" aria-hidden />
+              <Icon
+                className="size-4 shrink-0 text-[var(--signal)]"
+                aria-hidden
+              />
               <span className="text-sm font-medium">{t("settings", key)}</span>
             </Card>
           </Link>
@@ -614,77 +584,6 @@ export default function SettingsPage() {
           </h2>
           <BlockedMutedList mode="muted" />
         </Card>
-        <Card id="accounts">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl">
-            {t("settings", "accounts")}
-          </h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            Connect Google, Apple, Facebook, or X. Same-email logins are linked
-            — never duplicated.
-            {hasPassword ? " Email & password stays available." : ""}
-          </p>
-          {accountsMsg ? (
-            <p className="mt-3 text-sm text-[var(--signal-deep)]" role="status">
-              {accountsMsg}
-            </p>
-          ) : null}
-          <ul className="mt-5 space-y-3">
-            {OAUTH_PROVIDER_ORDER.map((id) => {
-              const connected = accounts.find((a) => a.provider === id);
-              const available = providerAvailability[id];
-              return (
-                <li
-                  key={id}
-                  className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 py-3 shadow-[var(--shadow-sm)]"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{PROVIDER_SHORT[id]}</p>
-                    <p className="text-xs text-[var(--muted)]">
-                      {connected
-                        ? "Connected"
-                        : available
-                          ? "Not connected"
-                          : "Not configured on this server"}
-                    </p>
-                  </div>
-                  {connected ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={async () => {
-                        setAccountsMsg(null);
-                        const res = await fetch(
-                          `/api/auth/accounts?provider=${encodeURIComponent(id)}`,
-                          { method: "DELETE" },
-                        );
-                        const data = await res.json();
-                        if (!res.ok) {
-                          setAccountsMsg(data.error || "Could not disconnect.");
-                          return;
-                        }
-                        setAccountsMsg(`${PROVIDER_SHORT[id]} disconnected.`);
-                        await loadAccounts();
-                      }}
-                    >
-                      Disconnect
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      disabled={!available}
-                      onClick={() =>
-                        void signIn(id, { callbackUrl: "/settings#accounts" })
-                      }
-                    >
-                      Connect
-                    </Button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </Card>
-
         <Button
           variant="outline"
           type="button"

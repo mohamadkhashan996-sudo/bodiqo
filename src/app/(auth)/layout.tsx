@@ -27,7 +27,7 @@ export default function AuthLayout({
                 Sign in to the premium social layer of Relune.
               </h1>
               <p className="mt-6 max-w-xl text-base leading-8 text-[var(--muted)]">
-                Elegant access, secure sessions, multi-provider sign-in, device
+                Elegant access, secure sessions, email and phone sign-in, device
                 controls, recovery options, and modern account protection built
                 for real production use.
               </p>
@@ -39,7 +39,7 @@ export default function AuthLayout({
                   ],
                   [
                     "Flexible sign-in",
-                    "Email, phone, Google, Apple, Facebook, and X where enabled.",
+                    "Choose secure email and password or phone verification.",
                   ],
                 ].map(([title, body]) => (
                   <div

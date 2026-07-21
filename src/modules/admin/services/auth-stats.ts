@@ -14,7 +14,6 @@ export async function getAuthAdminStats() {
       totalUsers,
       verifiedUsers,
       withPassword,
-      oauthAccounts,
       logins30,
       failed30,
       recentLogins,
@@ -24,10 +23,6 @@ export async function getAuthAdminStats() {
       prisma.user.count({ where: { status: { not: "DELETED" } } }),
       prisma.user.count({ where: { emailVerified: { not: null } } }),
       prisma.user.count({ where: { passwordHash: { not: null } } }),
-      prisma.account.groupBy({
-        by: ["provider"],
-        _count: { _all: true },
-      }),
       prisma.loginHistory.count({
         where: { success: true, createdAt: { gte: since } },
       }),
@@ -65,10 +60,6 @@ export async function getAuthAdminStats() {
         logins30d: logins30,
         failed30d: failed30,
       },
-      oauthAccounts: oauthAccounts.map((a) => ({
-        provider: a.provider,
-        count: a._count._all,
-      })),
       loginsByProvider: byProvider.map((p) => ({
         provider: p.provider ?? "unknown",
         count: p._count._all,

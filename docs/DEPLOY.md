@@ -31,7 +31,7 @@ Relune runs as a **custom Node server** (`server.ts`) that mounts Next.js and So
 6. Mail: `MAIL_PROVIDER=resend` + `RESEND_API_KEY` + SPF/DKIM
 7. TLS terminator (Fly/Render/Cloudflare/Nginx/Caddy)
 8. Health: `GET /api/health` and `GET /api/health?mode=ready`
-9. Optional: VAPID, TURN, OAuth provider secrets
+9. Optional: VAPID and TURN
 10. Mobile: see `docs/MOBILE.md`
 11. Trademark/domain review (`docs/brand/BRAND.md`)
 

@@ -120,11 +120,13 @@ const profileSelect = {
 export async function GET() {
   try {
     const u = await requireUser();
+    const user = await prisma.user.findUnique({
+      where: { id: u.id },
+      select: { ...profileSelect, passwordHash: true },
+    });
+    const { passwordHash, ...profile } = user ?? { passwordHash: null };
     return ok({
-      user: await prisma.user.findUnique({
-        where: { id: u.id },
-        select: profileSelect,
-      }),
+      user: user ? { ...profile, hasPassword: Boolean(passwordHash) } : null,
     });
   } catch (e) {
     return fail(e);

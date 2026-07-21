@@ -14,7 +14,6 @@
 - `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` — web push
 - `TURN_URLS` / `TURN_CREDENTIAL` — WebRTC TURN
 - `SESSION_DAYS` — JWT lifetime
-- OAuth client IDs/secrets you enable in admin
 - `LOG_LEVEL=info` (or `warn` in high-traffic)
 - `METRICS_TOKEN` — scrape `/api/metrics`
 - `SENTRY_DSN` — optional error tracking forwarder

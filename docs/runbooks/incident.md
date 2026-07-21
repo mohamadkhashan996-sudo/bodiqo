@@ -11,7 +11,7 @@
 ## 2. Contain
 
 - Set `MAINTENANCE_MODE=true` (env or admin setting) to park the app on `/maintenance`.
-- Rotate compromised secrets (`AUTH_SECRET`, OAuth, Resend) and restart.
+- Rotate compromised secrets (`AUTH_SECRET`, Resend, Twilio) and restart.
 - Ban abusive actors from `/admin/users` / banned list.
 
 ## 3. Recover

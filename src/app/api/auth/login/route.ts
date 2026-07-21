@@ -7,7 +7,6 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { createAuthChallenge } from "@/modules/auth/challenges";
 import { verifyPassword } from "@/modules/auth/password";
-import { isProviderEnabled } from "@/modules/auth/provider-settings";
 import { getAuthSecurityPolicy } from "@/modules/auth/security-policy";
 import { trackLogin } from "@/modules/auth/session-track";
 
@@ -30,9 +29,6 @@ const GENERIC_FAIL = "Unable to sign in with those credentials";
 
 export async function POST(request: Request) {
   try {
-    if (!(await isProviderEnabled("credentials"))) {
-      throw new AppError("Email sign-in is currently unavailable", 403);
-    }
     await guardApiAbuse(request, "auth:login", 20, 60_000);
     const policy = await getAuthSecurityPolicy();
     const { email, password } = await body(

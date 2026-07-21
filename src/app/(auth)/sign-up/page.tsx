@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -14,19 +14,6 @@ import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { safeCallbackUrl } from "@/lib/guest/paths";
 import { isValidE164 } from "@/lib/phone";
-import {
-  OAUTH_PROVIDER_ORDER,
-  type OAuthProviderId,
-  PROVIDER_LABELS,
-} from "@/modules/auth/providers";
-
-type ProviderRow = {
-  id: OAuthProviderId;
-  enabled: boolean;
-  configured: boolean;
-  available: boolean;
-};
-
 type Mode = "main" | "email" | "phone";
 
 function SignUpForm() {
@@ -50,28 +37,6 @@ function SignUpForm() {
     "idle",
   );
   const [devVerifyUrl, setDevVerifyUrl] = useState<string | null>(null);
-  const [oauth, setOauth] = useState<ProviderRow[]>([]);
-
-  useEffect(() => {
-    fetch("/api/auth/providers-config")
-      .then((r) => r.json())
-      .then((data) => setOauth(data.oauth ?? []))
-      .catch(() => setOauth([]));
-  }, []);
-
-  const ordered = useMemo(() => {
-    const map = new Map(oauth.map((p) => [p.id, p]));
-    return OAUTH_PROVIDER_ORDER.map(
-      (id) =>
-        map.get(id) ?? {
-          id,
-          enabled: true,
-          configured: false,
-          available: false,
-        },
-    );
-  }, [oauth]);
-
   const strength = useMemo(() => {
     const score =
       Number(password.length >= 8) +
@@ -83,17 +48,6 @@ function SignUpForm() {
     if (score <= 4) return { label: "Strong", value: 72 };
     return { label: "Excellent", value: 100 };
   }, [password]);
-
-  async function onOAuth(id: OAuthProviderId, available: boolean) {
-    setError(null);
-    if (!available) {
-      setError(
-        `${PROVIDER_LABELS[id].replace("Continue with ", "")} isn’t configured on this server yet.`,
-      );
-      return;
-    }
-    await signIn(id, { callbackUrl });
-  }
 
   async function resend() {
     if (!checkEmail) return;
@@ -294,36 +248,20 @@ function SignUpForm() {
       {mode === "main" ? (
         <>
           <div className="mt-8 space-y-3">
-            {ordered.map((p) => (
-              <AuthProviderButton
-                key={p.id}
-                id={p.id}
-                label={PROVIDER_LABELS[p.id]}
-                disabled={!p.enabled}
-                hint={
-                  !p.enabled
-                    ? "Temporarily unavailable"
-                    : !p.configured
-                      ? "Provider credentials not set"
-                      : undefined
-                }
-                onClick={() => void onOAuth(p.id, p.available)}
-              />
-            ))}
             <AuthProviderButton
-              id="credentials"
-              label="Continue with Phone"
-              onClick={() => {
-                setError(null);
-                setMode("phone");
-              }}
-            />
-            <AuthProviderButton
-              id="credentials"
+              id="email"
               label="Continue with Email"
               onClick={() => {
                 setError(null);
                 setMode("email");
+              }}
+            />
+            <AuthProviderButton
+              id="phone"
+              label="Continue with Phone"
+              onClick={() => {
+                setError(null);
+                setMode("phone");
               }}
             />
           </div>

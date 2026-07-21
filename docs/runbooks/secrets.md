@@ -13,11 +13,11 @@
 3. Restart app; confirm `/api/health?mode=ready`.
 4. Revoke old credentials.
 
-## Resend / OAuth / Twilio / VAPID
+## Resend / Twilio / VAPID
 
 1. Issue new keys in the provider console.
 2. Update env; restart.
-3. Smoke: email send, OAuth sign-in, push subscribe, SMS OTP as applicable.
+3. Smoke: email send, email sign-in, push subscribe, and SMS OTP as applicable.
 
 ## METRICS_TOKEN / SENTRY_DSN
 
