@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -27,6 +19,7 @@ import { ShortsUpload } from "@/components/shorts/shorts-upload";
 import { ShareSheet } from "@/components/social/share-sheet";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState, Skeleton } from "@/components/ui/card";
+import { isInteractiveTarget, useDialogFocus } from "@/hooks/use-dialog-focus";
 import { useSocket } from "@/hooks/use-socket";
 import { saveBrowseState } from "@/lib/guest/browse-state";
 import { appendUniqueById, formatCount } from "@/lib/utils";
@@ -224,6 +217,12 @@ export function ShortsFeed() {
   const [ready, setReady] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [muted, setMuted] = useState(true);
+  const commentsDialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus({
+    open: Boolean(commentsFor),
+    onClose: () => setCommentsFor(null),
+    containerRef: commentsDialogRef,
+  });
   const [mode, setMode] = useState<"forYou" | "following" | "latest">("forYou");
   const [feedMeta, setFeedMeta] = useState<{
     requiresAuth?: boolean;
@@ -312,21 +311,24 @@ export function ShortsFeed() {
     void load(null, true);
   }, [load]);
 
-  const playActive = useEffectEvent((id: string) => {
-    for (const [vid, el] of videoRefs.current) {
-      if (vid === id) {
-        el.muted = muted;
-        void el.play().catch(() => undefined);
-      } else if (!el.paused) {
-        el.pause();
+  const playActive = useCallback(
+    (id: string) => {
+      for (const [vid, el] of videoRefs.current) {
+        if (vid === id) {
+          el.muted = muted;
+          void el.play().catch(() => undefined);
+        } else if (!el.paused) {
+          el.pause();
+        }
       }
-    }
-  });
+    },
+    [muted],
+  );
 
-  const pauseInactive = useEffectEvent((id: string) => {
+  const pauseInactive = useCallback((id: string) => {
     const video = videoRefs.current.get(id);
     if (video && !video.paused) video.pause();
-  });
+  }, []);
 
   // Visibility → single active video (highest intersection ratio wins)
   useEffect(() => {
@@ -438,7 +440,18 @@ export function ShortsFeed() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const root = containerRef.current;
-      if (!root || commentsFor) return;
+      if (
+        !root ||
+        commentsFor ||
+        e.defaultPrevented ||
+        e.isComposing ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.altKey ||
+        isInteractiveTarget(e.target)
+      ) {
+        return;
+      }
       if (e.key === "ArrowDown" || e.key === "j") {
         e.preventDefault();
         root.scrollBy({ top: root.clientHeight, behavior: "smooth" });
@@ -800,8 +813,21 @@ export function ShortsFeed() {
       </div>
 
       {commentsFor ? (
-        <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-black/60 p-0 md:items-center md:p-4 lg:left-[var(--app-sidebar-width)]">
-          <div className="flex max-h-[min(78dvh,32rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.5rem] border border-white/10 bg-[#121212] p-5 text-white shadow-2xl md:rounded-[var(--radius-2xl)]">
+        <div
+          data-dialog-root=""
+          className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-black/60 p-0 md:items-center md:p-4 lg:left-[var(--app-sidebar-width)]"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setCommentsFor(null);
+          }}
+        >
+          <div
+            ref={commentsDialogRef}
+            className="flex max-h-[min(78dvh,32rem)] w-full max-w-lg flex-col overflow-hidden rounded-t-[1.5rem] border border-white/10 bg-[#121212] p-5 text-white shadow-2xl md:rounded-[var(--radius-2xl)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Comments"
+            tabIndex={-1}
+          >
             <div className="mb-3 flex shrink-0 items-center justify-between">
               <h2 className="font-semibold">Comments</h2>
               <button
@@ -815,9 +841,7 @@ export function ShortsFeed() {
             </div>
             <CommentsPanel
               postId={commentsFor}
-              postAuthorId={
-                posts.find((p) => p.id === commentsFor)?.author?.id
-              }
+              postAuthorId={posts.find((p) => p.id === commentsFor)?.author?.id}
               variant="sheet"
               onCommentCountChange={(count) => {
                 setPosts((old) =>

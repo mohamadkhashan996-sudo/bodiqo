@@ -51,7 +51,13 @@ export async function PATCH(
       );
       return ok({ member: await declineMessageRequest(user.id, id) });
     }
-    const { action: _action, ...flags } = input;
+    const flags = {
+      isPinned: input.isPinned,
+      isMuted: input.isMuted,
+      isArchived: input.isArchived,
+      isFavorite: input.isFavorite,
+      draftText: input.draftText,
+    };
     return ok({
       member: await updateMemberFlags(user.id, id, flags),
     });

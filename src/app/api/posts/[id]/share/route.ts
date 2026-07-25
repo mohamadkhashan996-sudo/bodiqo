@@ -1,6 +1,7 @@
 import { ShareChannel } from "@prisma/client";
 import { z } from "zod";
 
+import { trackServer } from "@/lib/analytics-server";
 import {
   body,
   fail,
@@ -9,7 +10,6 @@ import {
   optionalUser,
   requireUser,
 } from "@/lib/api";
-import { trackServer } from "@/lib/analytics-server";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import {

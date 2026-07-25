@@ -27,6 +27,20 @@ const resetPassword = "AuthReset8y!";
 
 type Jar = Map<string, string>;
 type Result = { status: "✅" | "⚠" | "❌"; label: string; detail: string };
+type ApiBody = {
+  ok?: boolean;
+  verifyUrl?: string;
+  resetUrl?: string;
+  token?: string;
+  code?: string;
+  error?: string;
+  verified?: boolean;
+  csrfToken?: string;
+  id?: string;
+  handle?: string;
+  user?: { email?: string };
+  [key: string]: unknown;
+};
 
 const results: Result[] = [];
 
@@ -55,7 +69,7 @@ function cookieHeader(jar: Jar) {
 async function api(
   path: string,
   init: RequestInit & { jar?: Jar; ip?: string } = {},
-): Promise<{ res: Response; body: any }> {
+): Promise<{ res: Response; body: ApiBody }> {
   const jar = init.jar;
   const headers = new Headers(init.headers);
   if (jar?.size) headers.set("cookie", cookieHeader(jar));
@@ -65,6 +79,8 @@ async function api(
   // Isolate abuse counters so the suite does not trip register/login rate limits.
   headers.set("x-forwarded-for", init.ip || `203.0.113.${(Math.random() * 200 + 20) | 0}`);
   const { jar: _j, ip: _ip, ...rest } = init;
+  void _j;
+  void _ip;
   const res = await fetch(`${base}${path}`, {
     ...rest,
     headers,
@@ -78,10 +94,10 @@ async function api(
     for (const c of raw) parseSetCookie(c, jar);
     parseSetCookie(res.headers.get("set-cookie"), jar);
   }
-  let body: any = null;
+  let body: ApiBody = {};
   const text = await res.text();
   try {
-    body = text ? JSON.parse(text) : null;
+    body = text ? (JSON.parse(text) as ApiBody) : {};
   } catch {
     body = { raw: text.slice(0, 300) };
   }

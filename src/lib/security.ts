@@ -10,6 +10,14 @@ export function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
+/** Remove HTML/script tags from user-authored plain text fields. */
+export function stripHtmlTags(value: string) {
+  return value
+    .replace(/<\/?[a-zA-Z][^>]*>/g, "")
+    .replace(/javascript:/gi, "")
+    .trim();
+}
+
 /** Only allow http(s) absolute URLs or empty — blocks javascript:/data: XSS. */
 export function isSafeHttpUrl(value: string) {
   try {

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
+import { AppError } from "@/lib/errors";
 import {
   addConversationMembers,
   removeConversationMember,
@@ -39,7 +40,7 @@ export async function DELETE(
     await guardApiAbuse(request, "conversations:id:members:delete");
     const user = await requireUser();
     const memberId = new URL(request.url).searchParams.get("userId");
-    if (!memberId) throw new Error("userId is required");
+    if (!memberId) throw new AppError("userId is required", 400);
     return ok({
       member: await removeConversationMember(
         user.id,

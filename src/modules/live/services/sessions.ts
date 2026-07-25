@@ -118,12 +118,7 @@ export async function endLiveSession(userId: string, sessionId: string) {
     select: { id: true, hostId: true, status: true },
   });
   if (!session) throw new AppError("Live session not found", 404);
-  if (session.hostId !== userId) {
-    const mod = await prisma.liveModerator.findUnique({
-      where: { sessionId_userId: { sessionId, userId } },
-    });
-    if (!mod) throw new AppError("Forbidden", 403);
-  }
+  if (session.hostId !== userId) throw new AppError("Forbidden", 403);
   if (session.status !== "LIVE") return getLiveSession(sessionId);
 
   const ended = await prisma.liveSession.update({
@@ -285,6 +280,7 @@ export async function postLiveChat(
   if (!text) throw new AppError("Message cannot be empty", 400);
   if (text.length > 280) throw new AppError("Message is too long", 400);
 
+  await assertCanJoinLive(userId, sessionId);
   const session = await prisma.liveSession.findUnique({
     where: { id: sessionId },
     select: { status: true, mutedUserIds: true, hostId: true },
@@ -327,7 +323,12 @@ export async function deleteLiveChat(
   return { ok: true };
 }
 
-export async function listLiveChat(sessionId: string, limit = 50) {
+export async function listLiveChat(
+  userId: string,
+  sessionId: string,
+  limit = 50,
+) {
+  await assertCanJoinLive(userId, sessionId);
   return prisma.liveChatMessage
     .findMany({
       where: { sessionId, deletedAt: null },
@@ -338,7 +339,8 @@ export async function listLiveChat(sessionId: string, limit = 50) {
     .then((rows) => rows.reverse());
 }
 
-export async function getPinnedLiveChat(sessionId: string) {
+export async function getPinnedLiveChat(userId: string, sessionId: string) {
+  await assertCanJoinLive(userId, sessionId);
   const session = await prisma.liveSession.findUnique({
     where: { id: sessionId },
     select: { pinnedMessageId: true },

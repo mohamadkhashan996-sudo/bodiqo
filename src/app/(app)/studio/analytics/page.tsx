@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 
 import {
+  fmt,
   StudioPanel,
   StudioShell,
   StudioSpark,
   StudioStat,
-  fmt,
 } from "@/components/studio/studio-shell";
 import { Skeleton, StateBanner } from "@/components/ui/card";
 

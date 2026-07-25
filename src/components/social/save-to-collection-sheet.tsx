@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, FolderPlus, Lock, Globe2 } from "lucide-react";
+import { Check, FolderPlus, Globe2,Lock } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
 

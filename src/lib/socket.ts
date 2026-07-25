@@ -15,6 +15,22 @@ export function getIo() {
   return globalThis.__reluneIo;
 }
 
+/** Disconnect authenticated sockets locally and across the Redis adapter. */
+export function disconnectUserSockets(userId: string) {
+  const io = getIo();
+  io?.in(`user:${userId}`).disconnectSockets(true);
+  io?.in(`impersonator:${userId}`).disconnectSockets(true);
+}
+
+/** Disconnect one or more device sessions without ending the user's others. */
+export function disconnectDeviceSockets(sessionKeys: string[]) {
+  const io = getIo();
+  if (!io) return;
+  for (const sessionKey of sessionKeys.filter(Boolean)) {
+    io.in(`session:${sessionKey}`).disconnectSockets(true);
+  }
+}
+
 /** Users currently viewing a conversation thread (not merely room members). */
 function activeChats() {
   if (!globalThis.__reluneActiveChats) {

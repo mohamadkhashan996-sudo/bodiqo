@@ -1,8 +1,6 @@
 import { MediaKind } from "@prisma/client";
 import { z } from "zod";
 
-import { AppError } from "@/lib/errors";
-import { getSetting } from "@/modules/admin/services/settings";
 import {
   body,
   fail,
@@ -11,14 +9,16 @@ import {
   optionalUser,
   requireUser,
 } from "@/lib/api";
+import { AppError } from "@/lib/errors";
 import { optionalMediaUrlSchema } from "@/lib/media-url";
 import { prisma } from "@/lib/prisma";
+import { getSetting } from "@/modules/admin/services/settings";
 import { broadcastComment } from "@/modules/feed/services/broadcast";
 import {
   addComment,
+  type CommentSort,
   listComments,
   serializeComment,
-  type CommentSort,
 } from "@/modules/feed/services/comments";
 import {
   createNotification,

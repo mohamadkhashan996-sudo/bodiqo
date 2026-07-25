@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 import { useGuest } from "@/components/auth/guest-provider";
 import { Button } from "@/components/ui/button";
 import { useSocket } from "@/hooks/use-socket";
-import { useSession } from "next-auth/react";
 
 export type FriendRelation = "none" | "friends" | "outgoing" | "incoming" | "self";
 

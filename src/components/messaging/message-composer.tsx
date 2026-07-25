@@ -37,7 +37,7 @@ export function MessageComposer({
     body: string;
     type: string;
     mediaUrl?: string;
-  }) => Promise<void>;
+  }) => Promise<boolean>;
   onTyping: (typing: boolean) => void;
   reply?: string;
   onCancelReply: () => void;
@@ -49,6 +49,10 @@ export function MessageComposer({
   const [paused, setPaused] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
+  const bodyRef = useRef(body);
+  const mediaStateRef = useRef(media);
+  bodyRef.current = body;
+  mediaStateRef.current = media;
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const imageRef = useRef<HTMLInputElement>(null);
@@ -109,11 +113,12 @@ export function MessageComposer({
               type: audio.type,
             });
             const result = await uploadFile(file, { private: true });
-            await onSend({
+            const sent = await onSend({
               body: "Voice note",
               type: "AUDIO",
               mediaUrl: result.url,
             });
+            if (!sent) throw new Error("Voice note was not sent");
           } catch (err) {
             setError(
               err instanceof Error ? err.message : "Voice upload failed",
@@ -140,16 +145,25 @@ export function MessageComposer({
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!body.trim() && !media) return;
+    const submittedBody = body;
+    const submittedMedia = media;
     const type = media?.kind ?? "TEXT";
-    await onSend({
-      body: body.trim() || (media ? media.name : ""),
+    setError(null);
+    const sent = await onSend({
+      body: submittedBody.trim() || (submittedMedia ? submittedMedia.name : ""),
       type,
-      mediaUrl: media?.url,
+      mediaUrl: submittedMedia?.url,
     });
-    setBody("");
-    setMedia(null);
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    setTyping(false);
+    if (!sent) {
+      setError("Message was not sent. Your draft has been kept.");
+      return;
+    }
+    if (bodyRef.current === submittedBody) {
+      setBody("");
+      if (typingTimer.current) clearTimeout(typingTimer.current);
+      setTyping(false);
+    }
+    if (mediaStateRef.current === submittedMedia) setMedia(null);
   }
 
   return (
@@ -324,6 +338,7 @@ export function MessageComposer({
                 else setTyping(false);
               }}
               placeholder={uploading ? "Uploading…" : "Share a thought…"}
+              aria-label="Message"
               rows={1}
               className="max-h-28 w-full resize-none bg-transparent text-base leading-6 text-[var(--ink)] outline-none placeholder:text-[var(--placeholder)] sm:text-sm"
             />

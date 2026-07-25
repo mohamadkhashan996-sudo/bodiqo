@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
-import { listFriendRequests } from "@/modules/users/services/lists";
 import { sendFriendshipRequest } from "@/modules/users/services/friends";
+import { listFriendRequests } from "@/modules/users/services/lists";
 import {
   respondFriendRequest,
   sendFriendRequest,

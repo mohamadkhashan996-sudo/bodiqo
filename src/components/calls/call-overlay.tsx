@@ -8,10 +8,10 @@ import {
   PhoneOff,
   Shield,
   SwitchCamera,
-  Volume2,
-  VolumeX,
   Video,
   VideoOff,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 
 import { useSocket } from "@/hooks/use-socket";
@@ -21,8 +21,8 @@ import {
   acquireLocalStream,
   applyDegradedSenderParams,
   applyHdSenderParams,
-  type CameraFacing,
   type CallQuality,
+  type CameraFacing,
   fetchIceServers,
   preferHdCodecs,
   replaceVideoTrack,

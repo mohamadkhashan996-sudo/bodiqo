@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import {
+  fmt,
   StudioPanel,
   StudioShell,
-  fmt,
 } from "@/components/studio/studio-shell";
 import { Skeleton, StateBanner } from "@/components/ui/card";
 

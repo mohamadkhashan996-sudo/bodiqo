@@ -1,6 +1,9 @@
 # Fly.io example — Relune needs a long-running Node process (Next + Socket.IO).
 # Create: fly launch --no-deploy
-# Secrets: fly secrets set AUTH_SECRET=... AUTH_URL=https://... DATABASE_URL=... REDIS_URL=... MAIL_PROVIDER=resend RESEND_API_KEY=...
+# Secrets:
+# fly secrets set AUTH_SECRET=... AUTH_URL=https://... DATABASE_URL=... REDIS_URL=...
+# fly secrets set RESEND_API_KEY=... MAIL_FROM="Relune <noreply@your.domain>"
+# fly secrets set TWILIO_ACCOUNT_SID=... TWILIO_AUTH_TOKEN=... TWILIO_FROM=...
 
 app = "relune"
 primary_region = "iad"
@@ -11,6 +14,8 @@ primary_region = "iad"
 [env]
   NODE_ENV = "production"
   PORT = "3000"
+  MAIL_PROVIDER = "resend"
+  SMS_PROVIDER = "twilio"
 
 [http_service]
   internal_port = 3000

@@ -21,6 +21,7 @@ declare module "next-auth" {
     sessionVersion?: number;
     remember?: boolean;
     impersonatorId?: string;
+    impersonatorSessionVersion?: number;
     managingOfficial?: boolean;
   }
 }
@@ -36,6 +37,7 @@ declare module "next-auth/jwt" {
     deviceSessionId?: string;
     remember?: boolean;
     impersonatorId?: string;
+    impersonatorSessionVersion?: number;
     managingOfficial?: boolean;
   }
 }

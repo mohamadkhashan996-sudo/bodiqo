@@ -195,7 +195,12 @@ export function DeviceSecurityPanel() {
         <p className="mt-1 text-xs text-[var(--muted)]">
           Recent successful and failed sign-in attempts.
         </p>
-        <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">
+        <div
+          className="mt-3 max-h-64 space-y-2 overflow-y-auto"
+          role="region"
+          aria-label="Login history"
+          tabIndex={0}
+        >
           {history.slice(0, 40).map((item) => (
             <p key={item.id} className="text-sm text-[var(--muted)]">
               <span

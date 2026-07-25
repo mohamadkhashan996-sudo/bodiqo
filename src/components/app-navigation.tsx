@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -29,6 +29,7 @@ import type { ComponentType } from "react";
 import { useGuest } from "@/components/auth/guest-provider";
 import { BrandLockup } from "@/components/brand/logo";
 import { useExperience } from "@/components/experience-provider";
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 import { useSocket } from "@/hooks/use-socket";
 import { cn } from "@/lib/utils";
 
@@ -147,6 +148,12 @@ export function AppNavigation({
   const [unread, setUnread] = useState(0);
   const [messageUnread, setMessageUnread] = useState(0);
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreDialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus({
+    open: moreOpen,
+    onClose: () => setMoreOpen(false),
+    containerRef: moreDialogRef,
+  });
   const [features, setFeatures] = useState<Record<string, boolean> | null>(
     null,
   );
@@ -446,18 +453,23 @@ export function AppNavigation({
 
       {moreOpen ? (
         <div
+          data-dialog-root=""
           className="fixed inset-0 z-[calc(var(--z-nav)+5)] lg:hidden"
-          role="dialog"
-          aria-modal="true"
-          aria-label={labelFor("more")}
+          role="presentation"
         >
-          <button
-            type="button"
+          <div
             className="absolute inset-0 bg-[var(--ink)]/45 backdrop-blur-sm"
-            aria-label="Close"
+            aria-hidden="true"
             onClick={() => setMoreOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[min(85dvh,40rem)] overflow-y-auto overscroll-contain rounded-t-[var(--radius-2xl)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-xl)]">
+          <div
+            ref={moreDialogRef}
+            className="absolute inset-x-0 bottom-0 max-h-[min(85dvh,40rem)] overflow-y-auto overscroll-contain rounded-t-[var(--radius-2xl)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[var(--shadow-xl)]"
+            role="dialog"
+            aria-modal="true"
+            aria-label={labelFor("more")}
+            tabIndex={-1}
+          >
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--mist-strong)]" />
             <div className="mb-3 flex items-center justify-between">
               <p className="font-[family-name:var(--font-display)] text-lg tracking-tight">

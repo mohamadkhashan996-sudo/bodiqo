@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  fmt,
   StudioPanel,
   StudioShell,
-  fmt,
 } from "@/components/studio/studio-shell";
 import { Button } from "@/components/ui/button";
 import { Skeleton, StateBanner } from "@/components/ui/card";

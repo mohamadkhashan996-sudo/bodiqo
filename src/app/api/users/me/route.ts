@@ -6,7 +6,7 @@ import { AppError } from "@/lib/errors";
 import { assertOwnedReadyAsset } from "@/lib/media-asset";
 import { isMediaUrl, optionalWebsiteSchema } from "@/lib/media-url";
 import { prisma } from "@/lib/prisma";
-import { optionalHttpUrlSchema } from "@/lib/security";
+import { optionalHttpUrlSchema, stripHtmlTags } from "@/lib/security";
 import { assertHandleAvailable } from "@/modules/platform/reserved-handles";
 
 const mediaOrClear = z
@@ -173,8 +173,16 @@ export async function PATCH(r: Request) {
       }
     }
 
-    const displayName = data.displayName ?? data.name;
+    const displayNameRaw = data.displayName ?? data.name;
+    const displayName =
+      displayNameRaw !== undefined ? stripHtmlTags(displayNameRaw) : undefined;
     const { interestIds, socialLinks, languages, ...profile } = data;
+    if (profile.bio !== undefined) profile.bio = stripHtmlTags(profile.bio);
+    if (profile.city !== undefined) profile.city = stripHtmlTags(profile.city);
+    if (profile.country !== undefined) {
+      profile.country = stripHtmlTags(profile.country);
+    }
+    if (profile.name !== undefined) profile.name = stripHtmlTags(profile.name);
 
     const wasPrivate =
       data.isPrivate === false
@@ -213,9 +221,8 @@ export async function PATCH(r: Request) {
 
     // Going public: auto-approve pending follow requests as one-way follows.
     if (wasPrivate?.isPrivate && data.isPrivate === false) {
-      const { acceptPendingFollowRequestsOnPublic } = await import(
-        "@/modules/users/services/social"
-      );
+      const { acceptPendingFollowRequestsOnPublic } =
+        await import("@/modules/users/services/social");
       await acceptPendingFollowRequestsOnPublic(u.id).catch(() => undefined);
     }
 

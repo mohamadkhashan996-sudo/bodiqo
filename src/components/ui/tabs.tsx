@@ -15,6 +15,27 @@ export function Tabs({
   className?: string;
   "aria-label"?: string;
 }) {
+  function moveWithKeyboard(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+  ) {
+    let next = index;
+    if (event.key === "ArrowRight") next = (index + 1) % items.length;
+    else if (event.key === "ArrowLeft")
+      next = (index - 1 + items.length) % items.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = items.length - 1;
+    else return;
+
+    event.preventDefault();
+    const tabs =
+      event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>(
+        '[role="tab"]',
+      );
+    onChange(items[next]!);
+    tabs?.[next]?.focus();
+  }
+
   return (
     <div
       className={cn(
@@ -24,7 +45,7 @@ export function Tabs({
       role="tablist"
       aria-label={ariaLabel}
     >
-      {items.map((item) => {
+      {items.map((item, index) => {
         const selected = item === value;
         return (
           <button
@@ -34,6 +55,7 @@ export function Tabs({
             aria-selected={selected}
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(item)}
+            onKeyDown={(event) => moveWithKeyboard(event, index)}
             className={cn(
               "min-h-10 shrink-0 rounded-full px-4 py-2 text-sm font-semibold tracking-tight transition-[background-color,color,box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring-strong)]",
               selected

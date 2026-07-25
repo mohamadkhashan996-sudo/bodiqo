@@ -1,77 +1,56 @@
 "use client";
 
-import { useEffect, useId, useRef } from "react";
+import { type RefObject, useId, useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
+import { createPortal } from "react-dom";
+
+import { useDialogFocus } from "@/hooks/use-dialog-focus";
 
 export function Modal({
   open,
   title,
   onClose,
   children,
+  returnFocusRef,
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
   const titleId = useId();
   const panelRef = useRef<HTMLElement>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
   const reduceMotion = useReducedMotion();
+  const { restoreFocus } = useDialogFocus({
+    open,
+    onClose,
+    containerRef: panelRef,
+  });
 
-  useEffect(() => {
-    if (!open) return;
-    previouslyFocused.current = document.activeElement as HTMLElement | null;
-    const panel = panelRef.current;
-    const focusable = panel?.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    );
-    focusable?.[0]?.focus();
+  if (typeof document === "undefined") return null;
 
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== "Tab" || !panel) return;
-      const nodes = [
-        ...(panel.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        ) ?? []),
-      ].filter((el) => !el.hasAttribute("disabled"));
-      if (!nodes.length) return;
-      const first = nodes[0]!;
-      const last = nodes[nodes.length - 1]!;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      previouslyFocused.current?.focus?.();
-    };
-  }, [open, onClose]);
-
-  return (
-    <AnimatePresence>
+  return createPortal(
+    <AnimatePresence
+      onExitComplete={() => {
+        if (returnFocusRef?.current?.isConnected) {
+          returnFocusRef.current.focus({ preventScroll: true });
+        } else {
+          restoreFocus();
+        }
+      }}
+    >
       {open ? (
         <motion.div
+          data-dialog-root=""
           initial={reduceMotion ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={reduceMotion ? undefined : { opacity: 0 }}
           className="fixed inset-0 z-[var(--z-modal)] grid place-items-center bg-[var(--night)]/58 p-[max(0.75rem,env(safe-area-inset-top))] px-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md md:p-6"
-          onMouseDown={onClose}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) onClose();
+          }}
         >
           <motion.section
             ref={panelRef}
@@ -83,11 +62,12 @@ export function Modal({
                 ? { duration: 0 }
                 : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }
             }
-            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
             className="surface-panel-strong premium-ring relative max-h-[min(calc(100dvh-2rem),40rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-[var(--radius-2xl)] p-5 shadow-[var(--shadow-xl)] backdrop-blur-2xl md:p-6"
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
+            tabIndex={-1}
           >
             <header className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -112,6 +92,7 @@ export function Modal({
           </motion.section>
         </motion.div>
       ) : null}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

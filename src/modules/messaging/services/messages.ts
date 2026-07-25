@@ -7,8 +7,8 @@ import { assertOwnedReadyAsset } from "@/lib/media-asset";
 import { prisma } from "@/lib/prisma";
 
 import {
-  assertConversationMember,
   acceptMessageRequest,
+  assertConversationMember,
 } from "./conversations";
 
 const include = {

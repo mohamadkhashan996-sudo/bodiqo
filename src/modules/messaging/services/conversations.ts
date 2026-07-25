@@ -431,6 +431,14 @@ export async function removeConversationMember(
   const actor = await assertConversationMember(actorId, conversationId);
   if (actorId !== memberId && actor.role !== "OWNER" && actor.role !== "ADMIN")
     throw new AppError("Forbidden", 403);
+  if (actorId !== memberId) {
+    const target = await prisma.conversationMember.findUnique({
+      where: { conversationId_userId: { conversationId, userId: memberId } },
+      select: { role: true, leftAt: true },
+    });
+    if (!target || target.leftAt) throw new AppError("Member not found", 404);
+    if (target.role === "OWNER") throw new AppError("Forbidden", 403);
+  }
   return prisma.conversationMember.update({
     where: { conversationId_userId: { conversationId, userId: memberId } },
     data: { leftAt: new Date(), isArchived: true },

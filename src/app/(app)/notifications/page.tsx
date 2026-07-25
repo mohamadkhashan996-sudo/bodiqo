@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, Trash2 } from "lucide-react";
 
@@ -9,7 +9,7 @@ import { PageTransition } from "@/components/motion/primitives";
 import { PushOptIn } from "@/components/notifications/push-opt-in";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, EmptyState, Skeleton } from "@/components/ui/card";
+import { Card, EmptyState, Skeleton, StateBanner } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { Tabs } from "@/components/ui/tabs";
 import { useSocket } from "@/hooks/use-socket";
@@ -67,6 +67,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const filterLabels = {
     all: t("notifications", "all"),
@@ -84,7 +85,7 @@ export default function NotificationsPage() {
     filterKeys.map((key) => [filterLabels[key], key]),
   ) as Record<string, typeof filter>;
 
-  function loadRequests() {
+  const loadRequests = useCallback(() => {
     return fetch("/api/social/friend-request")
       .then((r) => r.json())
       .then((d) => {
@@ -92,9 +93,9 @@ export default function NotificationsPage() {
         setOutgoing(d.outgoing ?? []);
       })
       .catch(() => {});
-  }
+  }, []);
 
-  function load(reset = true) {
+  const load = useCallback((reset = true) => {
     if (reset) setLoading(true);
     void Promise.all([
       fetch("/api/notifications")
@@ -102,10 +103,13 @@ export default function NotificationsPage() {
         .then((d) => {
           setItems(d.notifications ?? []);
           setNextCursor(d.nextCursor ?? null);
+        })
+        .catch(() => {
+          setActionError("Couldn’t load notifications. Check your connection.");
         }),
       loadRequests(),
     ]).finally(() => setLoading(false));
-  }
+  }, [loadRequests]);
 
   async function loadMore() {
     if (!nextCursor || loadingMore) return;
@@ -114,6 +118,10 @@ export default function NotificationsPage() {
       const res = await fetch(
         `/api/notifications?cursor=${encodeURIComponent(nextCursor)}`,
       );
+      if (!res.ok) {
+        setActionError("Couldn’t load more notifications.");
+        return;
+      }
       const d = await res.json();
       setItems((old) => {
         const seen = new Set(old.map((n) => n.id));
@@ -123,6 +131,8 @@ export default function NotificationsPage() {
         return [...old, ...extra];
       });
       setNextCursor(d.nextCursor ?? null);
+    } catch {
+      setActionError("Couldn’t load more notifications. Check your connection.");
     } finally {
       setLoadingMore(false);
     }
@@ -130,7 +140,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   useEffect(() => {
     const onNew = (note: Note) => {
@@ -151,7 +161,7 @@ export default function NotificationsPage() {
       socket?.off("friend:update", onFriend);
       socket?.off("follow:update", onFriend);
     };
-  }, [socket]);
+  }, [loadRequests, socket]);
 
   const friendIncoming = requests.filter((r) => r.kind !== "FOLLOW");
   const followIncoming = requests.filter((r) => r.kind === "FOLLOW");
@@ -175,54 +185,89 @@ export default function NotificationsPage() {
   });
 
   async function markAll() {
-    const res = await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
-    if (!res.ok) return;
-    setItems((old) =>
-      old.map((x) => ({ ...x, readAt: new Date().toISOString() })),
-    );
+    setActionError(null);
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      if (!res.ok) {
+        setActionError("Couldn’t mark all as read. Try again.");
+        return;
+      }
+      setItems((old) =>
+        old.map((x) => ({ ...x, readAt: new Date().toISOString() })),
+      );
+    } catch {
+      setActionError(
+        "Couldn’t mark all as read. Check your connection and try again.",
+      );
+    }
   }
 
   async function markOne(id: string) {
-    const res = await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    if (!res.ok) return;
-    setItems((old) =>
-      old.map((x) =>
-        x.id === id ? { ...x, readAt: new Date().toISOString() } : x,
-      ),
-    );
+    setActionError(null);
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) {
+        setActionError("Couldn’t mark notification as read.");
+        return;
+      }
+      setItems((old) =>
+        old.map((x) =>
+          x.id === id ? { ...x, readAt: new Date().toISOString() } : x,
+        ),
+      );
+    } catch {
+      setActionError("Couldn’t mark notification as read. Check your connection.");
+    }
   }
 
   async function removeOne(id: string) {
-    const res = await fetch("/api/notifications", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: [id] }),
-    });
-    if (!res.ok) return;
-    setItems((old) => old.filter((x) => x.id !== id));
+    setActionError(null);
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [id] }),
+      });
+      if (!res.ok) {
+        setActionError("Couldn’t remove notification.");
+        return;
+      }
+      setItems((old) => old.filter((x) => x.id !== id));
+    } catch {
+      setActionError("Couldn’t remove notification. Check your connection.");
+    }
   }
 
   async function respond(
     requestId: string,
     status: "ACCEPTED" | "DECLINED" | "CANCELLED",
   ) {
-    await fetch("/api/social/friend-request", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId, status }),
-    });
-    if (status === "CANCELLED") {
-      setOutgoing((old) => old.filter((r) => r.id !== requestId));
-    } else {
-      setRequests((old) => old.filter((r) => r.id !== requestId));
+    setActionError(null);
+    try {
+      const res = await fetch("/api/social/friend-request", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, status }),
+      });
+      if (!res.ok) {
+        setActionError("Couldn’t update that request. Try again.");
+        return;
+      }
+      if (status === "CANCELLED") {
+        setOutgoing((old) => old.filter((r) => r.id !== requestId));
+      } else {
+        setRequests((old) => old.filter((r) => r.id !== requestId));
+      }
+    } catch {
+      setActionError("Couldn’t update that request. Check your connection.");
     }
   }
 
@@ -284,6 +329,12 @@ export default function NotificationsPage() {
       />
 
       <PushOptIn />
+
+      {actionError ? (
+        <div className="mt-4">
+          <StateBanner tone="error">{actionError}</StateBanner>
+        </div>
+      ) : null}
 
       {friendIncoming.length ? (
         <Card className="mt-6 space-y-3 p-4">

@@ -30,7 +30,8 @@ export async function POST(request: Request) {
       !user ||
       user.emailVerified ||
       user.status === "DELETED" ||
-      user.status === "BANNED"
+      user.status === "BANNED" ||
+      user.status === "SUSPENDED"
     ) {
       return ok({ ok: true });
     }

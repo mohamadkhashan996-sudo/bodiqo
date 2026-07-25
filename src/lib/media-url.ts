@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { AppError } from "@/lib/errors";
 import { optionalHttpUrlSchema } from "@/lib/security";
 
 const UPLOADS_PREFIX = "/uploads/";
@@ -80,11 +81,11 @@ export function mediaPathOwnerId(value: string): string | null {
 export function assertOwnedMediaUrl(ownerId: string, value: string | null) {
   if (!value) return;
   if (!isMediaUrl(value)) {
-    throw new Error("Invalid media URL");
+    throw new AppError("Invalid media URL", 400);
   }
   const pathOwner = mediaPathOwnerId(value);
   if (pathOwner !== ownerId) {
-    throw new Error("Media does not belong to this account");
+    throw new AppError("Media does not belong to this account", 400);
   }
 }
 

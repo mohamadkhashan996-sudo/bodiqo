@@ -14,15 +14,19 @@ export async function GET(
 ) {
   try {
     await guardApiAbuse(request, "live:chat:get", 90);
-    await requireUser();
+    const user = await requireUser();
     const q = new URL(request.url).searchParams;
     const sessionId = (await params).id;
     const { getPinnedLiveChat } = await import(
       "@/modules/live/services/sessions"
     );
     return ok({
-      messages: await listLiveChat(sessionId, Number(q.get("limit") ?? 50)),
-      pinned: await getPinnedLiveChat(sessionId),
+      messages: await listLiveChat(
+        user.id,
+        sessionId,
+        Number(q.get("limit") ?? 50),
+      ),
+      pinned: await getPinnedLiveChat(user.id, sessionId),
     });
   } catch (e) {
     return fail(e);

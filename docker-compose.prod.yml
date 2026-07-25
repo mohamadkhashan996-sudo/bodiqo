@@ -1,5 +1,7 @@
 # Production-oriented overlay. Usage:
-#   export POSTGRES_PASSWORD=… REDIS_PASSWORD=… AUTH_SECRET=… AUTH_URL=https://… RESEND_API_KEY=…
+#   export POSTGRES_PASSWORD=… REDIS_PASSWORD=… AUTH_SECRET=… AUTH_URL=https://…
+#   export RESEND_API_KEY=… MAIL_FROM="Relune <noreply@your.domain>"
+#   export TWILIO_ACCOUNT_SID=… TWILIO_AUTH_TOKEN=… TWILIO_FROM=…
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #
 # Binds app only. Postgres/Redis stay on the internal Compose network.
@@ -33,6 +35,11 @@ services:
       NEXTAUTH_URL: ${AUTH_URL}
       MAIL_PROVIDER: resend
       RESEND_API_KEY: ${RESEND_API_KEY:?Set RESEND_API_KEY}
+      MAIL_FROM: ${MAIL_FROM:?Set MAIL_FROM}
+      SMS_PROVIDER: twilio
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:?Set TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:?Set TWILIO_AUTH_TOKEN}
+      TWILIO_FROM: ${TWILIO_FROM:?Set TWILIO_FROM}
       AUTH_SECRET: ${AUTH_SECRET:?Set AUTH_SECRET}
     ports:
       - "${PORT:-3000}:3000"

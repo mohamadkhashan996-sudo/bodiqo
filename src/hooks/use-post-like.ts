@@ -9,9 +9,9 @@ import {
   bumpReactionCount,
   emptyReactionCounts,
   normalizeReactionCounts,
-  totalReactions,
   type ReactionCounts,
   type ReactionKey,
+  totalReactions,
 } from "@/lib/reactions";
 
 type ReactionState = {

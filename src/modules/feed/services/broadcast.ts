@@ -1,5 +1,5 @@
-import { getIo } from "@/lib/socket";
 import type { ReactionCounts, ReactionKey } from "@/lib/reactions";
+import { getIo } from "@/lib/socket";
 import type { CommentDTO } from "@/modules/feed/services/comments";
 
 export type PostReactionEvent = {

@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import {
   REACTION_META,
   REACTION_TYPES,
-  topReactionTypes,
-  totalReactions,
   type ReactionCounts,
   type ReactionKey,
+  topReactionTypes,
+  totalReactions,
 } from "@/lib/reactions";
 
 type Props = {
@@ -36,7 +36,9 @@ export function ReactionButton({
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const longPressRef = useRef<number | null>(null);
+  const toolbarId = useId();
   const top = topReactionTypes(reactionCounts, 3);
   const total = Math.max(totalReactions(reactionCounts), likeCount);
   const active = reaction ? REACTION_META[reaction] : null;
@@ -69,7 +71,12 @@ export function ReactionButton({
       ref={rootRef}
       className={`relative inline-flex items-center gap-1.5 ${className}`}
       onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onMouseLeave={() => {
+        if (!rootRef.current?.contains(document.activeElement)) setOpen(false);
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
     >
       {top.length > 0 ? (
         <span
@@ -90,8 +97,34 @@ export function ReactionButton({
       <div className="relative">
         {open ? (
           <div
+            id={toolbarId}
             role="toolbar"
             aria-label="Choose reaction"
+            onKeyDown={(event) => {
+              const buttons = [
+                ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                  "button:not([disabled])",
+                ),
+              ];
+              const index = buttons.indexOf(
+                document.activeElement as HTMLButtonElement,
+              );
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                setOpen(false);
+                triggerRef.current?.focus();
+              } else if (
+                event.key === "ArrowRight" ||
+                event.key === "ArrowDown"
+              ) {
+                event.preventDefault();
+                buttons[(index + 1) % buttons.length]?.focus();
+              } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+                event.preventDefault();
+                buttons[(index - 1 + buttons.length) % buttons.length]?.focus();
+              }
+            }}
             className="absolute bottom-[calc(100%+0.5rem)] left-0 z-20 flex gap-0.5 rounded-full border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-1 shadow-[var(--shadow-md)]"
           >
             {REACTION_TYPES.map((type) => {
@@ -106,7 +139,9 @@ export function ReactionButton({
                   aria-label={meta.label}
                   aria-pressed={selected}
                   className={`grid size-9 place-items-center rounded-full text-lg transition-transform hover:scale-125 motion-reduce:hover:scale-100 ${
-                    selected ? "bg-[var(--signal-soft)] ring-2 ring-[var(--signal-deep)]" : "hover:bg-[var(--mist)]"
+                    selected
+                      ? "bg-[var(--signal-soft)] ring-2 ring-[var(--signal-deep)]"
+                      : "hover:bg-[var(--mist)]"
                   }`}
                   onClick={() => {
                     onReact(type);
@@ -121,10 +156,13 @@ export function ReactionButton({
         ) : null}
 
         <motion.button
+          ref={triggerRef}
           type="button"
           disabled={pending}
           aria-label={active ? `${active.label} — tap to undo` : "React"}
           aria-pressed={Boolean(reaction)}
+          aria-expanded={open}
+          aria-controls={open ? toolbarId : undefined}
           className={`icon-button relative min-h-11 gap-1.5 overflow-visible px-3.5 text-sm ${
             reaction
               ? "border-[var(--signal-deep)] bg-[var(--signal-soft)] text-[var(--signal-deep)]"
@@ -132,6 +170,22 @@ export function ReactionButton({
           }`}
           style={active ? { color: active.color } : undefined}
           onClick={() => onToggle()}
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+            event.preventDefault();
+            setOpen(true);
+            window.requestAnimationFrame(() => {
+              const buttons =
+                rootRef.current?.querySelectorAll<HTMLButtonElement>(
+                  `#${CSS.escape(toolbarId)} button:not([disabled])`,
+                );
+              const target =
+                event.key === "ArrowUp"
+                  ? buttons?.[buttons.length - 1]
+                  : buttons?.[0];
+              target?.focus();
+            });
+          }}
           onContextMenu={(e) => {
             e.preventDefault();
             setOpen(true);
@@ -146,12 +200,9 @@ export function ReactionButton({
           onTouchEnd={clearLongPress}
           onTouchCancel={clearLongPress}
           animate={
-            reduceMotion || !burstKey
-              ? undefined
-              : { scale: [1, 1.28, 1] }
+            reduceMotion || !burstKey ? undefined : { scale: [1, 1.28, 1] }
           }
           transition={{ duration: 0.28, ease: "easeOut" }}
-          key={burstKey}
         >
           <span className="text-base leading-none" aria-hidden>
             {active ? active.emoji : "👍"}

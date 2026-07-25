@@ -4,7 +4,10 @@ import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/modules/auth/password";
-import { bumpSessionVersion, sendSecurityAlert } from "@/modules/auth/security";
+import {
+  invalidateAllUserSessions,
+  sendSecurityAlert,
+} from "@/modules/auth/security";
 
 export async function POST(request: Request) {
   try {
@@ -37,11 +40,7 @@ export async function POST(request: Request) {
       where: { id: user.id },
       data: { passwordHash, passwordChangedAt: new Date() },
     });
-    await prisma.deviceSession.updateMany({
-      where: { userId: user.id },
-      data: { revokedAt: new Date() },
-    });
-    await bumpSessionVersion(user.id);
+    await invalidateAllUserSessions(user.id);
     await sendSecurityAlert(
       user.id,
       "Your Relune password was changed. All other sessions were signed out.",

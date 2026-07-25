@@ -6,6 +6,8 @@ import { cacheDelPrefix } from "@/lib/cache";
 import { AppError } from "@/lib/errors";
 import { ROLE_RANK } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { invalidateUserEmailTokens } from "@/modules/auth/email-tokens";
+import { invalidateAllUserSessions } from "@/modules/auth/security";
 import {
   assertCanManageOfficialAccount,
   assertOfficialAccountProtected,
@@ -149,7 +151,6 @@ export async function updateUserAdmin(
     handle?: string;
     bio?: string;
     role?: Role;
-    status?: AccountStatus;
     isVerified?: boolean;
     trustScore?: number;
     locale?: string;
@@ -178,7 +179,6 @@ export async function updateUserAdmin(
       handle: data.handle,
       bio: data.bio,
       role: data.role,
-      status: data.status,
       isVerified: data.isVerified,
       trustScore: data.trustScore,
       locale: data.locale,
@@ -210,6 +210,8 @@ export async function suspendUser(
     data: { status: "SUSPENDED", banReason: reason ?? "Suspended by staff" },
     select: userSelect,
   });
+  await invalidateAllUserSessions(userId);
+  await invalidateUserEmailTokens(userId);
   await writeAudit({
     actorId,
     action: "admin.user.suspend",
@@ -246,6 +248,8 @@ export async function banUser(
     },
     select: userSelect,
   });
+  await invalidateAllUserSessions(userId);
+  await invalidateUserEmailTokens(userId);
   await writeAudit({
     actorId,
     action: opts.permanent
@@ -298,7 +302,8 @@ export async function softDeleteUser(
     },
     select: userSelect,
   });
-  await prisma.deviceSession.deleteMany({ where: { userId } });
+  await invalidateAllUserSessions(userId);
+  await invalidateUserEmailTokens(userId);
   await writeAudit({ actorId, action: "admin.user.delete", target: userId });
   await cacheDelPrefix("admin:");
   return updated;
@@ -317,7 +322,7 @@ export async function resetUserPassword(
   if (newPassword.length < 8) throw new AppError("Password too short", 400);
   const passwordHash = await bcrypt.hash(newPassword, 12);
   await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
-  await prisma.deviceSession.deleteMany({ where: { userId } });
+  await invalidateAllUserSessions(userId);
   await writeAudit({
     actorId,
     action: "admin.user.reset_password",
@@ -414,8 +419,7 @@ export async function logoutAllDevices(
   if (!target) throw new AppError("User not found", 404);
   assertCanManage(actorRole, target, actorId);
   assertOfficialAccountProtected(target);
-  await prisma.deviceSession.deleteMany({ where: { userId } });
-  await prisma.session.deleteMany({ where: { userId } });
+  await invalidateAllUserSessions(userId);
   await writeAudit({
     actorId,
     action: "admin.user.logout_all",

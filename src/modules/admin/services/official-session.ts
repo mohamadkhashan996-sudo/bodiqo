@@ -1,7 +1,7 @@
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { createAuthChallenge } from "@/modules/auth/challenges";
 import { writeAudit } from "@/modules/admin/services/audit";
+import { createAuthChallenge } from "@/modules/auth/challenges";
 import {
   assertIsSuperAdmin,
   getOfficialUserId,
@@ -55,8 +55,11 @@ export async function openOfficialAccountSession(
 
   const admin = await prisma.user.findUniqueOrThrow({
     where: { id: actor.id },
-    select: { id: true, sessionVersion: true, role: true },
+    select: { id: true, sessionVersion: true, role: true, status: true },
   });
+  if (admin.role !== "SUPER_ADMIN" || admin.status !== "ACTIVE") {
+    throw new AppError("Only the active Super Admin can manage Relune", 403);
+  }
 
   const token = await createAuthChallenge(
     official.id,

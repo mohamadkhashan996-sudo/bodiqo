@@ -6,7 +6,6 @@ import type { MediaKind } from "@prisma/client";
 
 import { fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
-import { isMediaUrl } from "@/lib/media-url";
 import {
   ALLOWED_MIME,
   extFor,
@@ -15,6 +14,7 @@ import {
   resolveMaxBytes,
   sniffKind,
 } from "@/lib/media-processing";
+import { isMediaUrl } from "@/lib/media-url";
 import { prisma } from "@/lib/prisma";
 import { getSetting } from "@/modules/admin/services/settings";
 

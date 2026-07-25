@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -24,17 +31,20 @@ import { EmptyState, Skeleton } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MediaImage } from "@/components/ui/media-image";
 import { useSocket } from "@/hooks/use-socket";
-import { ACCEPT_BY_PURPOSE } from "@/lib/media-accept";
 import { compressImageFile } from "@/lib/image-compress";
+import { ACCEPT_BY_PURPOSE } from "@/lib/media-accept";
 import { linkifyPostBody } from "@/lib/post-body";
-import { REACTION_META, REACTION_TYPES, type ReactionKey } from "@/lib/reactions";
+import {
+  REACTION_META,
+  REACTION_TYPES,
+  type ReactionKey,
+} from "@/lib/reactions";
 import { uploadFile } from "@/lib/upload-client";
 import { appendUniqueById } from "@/lib/utils";
 import type { FeedComment, FeedReaction } from "@/types/feed";
 
 const ReportDialog = dynamic(
-  () =>
-    import("@/components/social/report-dialog").then((m) => m.ReportDialog),
+  () => import("@/components/social/report-dialog").then((m) => m.ReportDialog),
   { ssr: false },
 );
 
@@ -154,10 +164,7 @@ function patchLike(
   });
 }
 
-function removeComments(
-  list: FeedComment[],
-  ids: Set<string>,
-): FeedComment[] {
+function removeComments(list: FeedComment[], ids: Set<string>): FeedComment[] {
   return list
     .filter((c) => !ids.has(c.id))
     .map((c) => {
@@ -166,7 +173,10 @@ function removeComments(
       return {
         ...c,
         replies,
-        replyCount: Math.max(0, (c.replyCount ?? 0) - (c.replies.length - replies.length)),
+        replyCount: Math.max(
+          0,
+          (c.replyCount ?? 0) - (c.replies.length - replies.length),
+        ),
       };
     });
 }
@@ -215,14 +225,16 @@ export function CommentsPanel({
     local?: string;
   } | null>(null);
   const [uploadingMedia, setUploadingMedia] = useState(false);
-  const [replyCursors, setReplyCursors] = useState<Record<string, string | null>>(
-    {},
-  );
+  const [replyCursors, setReplyCursors] = useState<
+    Record<string, string | null>
+  >({});
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(
     () => new Set(),
   );
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaRef = useRef<HTMLInputElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
+  const emojiPanelId = useId();
   const sheet = variant === "sheet";
 
   const totalVisible = useMemo(() => {
@@ -284,7 +296,9 @@ export function CommentsPanel({
         );
         onCommentCountChange?.(event.commentCount);
       } else if (event.type === "deleted") {
-        const ids = new Set(event.deletedIds?.length ? event.deletedIds : [event.commentId]);
+        const ids = new Set(
+          event.deletedIds?.length ? event.deletedIds : [event.commentId],
+        );
         setComments((old) => removeComments(old, ids));
         onCommentCountChange?.(event.commentCount);
       } else if (event.type === "updated") {
@@ -293,7 +307,10 @@ export function CommentsPanel({
         );
       } else if (event.type === "pinned") {
         setComments((old) => {
-          const cleared = clearPins(old, event.isPinned ? event.commentId : undefined);
+          const cleared = clearPins(
+            old,
+            event.isPinned ? event.commentId : undefined,
+          );
           return patchComment(cleared, event.commentId, {
             isPinned: event.isPinned,
           });
@@ -305,9 +322,7 @@ export function CommentsPanel({
             event.commentId,
             event.likeCount,
             me && event.userId === me ? event.liked : undefined,
-            me && event.userId === me
-              ? (event.reaction ?? null)
-              : undefined,
+            me && event.userId === me ? (event.reaction ?? null) : undefined,
           ),
         );
       }
@@ -401,8 +416,7 @@ export function CommentsPanel({
     const next = type;
     if (previous === next) return;
 
-    const countDelta =
-      previous && next ? 0 : next ? 1 : previous ? -1 : 0;
+    const countDelta = previous && next ? 0 : next ? 1 : previous ? -1 : 0;
     setLikePending(comment.id);
     setComments((old) =>
       patchLike(
@@ -446,13 +460,7 @@ export function CommentsPanel({
       );
     } catch {
       setComments((old) =>
-        patchLike(
-          old,
-          comment.id,
-          comment.likeCount ?? 0,
-          wasLiked,
-          previous,
-        ),
+        patchLike(old, comment.id, comment.likeCount ?? 0, wasLiked, previous),
       );
     } finally {
       setLikePending(null);
@@ -576,7 +584,10 @@ export function CommentsPanel({
         ? expandedReplies.has(comment.id) || replies.length > 0
         : true;
     const canNestReply = depth < 2;
-    const indent = depth > 0 ? "ml-8 border-l-2 border-[var(--mist-strong)]/60 pl-3 sm:ml-10" : "";
+    const indent =
+      depth > 0
+        ? "ml-8 border-l-2 border-[var(--mist-strong)]/60 pl-3 sm:ml-10"
+        : "";
 
     return (
       <div key={comment.id} className={indent}>
@@ -622,7 +633,9 @@ export function CommentsPanel({
                 <Input
                   value={editBody}
                   onChange={(e) => setEditBody(e.target.value.slice(0, 2000))}
-                  className={sheet ? "border-white/20 bg-white/10 text-white" : ""}
+                  className={
+                    sheet ? "border-white/20 bg-white/10 text-white" : ""
+                  }
                 />
                 <div className="flex gap-2">
                   <Button
@@ -897,7 +910,10 @@ export function CommentsPanel({
         )}
 
         {error ? (
-          <p className="mb-3 text-xs font-semibold text-[var(--danger)]" role="alert">
+          <p
+            className="mb-3 text-xs font-semibold text-[var(--danger)]"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}
@@ -992,6 +1008,16 @@ export function CommentsPanel({
 
         {emojiOpen ? (
           <div
+            id={emojiPanelId}
+            role="toolbar"
+            aria-label="Choose an emoji"
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              event.stopPropagation();
+              setEmojiOpen(false);
+              emojiButtonRef.current?.focus();
+            }}
             className={`mb-2 grid grid-cols-6 gap-1 rounded-2xl p-2 ${
               sheet
                 ? "bg-white/10"
@@ -1002,6 +1028,7 @@ export function CommentsPanel({
               <button
                 key={emoji}
                 type="button"
+                aria-label={`Insert ${emoji}`}
                 onClick={() => insertEmoji(emoji)}
                 className="grid place-items-center rounded-xl py-2 text-xl transition hover:scale-110"
               >
@@ -1024,6 +1051,7 @@ export function CommentsPanel({
             }}
           />
           <button
+            ref={emojiButtonRef}
             type="button"
             onClick={() => {
               if (!requireAuth()) return;
@@ -1035,6 +1063,8 @@ export function CommentsPanel({
                 : "border-2 border-[var(--mist-strong)] text-[var(--muted-strong)]"
             }`}
             aria-label="Emoji"
+            aria-expanded={emojiOpen}
+            aria-controls={emojiOpen ? emojiPanelId : undefined}
           >
             <Smile className="size-4" />
           </button>
@@ -1066,6 +1096,7 @@ export function CommentsPanel({
               if (!requireAuth()) e.preventDefault();
             }}
             placeholder={replyTo ? "Write a reply…" : "Add a comment…"}
+            aria-label={replyTo ? "Write a reply" : "Add a comment"}
             className={`min-w-0 flex-1 ${
               sheet
                 ? "border-white/20 bg-white/10 text-white placeholder:text-white/45"

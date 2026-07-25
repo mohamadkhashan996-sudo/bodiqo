@@ -4,7 +4,10 @@ import { body, fail, guardApiAbuse, ok } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { consumeEmailToken } from "@/modules/auth/email-tokens";
 import { assertStrongPassword, hashPassword } from "@/modules/auth/password";
-import { bumpSessionVersion, sendSecurityAlert } from "@/modules/auth/security";
+import {
+  invalidateAllUserSessions,
+  sendSecurityAlert,
+} from "@/modules/auth/security";
 
 export async function POST(r: Request) {
   try {
@@ -27,11 +30,7 @@ export async function POST(r: Request) {
         lockedUntil: null,
       },
     });
-    await prisma.deviceSession.updateMany({
-      where: { userId: record.userId },
-      data: { revokedAt: new Date() },
-    });
-    await bumpSessionVersion(record.userId);
+    await invalidateAllUserSessions(record.userId);
     await sendSecurityAlert(
       record.userId,
       "Your Relune password was reset. If you didn’t request this, contact support immediately.",

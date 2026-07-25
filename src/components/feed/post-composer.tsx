@@ -92,8 +92,7 @@ export function PostComposer({
               durationMs: Math.round(probe.durationSec * 1000),
               thumbUrl: thumb.url,
               signal: controller.signal,
-              onProgress: (p) =>
-                setUploadProgress(20 + Math.round(p * 0.8)),
+              onProgress: (p) => setUploadProgress(20 + Math.round(p * 0.8)),
             });
             uploaded.push({
               url: data.url,
@@ -413,9 +412,7 @@ export function PostComposer({
         <label className="text-xs text-[var(--muted)]">Visibility</label>
         <select
           value={visibility}
-          onChange={(e) =>
-            setVisibility(e.target.value as typeof visibility)
-          }
+          onChange={(e) => setVisibility(e.target.value as typeof visibility)}
           className="rounded-xl border-2 border-[var(--mist-strong)] bg-[var(--surface)] px-3 py-2 text-sm"
           aria-label="Post visibility"
         >
@@ -435,6 +432,7 @@ export function PostComposer({
         <CalendarClock className="size-4 text-[var(--muted)]" />
         <Input
           type="datetime-local"
+          aria-label="Schedule publication"
           value={scheduleAt}
           onChange={(e) => setScheduleAt(e.target.value)}
           className="max-w-xs"

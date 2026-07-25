@@ -118,7 +118,10 @@ export default function SearchPage() {
     ]).catch(() => {});
   }, []);
 
-  async function runSearch(q: string, opts?: { record?: boolean; type?: string }) {
+  async function runSearch(
+    q: string,
+    opts?: { record?: boolean; type?: string },
+  ) {
     const trimmed = q.trim();
     if (!trimmed) return;
     setLoading(true);
@@ -230,6 +233,7 @@ export default function SearchPage() {
         <form
           onSubmit={submit}
           className="relative mt-8 flex flex-col gap-3 sm:flex-row"
+          role="search"
         >
           <div className="relative min-w-0 flex-1">
             <Input
@@ -242,9 +246,19 @@ export default function SearchPage() {
               className="w-full"
               autoFocus
               autoComplete="off"
+              role="combobox"
+              aria-label="Search Relune"
+              aria-autocomplete="list"
+              aria-expanded={hasSuggest}
+              aria-controls={hasSuggest ? "search-suggestions" : undefined}
             />
             {hasSuggest ? (
-              <div className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-20 max-h-80 overflow-auto rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-2 shadow-[var(--shadow-md)]">
+              <div
+                id="search-suggestions"
+                role="listbox"
+                aria-label="Search suggestions"
+                className="absolute inset-x-0 top-[calc(100%+0.5rem)] z-20 max-h-80 overflow-auto rounded-[var(--radius-xl)] border-2 border-[var(--mist-strong)] bg-[var(--surface)] p-2 shadow-[var(--shadow-md)]"
+              >
                 {suggestRecent.length ? (
                   <div className="mb-2">
                     <p className="px-2 py-1 text-[11px] font-semibold tracking-wide text-[var(--muted)] uppercase">
@@ -254,6 +268,8 @@ export default function SearchPage() {
                       <button
                         key={row.id}
                         type="button"
+                        role="option"
+                        aria-selected="false"
                         className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm hover:bg-[var(--mist)]"
                         onClick={() => {
                           setQuery(row.query);
@@ -275,6 +291,8 @@ export default function SearchPage() {
                       <Link
                         key={user.id}
                         href={`/u/${user.handle}`}
+                        role="option"
+                        aria-selected="false"
                         className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-[var(--mist)]"
                         onClick={() => setShowSuggest(false)}
                       >
@@ -304,11 +322,13 @@ export default function SearchPage() {
                         <Link
                           key={tag.id ?? name}
                           href={`/hashtag/${encodeURIComponent(name)}`}
+                          role="option"
+                          aria-selected="false"
                           className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-[var(--mist)]"
                           onClick={() => setShowSuggest(false)}
                         >
-                          <Hash className="size-3.5 text-[var(--signal)]" />
-                          #{name}
+                          <Hash className="size-3.5 text-[var(--signal)]" />#
+                          {name}
                         </Link>
                       );
                     })}

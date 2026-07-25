@@ -292,8 +292,14 @@ function SignInForm() {
           </button>
           {phoneStep === "request" ? (
             <form onSubmit={sendPhoneCode} className="space-y-4">
-              <Field label="Phone number">
-                <PhoneInput value={phone} onChange={setPhone} required />
+              <Field label="Phone number" htmlFor="sign-in-phone">
+                <PhoneInput
+                  id="sign-in-phone"
+                  name="phone"
+                  value={phone}
+                  onChange={setPhone}
+                  required
+                />
               </Field>
               <Button
                 type="submit"

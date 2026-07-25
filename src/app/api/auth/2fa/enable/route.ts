@@ -4,6 +4,7 @@ import { z } from "zod";
 import { body, fail, guardApiAbuse, ok, requireUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { disconnectDeviceSockets } from "@/lib/socket";
 import { auth } from "@/modules/auth/auth";
 import { sendSecurityAlert } from "@/modules/auth/security";
 import { markDeviceSessionsRevoked } from "@/modules/auth/session-validity";
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
       data: { revokedAt: new Date() },
     });
     await markDeviceSessionsRevoked(others.map((s) => s.sessionKey));
+    disconnectDeviceSockets(others.map((s) => s.sessionKey));
 
     const recoveryCodes = await generateBackupCodes(user.id);
     await sendSecurityAlert(

@@ -1,6 +1,7 @@
 import { AppError } from "@/lib/errors";
+import type {
+  DEFAULT_FEATURE_FLAGS} from "@/modules/admin/services/payments";
 import {
-  DEFAULT_FEATURE_FLAGS,
   getFeatureFlags,
 } from "@/modules/admin/services/payments";
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   BadgeCheck,
   Bookmark,
@@ -11,6 +11,7 @@ import {
   Music2,
   Share2,
 } from "lucide-react";
+
 import { OfficialBadge } from "@/components/brand/official-badge";
 
 const REELS = [

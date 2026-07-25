@@ -4,11 +4,11 @@ import { AppError } from "@/lib/errors";
 import { extractMentions } from "@/lib/post-text";
 import { prisma } from "@/lib/prisma";
 import { getIo } from "@/lib/socket";
-import { fanoutPush } from "@/modules/notifications/services/push";
 import {
   categoryAllowsType,
   getNotificationPreferences,
 } from "@/modules/notifications/services/prefs";
+import { fanoutPush } from "@/modules/notifications/services/push";
 
 type NotificationInput = {
   userId: string;

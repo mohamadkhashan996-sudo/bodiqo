@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { MessageCircleHeart, Plus, Search, Users } from "lucide-react";
-import type { FormEvent } from "react";
+import type { FormEvent, MouseEvent } from "react";
 
 import {
   ConversationList,
@@ -44,6 +44,7 @@ export default function MessagesPage() {
   const [query, setQuery] = useState("");
   const [groupOpen, setGroupOpen] = useState(false);
   const [dmOpen, setDmOpen] = useState(false);
+  const dmTriggerRef = useRef<HTMLButtonElement>(null);
   const [groupTitle, setGroupTitle] = useState("");
   const [memberQuery, setMemberQuery] = useState("");
   const [dmQuery, setDmQuery] = useState("");
@@ -163,6 +164,11 @@ export default function MessagesPage() {
     router.push(`/messages/${data.conversation.id}`);
   }
 
+  function openDm(event: MouseEvent<HTMLButtonElement>) {
+    dmTriggerRef.current = event.currentTarget;
+    setDmOpen(true);
+  }
+
   return (
     <PageTransition className="page-shell page-stack">
       <section className="glass-strong premium-ring hero-panel">
@@ -178,11 +184,7 @@ export default function MessagesPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setDmOpen(true)}
-            >
+            <Button type="button" variant="outline" onClick={openDm}>
               <Plus className="size-4" />
               New message
             </Button>
@@ -216,15 +218,11 @@ export default function MessagesPage() {
             <h2 className="mt-6 font-[family-name:var(--font-display)] text-3xl">
               A quieter kind of close.
             </h2>
-            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
+            <p className="mt-3 text-sm leading-6 text-[var(--muted-strong)]">
               Start a direct message, open a group, or search across your chats.
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDmOpen(true)}
-              >
+              <Button type="button" variant="outline" onClick={openDm}>
                 <Plus className="size-4" />
                 New message
               </Button>
@@ -237,7 +235,12 @@ export default function MessagesPage() {
         </motion.div>
       </div>
 
-      <Modal open={dmOpen} onClose={() => setDmOpen(false)} title="New message">
+      <Modal
+        open={dmOpen}
+        onClose={() => setDmOpen(false)}
+        title="New message"
+        returnFocusRef={dmTriggerRef}
+      >
         <div className="space-y-4">
           <Input
             value={dmQuery}

@@ -2,6 +2,14 @@ import { AppError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { hashToken, randomToken } from "@/lib/tokens";
 
+/** Invalidate unused email tokens (ban/suspend/security). */
+export async function invalidateUserEmailTokens(userId: string) {
+  await prisma.emailToken.updateMany({
+    where: { userId, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+}
+
 export async function createEmailToken(
   userId: string,
   email: string,

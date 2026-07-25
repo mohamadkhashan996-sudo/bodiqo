@@ -4,7 +4,7 @@ import type {
   Prisma,
   ReactionType,
 } from "@prisma/client";
-import { PostStatus, PostType } from "@prisma/client";
+import type { PostStatus, PostType } from "@prisma/client";
 
 import {
   assertContentSafe,
@@ -19,12 +19,13 @@ import {
   bumpReactionCount,
   emptyReactionCounts,
   normalizeReactionCounts,
-  totalReactions,
   type ReactionCounts,
   type ReactionKey,
+  totalReactions,
 } from "@/lib/reactions";
 import { uniqueById } from "@/lib/utils";
 import { getSetting } from "@/modules/admin/services/settings";
+import type { ViewerAffinity } from "@/modules/feed/services/affinity";
 import { rankPosts } from "@/modules/feed/services/rank";
 import { notifyMentions } from "@/modules/notifications/services/notify";
 import {
@@ -204,9 +205,9 @@ export async function createPost(
     data.locationName === undefined
       ? undefined
       : data.locationName?.trim().slice(0, 120) || null;
-  let locationLat =
+  const locationLat =
     data.locationLat === undefined ? undefined : data.locationLat;
-  let locationLng =
+  const locationLng =
     data.locationLng === undefined ? undefined : data.locationLng;
   if (
     (locationLat != null && !Number.isFinite(locationLat)) ||
@@ -425,6 +426,15 @@ export async function unarchivePost(authorId: string, id: string) {
 }
 
 export async function deletePost(authorId: string, id: string) {
+  const existing = await prisma.post.findFirst({
+    where: { id, deletedAt: null },
+    select: { id: true, authorId: true },
+  });
+  if (!existing) throw new AppError("Post not found", 404);
+  if (existing.authorId !== authorId) {
+    throw new AppError("You can only delete your own posts", 403);
+  }
+
   const post = await prisma.post.findFirst({
     where: { id, authorId, deletedAt: null },
     include: { hashtags: { include: { hashtag: { select: { tag: true } } } } },
@@ -433,10 +443,18 @@ export async function deletePost(authorId: string, id: string) {
   const isVideo = post.type === "VIDEO" || post.type === "SHORT";
   const wasPublished = post.status === "PUBLISHED";
   const deleted = await prisma.$transaction(async (tx) => {
-    const row = await tx.post.update({
-      where: { id },
+    const claimed = await tx.post.updateMany({
+      where: {
+        id,
+        authorId,
+        deletedAt: null,
+        status: post.status,
+      },
       data: { deletedAt: new Date(), status: "DELETED", isPinned: false },
     });
+    if (claimed.count !== 1) {
+      throw new AppError("Post not found", 404);
+    }
     if (wasPublished) {
       await tx.user.update({
         where: { id: authorId },
@@ -466,7 +484,7 @@ export async function deletePost(authorId: string, id: string) {
         });
       }
     }
-    return row;
+    return tx.post.findUniqueOrThrow({ where: { id } });
   });
   await invalidateFeedCaches().catch(() => undefined);
   return deleted;
@@ -624,10 +642,9 @@ export async function unlikePost(userId: string, postId: string) {
 
 export {
   bookmarkPost,
-  unbookmarkPost,
   getBookmarks,
+  unbookmarkPost,
 } from "@/modules/feed/services/bookmarks";
-
 export { sharePost } from "@/modules/feed/services/share";
 
 export async function recordPostView(
@@ -719,9 +736,7 @@ export async function getFeed({
   const hidden = userId ? await hiddenAuthorIds(userId) : [];
 
   let followingIds: string[] = [];
-  let affinity: Awaited<
-    ReturnType<typeof import("@/modules/feed/services/affinity").buildViewerAffinity>
-  > | null = null;
+  let affinity: ViewerAffinity | null = null;
 
   const wantsAffinity =
     personalize &&
@@ -1035,9 +1050,7 @@ async function loadShorts(
   const windowStart = new Date(Date.now() - 21 * 24 * 60 * 60_000);
 
   let followingIds: string[] = [];
-  let affinity: Awaited<
-    ReturnType<typeof import("@/modules/feed/services/affinity").buildViewerAffinity>
-  > | null = null;
+  let affinity: ViewerAffinity | null = null;
   if (viewerId && (ranked || followingOnly)) {
     if (ranked) {
       const { buildViewerAffinity } = await import(
@@ -1240,15 +1253,13 @@ export async function serializePosts<
       reactionCounts.LIKE = likeCount;
     }
 
-    const {
-      bookmarkCount: _bookmarkCount,
-      viewCount: _viewCount,
-      ...rest
-    } = post as T & {
+    const rest = { ...post } as T & {
       bookmarkCount?: number;
       viewCount?: number;
       hashtags?: { hashtag: unknown }[];
     };
+    delete rest.bookmarkCount;
+    delete rest.viewCount;
 
     return {
       ...rest,

@@ -18,9 +18,9 @@ import {
   X,
 } from "lucide-react";
 
+import { ReportDialog } from "@/components/social/report-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ReportDialog } from "@/components/social/report-dialog";
 import { useSocket } from "@/hooks/use-socket";
 import { dispatchCallStart } from "@/lib/call-events";
 import {
@@ -475,7 +475,7 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
     body: string;
     type: string;
     mediaUrl?: string;
-  }) {
+  }): Promise<boolean> {
     const input: Record<string, unknown> = {
       type: payload.type,
       body: payload.body,
@@ -504,27 +504,33 @@ export function ChatThread({ conversationId }: { conversationId: string }) {
         window.alert(
           "Couldn’t encrypt this message. It was not sent. Try again.",
         );
-        return;
+        return false;
       }
     }
 
-    const response = await fetch(
-      `/api/conversations/${conversationId}/messages`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      },
-    );
-    const data = await response.json();
-    if (data.message) {
-      setMessages((old) =>
-        old.some((item) => item.id === data.message.id)
-          ? old
-          : [...old, data.message],
+    try {
+      const response = await fetch(
+        `/api/conversations/${conversationId}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        },
       );
+      if (!response.ok) return false;
+      const data = await response.json();
+      if (data.message) {
+        setMessages((old) =>
+          old.some((item) => item.id === data.message.id)
+            ? old
+            : [...old, data.message],
+        );
+      }
+      setReply(null);
+      return true;
+    } catch {
+      return false;
     }
-    setReply(null);
   }
 
   const typing = useCallback(

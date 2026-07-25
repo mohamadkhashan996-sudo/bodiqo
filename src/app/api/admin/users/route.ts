@@ -1,4 +1,4 @@
-import { AccountStatus, Role } from "@prisma/client";
+import { type AccountStatus, Role } from "@prisma/client";
 import { z } from "zod";
 
 import { body, fail, guardApiAbuse, ok, requireStaff } from "@/lib/api";
@@ -61,13 +61,15 @@ export async function PATCH(request: Request) {
         handle: z.string().min(2).max(32).optional(),
         bio: z.string().max(500).optional(),
         role: z.nativeEnum(Role).optional(),
-        status: z.nativeEnum(AccountStatus).optional(),
         isVerified: z.boolean().optional(),
         trustScore: z.number().int().min(0).max(100).optional(),
         locale: z.string().max(12).optional(),
       }),
     );
     const { userId, ...patch } = data;
+    if (patch.role) {
+      await requireStaff("roles:write");
+    }
     return ok(await updateUserAdmin(staff.id, staff.role, userId, patch));
   } catch (e) {
     return fail(e);

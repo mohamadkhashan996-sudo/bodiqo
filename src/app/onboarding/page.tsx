@@ -7,8 +7,8 @@ import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
-import { ACCEPT_BY_PURPOSE } from "@/lib/media-accept";
 import { compressImageFile } from "@/lib/image-compress";
+import { ACCEPT_BY_PURPOSE } from "@/lib/media-accept";
 import { uploadFile } from "@/lib/upload-client";
 import type { InterestItem } from "@/types/feed";
 

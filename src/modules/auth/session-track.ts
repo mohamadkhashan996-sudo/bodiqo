@@ -53,7 +53,6 @@ export async function upsertDeviceSession({
       ip: ip ?? undefined,
       deviceLabel: label ?? undefined,
       lastActiveAt: new Date(),
-      revokedAt: null,
     },
   });
 }

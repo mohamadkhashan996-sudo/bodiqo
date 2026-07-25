@@ -1,8 +1,12 @@
 import { logger } from "@/lib/logger";
 import { securityAlertEmail, sendMail } from "@/lib/mail";
 import { prisma } from "@/lib/prisma";
+import { disconnectUserSockets } from "@/lib/socket";
 import { hashOpaque } from "@/modules/auth/password";
-import { publishSessionVersion } from "@/modules/auth/session-validity";
+import {
+  markDeviceSessionsRevoked,
+  publishSessionVersion,
+} from "@/modules/auth/session-validity";
 
 export async function bumpSessionVersion(userId: string) {
   const updated = await prisma.user.update({
@@ -11,6 +15,22 @@ export async function bumpSessionVersion(userId: string) {
     select: { sessionVersion: true },
   });
   await publishSessionVersion(userId, updated.sessionVersion);
+}
+
+/** Revoke every device session and bump JWT sessionVersion (admin/security). */
+export async function invalidateAllUserSessions(userId: string) {
+  const active = await prisma.deviceSession.findMany({
+    where: { userId, revokedAt: null },
+    select: { sessionKey: true },
+  });
+  await prisma.deviceSession.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  await prisma.session.deleteMany({ where: { userId } }).catch(() => undefined);
+  await markDeviceSessionsRevoked(active.map((s) => s.sessionKey));
+  await bumpSessionVersion(userId);
+  disconnectUserSockets(userId);
 }
 
 export async function sendSecurityAlert(userId: string, detail: string) {

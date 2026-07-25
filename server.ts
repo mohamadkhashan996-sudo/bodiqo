@@ -12,9 +12,8 @@ import { Server } from "socket.io";
 import { assertBootEnv, socketAllowedOrigins } from "./src/config/env";
 import { installProcessErrorHandlers } from "./src/lib/error-tracking";
 import { logger } from "./src/lib/logger";
-import { rateLimit } from "./src/lib/rate-limit";
-import { canViewPostContent } from "./src/modules/users/services/visibility";
 import { prisma } from "./src/lib/prisma";
+import { rateLimit } from "./src/lib/rate-limit";
 import {
   clearSocketLiveViewers,
   clearUserActiveChats,
@@ -25,6 +24,7 @@ import {
   trackLiveViewerJoin,
   trackLiveViewerLeave,
 } from "./src/lib/socket";
+import { isJwtSessionActive } from "./src/modules/auth/session-validity";
 import {
   assertCanJoinLive,
   blockViewer,
@@ -57,6 +57,7 @@ import {
 } from "./src/modules/messaging/services/messages";
 import { shouldShowTyping } from "./src/modules/messaging/services/privacy-gate";
 import { createNotification } from "./src/modules/notifications/services/notify";
+import { canViewPostContent } from "./src/modules/users/services/visibility";
 
 installProcessErrorHandlers();
 const dev = process.env.NODE_ENV !== "production";
@@ -64,7 +65,17 @@ const app = next({ dev });
 const handler = app.getRequestHandler();
 const presenceSockets = new Map<string, Set<string>>();
 
-type AuthedSocket = Socket & { userId: string };
+type SocketAuthToken = {
+  sub: string;
+  sessionVersion: number;
+  sessionKey: string;
+  impersonatorId?: string;
+  impersonatorSessionVersion?: number;
+};
+type AuthedSocket = Socket & {
+  userId: string;
+  authToken: SocketAuthToken;
+};
 type Ack = (result: { ok: boolean; data?: unknown; error?: string }) => void;
 const ack = (callback: unknown, work: () => Promise<unknown>) => {
   void work()
@@ -104,7 +115,14 @@ async function resolveToken(req: { headers: Record<string, string> }) {
       secret,
       cookieName,
     });
-    if (token?.sub) return token;
+    if (!token?.sub) continue;
+    const active = await isJwtSessionActive({
+      sub: token.sub,
+      sessionVersion: token.sessionVersion,
+      sessionKey: token.sessionKey,
+    });
+    if (!active) return null;
+    return token;
   }
   return null;
 }
@@ -188,7 +206,24 @@ void app.prepare().then(async () => {
       );
       const token = await resolveToken({ headers });
       if (!token?.sub) return nextMiddleware(new Error("Unauthorized"));
-      (socket as AuthedSocket).userId = token.sub;
+      if (!(await isJwtSessionActive(token))) {
+        return nextMiddleware(new Error("Unauthorized"));
+      }
+      const authed = socket as AuthedSocket;
+      authed.userId = token.sub;
+      authed.authToken = {
+        sub: token.sub,
+        sessionVersion: token.sessionVersion as number,
+        sessionKey: token.sessionKey as string,
+        impersonatorId:
+          typeof token.impersonatorId === "string"
+            ? token.impersonatorId
+            : undefined,
+        impersonatorSessionVersion:
+          typeof token.impersonatorSessionVersion === "number"
+            ? token.impersonatorSessionVersion
+            : undefined,
+      };
       return nextMiddleware();
     } catch {
       return nextMiddleware(new Error("Unauthorized"));
@@ -197,8 +232,24 @@ void app.prepare().then(async () => {
 
   io.on("connection", async (rawSocket) => {
     const socket = rawSocket as AuthedSocket;
-    const { userId } = socket;
+    const { authToken, userId } = socket;
     socket.join(`user:${userId}`);
+    socket.join(`session:${authToken.sessionKey}`);
+    if (authToken.impersonatorId) {
+      socket.join(`impersonator:${authToken.impersonatorId}`);
+    }
+    socket.use(async (_packet, nextPacket) => {
+      try {
+        if (!(await isJwtSessionActive(authToken))) {
+          socket.disconnect(true);
+          return nextPacket(new Error("Unauthorized"));
+        }
+        return nextPacket();
+      } catch {
+        socket.disconnect(true);
+        return nextPacket(new Error("Unauthorized"));
+      }
+    });
     const set = presenceSockets.get(userId) ?? new Set<string>();
     const wasOffline = set.size === 0;
     set.add(socket.id);

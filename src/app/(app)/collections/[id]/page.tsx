@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 
 import { PostCard } from "@/components/feed/post-card";
 import { PageTransition } from "@/components/motion/primitives";

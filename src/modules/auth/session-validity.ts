@@ -53,31 +53,30 @@ export async function markDeviceSessionsRevoked(sessionKeys: string[]) {
 }
 
 /**
- * Fast path for middleware: reject JWTs whose sessionVersion is behind Redis,
- * or whose device session was revoked. Falls back to Prisma when Redis is down
- * (non-production may allow JWT-only).
+ * Fast path for middleware: Redis early-rejects revoked devices / stale
+ * sessionVersion. Account status and missing SV always go through Prisma.
  */
 export async function isJwtSessionActive(token: {
   sub?: string | null;
   sessionVersion?: unknown;
   sessionKey?: unknown;
+  impersonatorId?: unknown;
+  impersonatorSessionVersion?: unknown;
 }): Promise<boolean> {
   if (!token.sub) return false;
+  if (typeof token.sessionVersion !== "number") return false;
+  if (typeof token.sessionKey !== "string" || !token.sessionKey) return false;
 
   const redis = await getRedis();
   if (redis) {
     try {
-      if (typeof token.sessionKey === "string") {
-        const revoked = await redis.get(deviceRevokeKey(token.sessionKey));
-        if (revoked) return false;
-      }
+      const revoked = await redis.get(deviceRevokeKey(token.sessionKey));
+      if (revoked) return false;
       const published = await redis.get(svKey(token.sub));
       if (published != null) {
-        const tokenSv =
-          typeof token.sessionVersion === "number" ? token.sessionVersion : 0;
-        if (Number(published) !== tokenSv) return false;
+        if (Number(published) !== token.sessionVersion) return false;
       }
-      return true;
+      // Redis can early-reject; account status still needs Prisma.
     } catch {
       /* fall through to Prisma */
     }
@@ -91,18 +90,32 @@ export async function isJwtSessionActive(token: {
     !dbUser ||
     dbUser.status === "BANNED" ||
     dbUser.status === "DELETED" ||
-    (typeof token.sessionVersion === "number" &&
-      dbUser.sessionVersion !== token.sessionVersion)
+    dbUser.status === "SUSPENDED" ||
+    dbUser.sessionVersion !== token.sessionVersion
   ) {
     return false;
   }
 
-  if (typeof token.sessionKey === "string") {
-    const device = await prisma.deviceSession.findUnique({
-      where: { sessionKey: token.sessionKey },
-      select: { revokedAt: true },
+  const device = await prisma.deviceSession.findUnique({
+    where: { sessionKey: token.sessionKey },
+    select: { revokedAt: true, userId: true },
+  });
+  if (!device || device.revokedAt || device.userId !== token.sub) return false;
+
+  if (typeof token.impersonatorId === "string") {
+    if (typeof token.impersonatorSessionVersion !== "number") return false;
+    const impersonator = await prisma.user.findUnique({
+      where: { id: token.impersonatorId },
+      select: { role: true, status: true, sessionVersion: true },
     });
-    if (!device || device.revokedAt) return false;
+    if (
+      !impersonator ||
+      impersonator.role !== "SUPER_ADMIN" ||
+      impersonator.status !== "ACTIVE" ||
+      impersonator.sessionVersion !== token.impersonatorSessionVersion
+    ) {
+      return false;
+    }
   }
 
   return true;

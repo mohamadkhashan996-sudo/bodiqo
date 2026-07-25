@@ -20,9 +20,9 @@ import {
 
 import { useGuest } from "@/components/auth/guest-provider";
 import { VerificationBadge } from "@/components/brand/official-badge";
+import { ReactionButton } from "@/components/feed/reaction-button";
 import { Avatar } from "@/components/ui/avatar";
 import { MediaImage } from "@/components/ui/media-image";
-import { ReactionButton } from "@/components/feed/reaction-button";
 import { usePostBookmark } from "@/hooks/use-post-bookmark";
 import { usePostReaction } from "@/hooks/use-post-like";
 import { linkifyPostBody } from "@/lib/post-body";
@@ -44,8 +44,7 @@ const SaveToCollectionSheet = dynamic(
   { ssr: false },
 );
 const ReportDialog = dynamic(
-  () =>
-    import("@/components/social/report-dialog").then((m) => m.ReportDialog),
+  () => import("@/components/social/report-dialog").then((m) => m.ReportDialog),
   { ssr: false },
 );
 
@@ -195,7 +194,7 @@ export function PostCard({
   const [poll, setPoll] = useState<FeedPoll | null | undefined>(post.poll);
   const [voting, setVoting] = useState(false);
 
-  async function action(kind: "bookmark") {
+  async function bookmarkAction() {
     if (!bookmarked) {
       setSaveSheetOpen(true);
       return;
@@ -308,10 +307,8 @@ export function PostCard({
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted-strong)]">
             <time
               dateTime={
-                post.publishedAt ?? post.createdAt
-                  ? new Date(
-                      post.publishedAt ?? post.createdAt!,
-                    ).toISOString()
+                (post.publishedAt ?? post.createdAt)
+                  ? new Date(post.publishedAt ?? post.createdAt!).toISOString()
                   : undefined
               }
             >
@@ -417,6 +414,8 @@ export function PostCard({
         <button
           type="button"
           onClick={() => setComments(!comments)}
+          aria-label={comments ? "Hide comments" : "Show comments"}
+          aria-expanded={comments}
           className={`icon-button min-h-11 gap-1.5 px-3.5 text-sm ${comments ? "border-[var(--ink)] text-[var(--ink)]" : ""}`}
         >
           <MessageCircle className="size-4" />
@@ -426,7 +425,7 @@ export function PostCard({
         </button>
         <button
           type="button"
-          onClick={() => void action("bookmark")}
+          onClick={() => void bookmarkAction()}
           onContextMenu={(e) => {
             e.preventDefault();
             if (!requireAuth()) return;

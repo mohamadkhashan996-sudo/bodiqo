@@ -24,6 +24,16 @@ services:
         value: resend
       - key: RESEND_API_KEY
         sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: SMS_PROVIDER
+        value: twilio
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM
+        sync: false
       - key: DATABASE_URL
         fromDatabase:
           name: relune-db

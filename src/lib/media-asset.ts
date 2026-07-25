@@ -96,4 +96,4 @@ export function mediaKindFromClientLabel(
   }
 }
 
-export { isMediaUrl, mediaPathOwnerId, assertOwnedMediaUrl };
+export { assertOwnedMediaUrl,isMediaUrl, mediaPathOwnerId };

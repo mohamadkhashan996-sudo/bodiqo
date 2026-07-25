@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 import { createPortal } from "react-dom";
 
+import {
+  isTextEntryTarget,
+  isTopDialog,
+  useDialogFocus,
+} from "@/hooks/use-dialog-focus";
 import { cn } from "@/lib/utils";
 
 export function MediaLightbox({
@@ -21,31 +26,42 @@ export function MediaLightbox({
   const reduce = useReducedMotion();
   const [zoom, setZoom] = useState(1);
   const current = items[index];
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const { dialogId } = useDialogFocus({
+    open: Boolean(current),
+    onClose,
+    containerRef: dialogRef,
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (!isTopDialog(dialogId) || isTextEntryTarget(e.target)) return;
       if (e.key === "ArrowRight")
         onIndexChange(Math.min(items.length - 1, index + 1));
       if (e.key === "ArrowLeft") onIndexChange(Math.max(0, index - 1));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [index, items.length, onClose, onIndexChange]);
+  }, [dialogId, index, items.length, onIndexChange]);
 
   if (typeof document === "undefined" || !current) return null;
 
   return createPortal(
     <AnimatePresence>
       <motion.div
+        ref={dialogRef}
+        data-dialog-root=""
         className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) onClose();
+        }}
         role="dialog"
         aria-modal="true"
         aria-label="Media viewer"
+        tabIndex={-1}
       >
         <button
           type="button"

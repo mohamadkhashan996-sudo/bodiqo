@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { MediaImage } from "@/components/ui/media-image";
 import { site } from "@/config/site";
 import { prisma } from "@/lib/prisma";
-import { MediaImage } from "@/components/ui/media-image";
 
 type Props = { params: Promise<{ id: string }> };
 

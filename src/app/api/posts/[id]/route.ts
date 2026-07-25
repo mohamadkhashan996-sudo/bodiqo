@@ -52,7 +52,15 @@ export async function PATCH(
       return ok({ post: await unarchivePost(u.id, id) });
     }
 
-    const { archive: _archive, ...patch } = input;
+    const patch = {
+      body: input.body,
+      visibility: input.visibility,
+      commentsEnabled: input.commentsEnabled,
+      isPinned: input.isPinned,
+      locationName: input.locationName,
+      locationLat: input.locationLat,
+      locationLng: input.locationLng,
+    };
     return ok({
       post: await updatePost(u.id, id, patch),
     });

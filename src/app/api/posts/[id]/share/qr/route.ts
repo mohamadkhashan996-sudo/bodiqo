@@ -1,8 +1,8 @@
 import QRCode from "qrcode";
 
+import { site } from "@/config/site";
 import { fail, guardApiAbuse, ok, optionalUser } from "@/lib/api";
 import { AppError } from "@/lib/errors";
-import { site } from "@/config/site";
 import { assertCanInteractWithPost } from "@/modules/users/services/visibility";
 
 /** QR for the canonical post deep link (visibility-gated). */

@@ -7,12 +7,15 @@ import { logger } from "@/lib/logger";
 export async function sendSms(to: string, body: string) {
   const provider = (process.env.SMS_PROVIDER || "log").toLowerCase();
 
-  if (
-    provider === "twilio" &&
-    process.env.TWILIO_ACCOUNT_SID &&
-    process.env.TWILIO_AUTH_TOKEN &&
-    process.env.TWILIO_FROM
-  ) {
+  if (provider === "twilio") {
+    if (
+      !process.env.TWILIO_ACCOUNT_SID ||
+      !process.env.TWILIO_AUTH_TOKEN ||
+      !process.env.TWILIO_FROM
+    ) {
+      logger.error("sms_twilio_not_configured");
+      throw new Error("Twilio SMS delivery is not configured");
+    }
     const auth = Buffer.from(
       `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`,
     ).toString("base64");
